@@ -1,4 +1,4 @@
-FROM texlive/texlive:latest
+FROM python:3.12-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -6,9 +6,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    python3-venv \
-    python3-pip \
+    texlive-latex-base \
+    texlive-latex-recommended \
+    texlive-latex-extra \
+    texlive-fonts-recommended \
+    texlive-lang-european \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
