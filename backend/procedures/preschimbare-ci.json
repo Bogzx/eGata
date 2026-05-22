@@ -1,0 +1,20 @@
+{
+  "id": "preschimbare-ci",
+  "title": "Preschimbare carte de identitate",
+  "description": "Eliberare carte de identitate la expirare, pierdere sau schimbare domiciliu.",
+  "scope": "primarie",
+  "category": "evidenta-persoanelor",
+  "synonyms": ["buletin nou", "schimb buletin", "ci expirata"],
+  "sample_queries": [
+    "îmi expiră buletinul",
+    "vreau o carte de identitate nouă",
+    "mi-am pierdut buletinul"
+  ],
+  "fields": [
+    { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
+    { "name": "cnp",          "label": "CNP",          "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "motiv",        "label": "Motivul",      "source": "ask",     "options": ["expirare", "pierdere", "schimbare domiciliu", "deteriorare"], "required": true }
+  ],
+  "template": "preschimbare-ci.tex",
+  "next_steps": []
+}

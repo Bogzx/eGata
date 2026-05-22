@@ -1,0 +1,29 @@
+{
+  "id": "schimbare-domiciliu",
+  "title": "Schimbare domiciliu",
+  "description": "Înscrierea mențiunii de stabilire a domiciliului pe cartea de identitate.",
+  "scope": "primarie",
+  "category": "evidenta-persoanelor",
+  "synonyms": ["mutare", "schimbat adresa", "domiciliu nou", "transfer domiciliu"],
+  "sample_queries": [
+    "vreau să-mi schimb domiciliul",
+    "m-am mutat la altă adresă",
+    "trebuie să schimb adresa pe buletin",
+    "cum procedez când mă mut în alt oraș"
+  ],
+  "fields": [
+    { "name": "nume_complet",   "label": "Nume complet",   "source": "id_scan|profile", "required": true },
+    { "name": "cnp",            "label": "CNP",            "source": "id_scan|profile", "required": true, "redact_in_voice": true },
+    { "name": "adresa_curenta", "label": "Adresă curentă", "source": "id_scan|profile", "required": true },
+    { "name": "adresa_noua",    "label": "Adresă nouă",    "source": "ask",             "required": true },
+    { "name": "tip_proprietate","label": "Tip proprietate","source": "ask",             "options": ["proprietar", "chiriaș", "găzduit"], "required": true },
+    { "name": "motivul",        "label": "Motivul cererii","source": "ask",             "suggest_default": "Schimbare loc de muncă", "required": false }
+  ],
+  "template": "schimbare-domiciliu.tex",
+  "next_steps": [
+    { "kind": "in_scope_procedure", "procedure_id": "preschimbare-ci", "deadline_days": 15, "title": "Preschimbare carte de identitate" },
+    { "kind": "external_redirect",  "redirect_target": "DRPCIV", "deadline_days": 30, "title": "Actualizare certificat înmatriculare auto", "applies_if": "owns_vehicle == true" },
+    { "kind": "external_redirect",  "redirect_target": "CNAS", "title": "Actualizare medic de familie" },
+    { "kind": "external_redirect",  "redirect_target": "ANAF", "title": "Notificare schimbare domiciliu fiscal" }
+  ]
+}

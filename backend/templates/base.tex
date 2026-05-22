@@ -1,0 +1,21 @@
+% base.tex — common header used by all procedure templates via \input{base.tex}
+\usepackage[utf8]{inputenc}
+\usepackage[romanian]{babel}
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{lmodern}
+\usepackage{xcolor}
+\titleformat{\section}{\large\bfseries}{}{0pt}{}
+\setlength{\parindent}{0pt}
+\newcommand{\civictitle}[1]{{\Large\bfseries #1\par}\vspace{0.2cm}\hrule\vspace{0.5cm}}
+\newcommand{\identityblock}[3]{%
+  \textbf{Nume:} #1\\%
+  \textbf{CNP:} #2\\%
+  \textbf{Adresa actuală:} #3\\%
+  \vspace{0.4cm}%
+}
+\newcommand{\signatureblock}{%
+  \vspace{1.5cm}%
+  Data: \today \hfill Semnătura: \underline{\hspace{4cm}}%
+}

@@ -1,0 +1,951 @@
+openapi: 3.1.0
+info:
+  title: CivicAI
+  description: Civic AI agent for Romanian primărie procedures
+  version: 0.1.0
+paths:
+  /auth/login-roeid:
+    post:
+      tags:
+      - auth
+      summary: Login Roeid
+      operationId: login_roeid_auth_login_roeid_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginROeIDRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChallengeResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /auth/login-mrz:
+    post:
+      tags:
+      - auth
+      summary: Login Mrz
+      operationId: login_mrz_auth_login_mrz_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginMRZRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChallengeResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /auth/otp:
+    post:
+      tags:
+      - auth
+      summary: Otp
+      operationId: otp_auth_otp_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OTPResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /citizens/me:
+    get:
+      tags:
+      - citizens
+      summary: Me
+      operationId: me_citizens_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CitizenResponse'
+      security:
+      - HTTPBearer: []
+  /procedures:
+    get:
+      tags:
+      - procedures
+      summary: List Procedures
+      operationId: list_procedures_procedures_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/Procedure'
+                type: array
+                title: Response List Procedures Procedures Get
+  /procedures/{procedure_id}:
+    get:
+      tags:
+      - procedures
+      summary: Get Procedure
+      operationId: get_procedure_procedures__procedure_id__get
+      parameters:
+      - name: procedure_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Procedure Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Procedure'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /procedures/lookup:
+    post:
+      tags:
+      - procedures
+      summary: Lookup
+      operationId: lookup_procedures_lookup_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcedureLookupRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcedureLookupResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /documents:
+    get:
+      tags:
+      - documents
+      summary: List My Documents
+      operationId: list_my_documents_documents_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/DocumentResponse'
+                type: array
+                title: Response List My Documents Documents Get
+      security:
+      - HTTPBearer: []
+    post:
+      tags:
+      - documents
+      summary: Create Document
+      operationId: create_document_documents_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDocumentRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /documents/{document_id}:
+    get:
+      tags:
+      - documents
+      summary: Get Document
+      operationId: get_document_documents__document_id__get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Document Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /documents/{document_id}/fields:
+    patch:
+      tags:
+      - documents
+      summary: Patch Fields
+      operationId: patch_fields_documents__document_id__fields_patch
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Document Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchFieldsRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /documents/{document_id}/generate-pdf:
+    post:
+      tags:
+      - documents
+      summary: Generate Pdf
+      operationId: generate_pdf_documents__document_id__generate_pdf_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Document Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneratePDFResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /documents/{document_id}/deliver:
+    post:
+      tags:
+      - documents
+      summary: Deliver
+      operationId: deliver_documents__document_id__deliver_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Document Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliverRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /documents/{document_id}/ledger:
+    get:
+      tags:
+      - documents
+      summary: Get Ledger
+      operationId: get_ledger_documents__document_id__ledger_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Document Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedgerResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /agent/chat:
+    post:
+      tags:
+      - agent
+      summary: Chat
+      operationId: chat_agent_chat_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentChatRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentChatResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /health:
+    get:
+      summary: Health
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Health Get
+components:
+  schemas:
+    AgentChatRequest:
+      properties:
+        conversation_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Conversation Id
+        document_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Document Id
+        message:
+          type: string
+          title: Message
+        preferences:
+          anyOf:
+          - $ref: '#/components/schemas/ChatPreferences'
+          - type: 'null'
+      type: object
+      required:
+      - message
+      title: AgentChatRequest
+    AgentChatResponse:
+      properties:
+        conversation_id:
+          type: string
+          title: Conversation Id
+        message:
+          type: string
+          title: Message
+        tool_calls:
+          items:
+            $ref: '#/components/schemas/ChatToolCall'
+          type: array
+          title: Tool Calls
+      type: object
+      required:
+      - conversation_id
+      - message
+      title: AgentChatResponse
+    ChallengeResponse:
+      properties:
+        challenge_id:
+          type: string
+          title: Challenge Id
+        phone_hint:
+          type: string
+          title: Phone Hint
+      type: object
+      required:
+      - challenge_id
+      - phone_hint
+      title: ChallengeResponse
+    ChatPreferences:
+      properties:
+        simple_language:
+          type: boolean
+          title: Simple Language
+          default: false
+        voice_only:
+          type: boolean
+          title: Voice Only
+          default: false
+      type: object
+      title: ChatPreferences
+    ChatToolCall:
+      properties:
+        name:
+          type: string
+          title: Name
+        arguments:
+          additionalProperties: true
+          type: object
+          title: Arguments
+      type: object
+      required:
+      - name
+      - arguments
+      title: ChatToolCall
+    CitizenResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        cnp:
+          type: string
+          title: Cnp
+        nume:
+          type: string
+          title: Nume
+        prenume:
+          type: string
+          title: Prenume
+        data_nasterii:
+          type: string
+          format: date
+          title: Data Nasterii
+        email:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Email
+        phone:
+          type: string
+          title: Phone
+        attributes:
+          additionalProperties: true
+          type: object
+          title: Attributes
+      type: object
+      required:
+      - id
+      - cnp
+      - nume
+      - prenume
+      - data_nasterii
+      - email
+      - phone
+      - attributes
+      title: CitizenResponse
+    CreateDocumentRequest:
+      properties:
+        procedure_id:
+          type: string
+          title: Procedure Id
+      type: object
+      required:
+      - procedure_id
+      title: CreateDocumentRequest
+    DeliverRequest:
+      properties:
+        delivery:
+          type: string
+          enum:
+          - save
+          - send
+          - print
+          title: Delivery
+      type: object
+      required:
+      - delivery
+      title: DeliverRequest
+    DocumentResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        citizen_id:
+          type: string
+          format: uuid
+          title: Citizen Id
+        procedure_id:
+          type: string
+          title: Procedure Id
+        status:
+          type: string
+          enum:
+          - draft
+          - finalized
+          title: Status
+        fields:
+          additionalProperties: true
+          type: object
+          title: Fields
+        pdf_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pdf Url
+        delivery:
+          anyOf:
+          - type: string
+            enum:
+            - save
+            - send
+            - print
+          - type: 'null'
+          title: Delivery
+        ref_number:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ref Number
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        delivered_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Delivered At
+      type: object
+      required:
+      - id
+      - citizen_id
+      - procedure_id
+      - status
+      - fields
+      - created_at
+      title: DocumentResponse
+    GeneratePDFResponse:
+      properties:
+        pdf_url:
+          type: string
+          title: Pdf Url
+      type: object
+      required:
+      - pdf_url
+      title: GeneratePDFResponse
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    LedgerEntry:
+      properties:
+        id:
+          type: integer
+          title: Id
+        event_type:
+          type: string
+          enum:
+          - doc_created
+          - completed_draft
+          - pdf_generated
+          - delivered
+          - redirected
+          - reminder_created
+          title: Event Type
+        payload_hash:
+          type: string
+          title: Payload Hash
+        prev_hash:
+          type: string
+          title: Prev Hash
+        row_hash:
+          type: string
+          title: Row Hash
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - event_type
+      - payload_hash
+      - prev_hash
+      - row_hash
+      - created_at
+      title: LedgerEntry
+    LedgerResponse:
+      properties:
+        entries:
+          items:
+            $ref: '#/components/schemas/LedgerEntry'
+          type: array
+          title: Entries
+        verified:
+          type: boolean
+          title: Verified
+      type: object
+      required:
+      - entries
+      - verified
+      title: LedgerResponse
+    LoginMRZRequest:
+      properties:
+        cnp:
+          type: string
+          maxLength: 13
+          minLength: 13
+          title: Cnp
+        nume:
+          type: string
+          minLength: 1
+          title: Nume
+        prenume:
+          type: string
+          minLength: 1
+          title: Prenume
+      type: object
+      required:
+      - cnp
+      - nume
+      - prenume
+      title: LoginMRZRequest
+    LoginROeIDRequest:
+      properties:
+        persona_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Persona Id
+      type: object
+      title: LoginROeIDRequest
+    NextStep:
+      properties:
+        kind:
+          type: string
+          enum:
+          - in_scope_procedure
+          - external_redirect
+          title: Kind
+        procedure_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Procedure Id
+        redirect_target:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Redirect Target
+        deadline_days:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Deadline Days
+        title:
+          type: string
+          title: Title
+        applies_if:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Applies If
+      type: object
+      required:
+      - kind
+      - title
+      title: NextStep
+    OTPRequest:
+      properties:
+        challenge_id:
+          type: string
+          title: Challenge Id
+        code:
+          type: string
+          maxLength: 10
+          minLength: 4
+          title: Code
+      type: object
+      required:
+      - challenge_id
+      - code
+      title: OTPRequest
+    OTPResponse:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+        citizen_id:
+          type: string
+          format: uuid
+          title: Citizen Id
+      type: object
+      required:
+      - access_token
+      - citizen_id
+      title: OTPResponse
+    PatchFieldsRequest:
+      properties:
+        fields:
+          additionalProperties: true
+          type: object
+          title: Fields
+      type: object
+      required:
+      - fields
+      title: PatchFieldsRequest
+    Procedure:
+      properties:
+        id:
+          type: string
+          title: Id
+        title:
+          type: string
+          title: Title
+        description:
+          type: string
+          title: Description
+        scope:
+          type: string
+          enum:
+          - primarie
+          - external
+          title: Scope
+        category:
+          type: string
+          title: Category
+        synonyms:
+          items:
+            type: string
+          type: array
+          title: Synonyms
+        sample_queries:
+          items:
+            type: string
+          type: array
+          title: Sample Queries
+        fields:
+          items:
+            $ref: '#/components/schemas/ProcedureField'
+          type: array
+          title: Fields
+        template:
+          type: string
+          title: Template
+        next_steps:
+          items:
+            $ref: '#/components/schemas/NextStep'
+          type: array
+          title: Next Steps
+      type: object
+      required:
+      - id
+      - title
+      - description
+      - scope
+      - category
+      - synonyms
+      - sample_queries
+      - fields
+      - template
+      title: Procedure
+    ProcedureField:
+      properties:
+        name:
+          type: string
+          title: Name
+        label:
+          type: string
+          title: Label
+        source:
+          type: string
+          title: Source
+        required:
+          type: boolean
+          title: Required
+        options:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Options
+        suggest_default:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Suggest Default
+        redact_in_voice:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Redact In Voice
+      type: object
+      required:
+      - name
+      - label
+      - source
+      - required
+      title: ProcedureField
+    ProcedureLookupRequest:
+      properties:
+        query:
+          type: string
+          minLength: 1
+          title: Query
+      type: object
+      required:
+      - query
+      title: ProcedureLookupRequest
+    ProcedureLookupResponse:
+      properties:
+        matches:
+          items:
+            $ref: '#/components/schemas/ProcedureMatch'
+          type: array
+          title: Matches
+        redirect_candidate:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Redirect Candidate
+      type: object
+      required:
+      - matches
+      title: ProcedureLookupResponse
+    ProcedureMatch:
+      properties:
+        procedure_id:
+          type: string
+          title: Procedure Id
+        title:
+          type: string
+          title: Title
+        score:
+          type: number
+          title: Score
+      type: object
+      required:
+      - procedure_id
+      - title
+      - score
+      title: ProcedureMatch
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+  securitySchemes:
+    HTTPBearer:
+      type: http
+      scheme: bearer
