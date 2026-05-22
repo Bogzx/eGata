@@ -1,23 +1,28 @@
-import Link from "next/link";
+"use client";
 
-export default function Page() {
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { getSession } from "@/lib/session";
+import { t } from "@/lib/i18n";
+
+export default function LandingPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (getSession()) router.replace("/home");
+  }, [router]);
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-8">
       <div className="max-w-2xl text-center">
-        <h1 className="text-5xl font-bold tracking-tight">CivicAI</h1>
-        <p className="mt-4 text-xl text-muted-foreground">
-          Asistentul tău pentru primărie. Spune-i ce ai nevoie, îți spune ce acte îți
-          trebuie.
-        </p>
+        <h1 className="text-5xl font-bold tracking-tight">{t("app.title")}</h1>
+        <p className="mt-4 text-xl text-muted-foreground">{t("app.tagline")}</p>
       </div>
-      <div className="flex gap-4">
-        <Link
-          href="/login"
-          className="rounded-md bg-primary px-6 py-3 text-lg font-medium text-primary-foreground hover:opacity-90"
-        >
-          Intră în cont
-        </Link>
-      </div>
+      <Button size="lg" onClick={() => router.push("/login")}>
+        Intră în cont
+      </Button>
     </main>
   );
 }
