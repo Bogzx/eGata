@@ -6,12 +6,13 @@ from functools import lru_cache
 from typing import Any
 
 from google import genai
+from google.genai import types as genai_types
 
 from app.config import get_settings
 from app.db import get_pg_connection
 from app.models import Procedure
 
-EMBEDDING_MODEL = "text-embedding-004"
+EMBEDDING_MODEL = "gemini-embedding-001"
 EMBEDDING_DIM = 768
 
 
@@ -33,7 +34,11 @@ def _client() -> Any:
 
 def embed_text(text: str) -> list[float]:
     client = _client()
-    resp = client.models.embed_content(model=EMBEDDING_MODEL, contents=text)
+    resp = client.models.embed_content(
+        model=EMBEDDING_MODEL,
+        contents=text,
+        config=genai_types.EmbedContentConfig(output_dimensionality=EMBEDDING_DIM),
+    )
     return list(resp.embeddings[0].values)
 
 

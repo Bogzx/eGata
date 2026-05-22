@@ -27,7 +27,7 @@ def _make_proc() -> Procedure:
 
 
 def test_embedding_model_constants() -> None:
-    assert EMBEDDING_MODEL == "text-embedding-004"
+    assert EMBEDDING_MODEL == "gemini-embedding-001"
     assert EMBEDDING_DIM == 768
 
 
