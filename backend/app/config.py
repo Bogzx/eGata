@@ -26,8 +26,8 @@ class Settings(BaseSettings):
     twilio_phone_number: str = Field(default="")
     mock_otp: bool = Field(default=True)
 
-    openai_api_key: str = Field(...)
-    gemini_api_key: str = Field(default="")
+    gemini_api_key: str = Field(...)
+    openai_api_key: str = Field(default="")
 
     jwt_signing_secret: str = Field(...)
     jwt_algorithm: str = Field(default="HS256")

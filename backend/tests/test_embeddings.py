@@ -27,8 +27,8 @@ def _make_proc() -> Procedure:
 
 
 def test_embedding_model_constants() -> None:
-    assert EMBEDDING_MODEL == "text-embedding-3-small"
-    assert EMBEDDING_DIM == 1536
+    assert EMBEDDING_MODEL == "text-embedding-004"
+    assert EMBEDDING_DIM == 768
 
 
 def test_procedure_source_text_includes_all_signals() -> None:
