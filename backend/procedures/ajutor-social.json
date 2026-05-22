@@ -1,0 +1,20 @@
+{
+  "id": "ajutor-social",
+  "title": "Ajutor social",
+  "description": "Cerere pentru acordarea ajutorului social conform legii.",
+  "scope": "primarie",
+  "category": "asistenta-sociala",
+  "synonyms": ["venit minim", "ajutor primarie", "asistenta sociala"],
+  "sample_queries": [
+    "am nevoie de ajutor social",
+    "vreau să cer ajutor de la primărie"
+  ],
+  "fields": [
+    { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
+    { "name": "cnp",          "label": "CNP",          "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "componenta_familie", "label": "Componența familiei", "source": "ask", "required": true },
+    { "name": "venit_familie", "label": "Venitul familiei", "source": "ask", "required": true }
+  ],
+  "template": "ajutor-social.tex",
+  "next_steps": []
+}

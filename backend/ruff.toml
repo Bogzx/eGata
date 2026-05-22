@@ -1,0 +1,20 @@
+line-length = 120
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC", "S", "A", "PT", "RET", "SIM", "TCH"]
+# Ignored rationale:
+#   S101 — assert used in tests
+#   S104 — binding to 0.0.0.0 is intentional for containerized deploy
+#   B008 — Depends(...) in argument defaults is the FastAPI idiom
+#   TCH001/TCH003 — FastAPI uses these imports (UUID, Path, etc.) at runtime
+#                    for path params, response_model, etc., so moving them into
+#                    a TYPE_CHECKING block breaks the framework
+#   UP017 — datetime.UTC alias is fine, but `timezone.utc` is equally valid and
+#           the existing code uses it consistently
+ignore = ["S101", "S104", "B008", "TCH001", "TCH003", "UP017"]
+
+[lint.per-file-ignores]
+"tests/**" = ["S105", "S106", "PT018", "E501"]
+"app/pdf.py" = ["S603", "S607"]  # pdflatex subprocess is intentional
+"scripts/**" = ["S603", "S607"]
