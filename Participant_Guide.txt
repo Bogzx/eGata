@@ -1,0 +1,196 @@
+Participant Guide
+Cluj Hackathon 2026 ∙ Digital Romania ∙ 48 hours
+
+Welcome!
+We are thrilled to have you at Cluj Hackathon 2026. Over the next 48 hours you get to build a small piece of the
+future of a digital Romania, a solution that can genuinely make people’s lives easier.
+Let’s be honest: the state’s apps today are, in general, clunky, ugly and slow. Those are exactly what we want to
+replace. So your challenge is not only to solve a problem, but to show that a public service can be fast, modern
+and a pleasure to use.
+This guide is here to help you throughout the competition. It is not a rigid rulebook, it is a map of what we are
+looking for, what resources you have, and how to present your idea in its best light. Read it at ease, come back to
+it whenever you need, and ask a mentor any time you get stuck.
+One thing to keep in mind: you do not have to make everything perfect, you have to make something that matters.
+Let’s get started.
+Ideas and areas you can build in
+You do not have to cover everything. Pick a problem you care about. Here is a broad list of areas from the
+citizen‐state relationship, as a source of inspiration:
+# Area Starting ideas
+1 Calendar Institution appointments, payment deadlines, document expiry
+2 Notifications Alerts, messages from authorities, request status
+3 Identity Personal data, digital ID, passport
+4 Education Diplomas, enrollments, academic history
+5 Work Contracts, REVISAL history, contribution record
+6 Health Digital health card, prescriptions, medical history, appointments
+7 Property Land registry, registrations, land, owned real estate
+8 Transport Driver’s license, registrations, road tax, fines
+9 Taxes Local taxes, payments, debts (ANAF / Ghișeul.ro style)
+10 Banks and credit Credit score, official statements
+11 Investments Government bonds, stocks, securities
+12 Pensions Pillars I, II, III, calculation simulators
+13 Entrepreneurship Owned companies, ONRC status, financial statements
+14 Elections Polling station, turnout, voting history
+
+Cluj Hackathon 2026 ∙ Digital Romania ∙ 1
+
+# Area Starting ideas
+15 Digital signature Electronic signing of documents
+16 Petitions and complaints Reporting issues to city halls, status tracking
+17 Abroad Consular services, visas, support for the diaspora
+18 Death Inheritance, death benefits, automatic deregistration
+
+And a few concrete ideas that have worked well, if you want a spark to start: a single access point for pub‐
+lic services, a pocket tax dashboard, unified fine payments, a patient‐controlled medical record, a real‐time e‐
+prescription, reporting city issues with a photo and GPS, or registering a company in 24 hours.
+What we really want
+We want two things at once: a solution that solves a real problem and that looks wow.
+Usefulness is the foundation, without it nothing else matters, and a shiny interface that does nothing concrete
+will not help you. But we also do not want you to stop at “it works”. The design, the smoothness and the way the
+product moves should impress from the very first touch. Especially since you have powerful tools at your disposal
+(Lovable, Cursor, AI and the rest), there is no excuse for something that looks modest.
+So aim high: solve a real problem and make it spectacular. Always ask yourselves: “Who are we helping, how do
+we make their life simpler, and how do we make them say wow?”. If you have a clear answer, you are already on
+the right track.
+How to tell us your idea
+When you present your project, it helps us a lot if you cover these four things. Think of them as a short story
+about your solution:
+1. What is it called? A clear, memorable name that says something about what the solution does.
+2. What does it do, briefly? Two or three sentences anyone can understand: what it is, how it works and why
+it is useful.
+3. What problem does it solve? Tell us concretely which frustration in the relationship with the state disap‐
+pears thanks to you: less bureaucracy, less wasted time, fewer trips.
+4. What data do you use? Tell us which public data sources you use or, if you simulate data, what its structure
+looks like.
+That’s it. If you cover these four points, the jury will instantly understand the value of your work.
+Where to get data
+To anchor your solutions in the reality of Romania, we recommend starting from these official portals. You can
+use the real data there or build simulated data modeled on them:
+• data.gov.ro, the National Open Data Portal: datasets from ministries, agencies and official nomenclatures.
+• insse.ro, the National Institute of Statistics: demographic, economic and territorial data.
+• onrc.ro, the Trade Register: useful for entrepreneurship ideas (use simulated data based on its structure).
+• domenii.gov.ro, the registry of government subdomains and resources.
+And if you want inspiration from projects that already do things well, take a look at demoanaf.ro, pnd.robertslaboratory.com
+and transparenta.eu. They are good examples of what a pleasant digital interaction with the state can look like.
+
+Cluj Hackathon 2026 ∙ Digital Romania ∙ 2
+
+A few technical things that make your solution solid
+Because we are dealing with citizens’ data, there are a few aspects that matter a lot and that the jury will appreciate.
+Do not be scared, they are more like common‐sense principles that we explain here:
+Data is not lost and not falsified. Everything related to history, transactions, status changes or issued documents
+should be impossible to delete or quietly modify. You can use blockchain technology or, more simply, a valid
+simulation of a distributed ledger. The basic idea: whatever happened stays recorded and transparent.
+Data is protected and access is controlled. Information should be encrypted, and only the right people should
+reach it:
+• The citizen, the rightful owner of the data, with full control.
+• The appropriate civil servant, only within their area of competence and only while handling a request.
+• Other authorized systems, through secure connections.
+Authentication like in real life (ROeID simulation). There is no public API for the official digital identity, so please
+simulate it:
+• a login flow based on credentials;
+• a two‐factor (2FA) step, meaning a code via SMS, e‐mail, an Authenticator‐type app or a push notification,
+before the user enters the account.
+The solution is for everyone (accessibility). Because it is a public service, it should be easy to use including for
+people with disabilities (the European standard recommends a minimum level of AA). In practice: full keyboard
+navigation, screen reader support (ARIA attributes, semantic HTML), and legible text with good contrast (at least
+4.5:1).
+Stack and design? Your choice
+Here you have total freedom. We do not impose any programming language, framework or design system. Use
+the technologies you feel at home with and that best serve your idea.
+If you still want a starting point, many teams are comfortable with React / Next.js / Tailwind on the frontend,
+Supabase / PostgreSQL on the backend, n8n or Temporal for automation, and OpenAI / AI agents / MCP for the
+AI part. A coherent component set (ShadCN, for example) and a single icon family help the look stay tidy, but only
+if it suits you. You decide.
+One piece of advice from us: make the solution look good on phone, tablet and desktop. People use public
+services mostly from their phones.
+Tools you have access to
+To build faster and better, you have access to a set of powerful tools. Use them as much and however you like,
+they can save you hours of work:
+• Lovable: builds web apps fast, starting from natural‐language descriptions. Great for spinning up a working
+prototype in minutes.
+• Cursor: a code editor with built‐in AI that helps you write, understand and fix code much faster.
+• n8n: visual automation and workflows; connect services and APIs and put processes on autopilot, with
+minimal code.
+• ElevenLabs: realistic AI voice (text‐to‐speech). Useful for voice assistants, accessibility or in‐app audio
+guidance.
+• Anthropic Claude: a powerful AI model for text, good for conversational assistants, document processing,
+summaries and smart form filling.
+
+Cluj Hackathon 2026 ∙ Digital Romania ∙ 3
+
+Design and the way it moves
+This is where a lot is won or lost. If the state’s apps today are slow and frustrating, your solution should be the
+exact opposite: an experience that flows. We are not talking about decorations, but about how the product feels
+in your hand. Here is what to watch:
+• Speed, above all. Everything must respond instantly. Screens load fast, buttons react on the spot, nothing
+freezes. If an action takes time, show a clear indicator (skeleton, spinner, progress), never a dead screen.
+• Smooth transitions between screens. Moves between pages and states should be smooth, not abrupt. A
+short animation (150‐300 ms) that shows where the user comes from and goes to makes everything feel
+coherent and considered.
+• Microinteractions with a purpose. A button that confirms the tap, a field that validates as you type, a check
+that appears when you finish a step. These small details create a sense of quality and control.
+• Instant, clear feedback. The user must always know what is happening: did it work? did it fail? is it loading?
+Short, friendly messages, no cryptic error codes.
+• Clean, modern design. Generous spacing, clear visual hierarchy, legible typography, a coherent palette. Less
+clutter means easier to use. Let the content breathe.
+• Smoothness on any screen. The same sense of speed on a grandparent’s phone and on a civil servant’s
+desktop. Optimize images, avoid unnecessary loads, think mobile‐first.
+A good test: hand the phone to someone who has never seen the app. If they move through it on their own, with
+pleasure and without getting stuck, you have won half the competition.
+Who you are building for
+For the citizen. Think about every screen, every button and every word from the perspective of an ordinary,
+hurried person who does not want opaque bureaucratic jargon. If your mother or grandfather could use the
+solution without asking anyone “and now what do I press?”, you have won.
+Getting ready to be judged
+Near the end, there are a few things that turn a prototype into a serious project:
+• Put the solution online. A live link (GitHub Pages, Vercel, Netlify or whatever you prefer) works wonders:
+the jury wants to be able to touch it, not just see it in slides. Attach the URL in the description.
+• Tidy code. Clean code, split into clear components, is easier for mentors and judges to follow.
+• A clear README. Say which libraries you used and why, and comment the important functions (the 2FA
+simulation, the data part, the security logic).
+
+Cluj Hackathon 2026 ∙ Digital Romania ∙ 4
+
+How we score you
+We want it to be transparent, so here is exactly how judging works. There are two stages:
+1. During the hackathon, mentor teams rotate through all teams and score progress. The top 10 teams ad‐
+vance to the Finals.
+2. The final jury (Final Pitch), where the top 10 teams present their solution and the jury decides the winners.
+The main criteria and their scores:
+Criterion Points What it means
+Social impact 25 pts How many people you help and how much
+
+you simplify their lives
+
+UX / Usability 25 pts How clear, smooth, pleasant and accessible
+
+the experience is
+
+Technical feasibility 20 pts How solid and realistic the solution is
+
+technically
+
+Working demo 20 pts You have something that actually works, live,
+
+not just slides
+
+Coherence with the Digital
+Romania platform
+
+10 pts How well it fits the vision of a digital
+Romania
+
+Notice how much UX / Usability weighs: 25 points, on par with social impact. That is why design and the way
+the solution moves matter so much.
+A short checklist before you submit
+□ We can explain in two sentences who we help and how.
+□ The four presentation points are covered (name, what it does, what problem, what data).
+□ We have login + 2FA simulated.
+□ Important data is impossible to delete/modify (blockchain or simulated ledger).
+□ Access to data is controlled (citizen / civil servant / systems).
+□ The solution is easy to use, including by keyboard, with good contrast.
+□ It moves fast and smooth: instant response, fine transitions, clear feedback.
+□ Modern, clean design that looks better than the state’s apps today.
+□ It works nicely on phone, tablet and desktop.
+□ We have a live link and a clear README.
+Good luck and have fun! We can’t wait to see what you build.
