@@ -170,3 +170,20 @@ class AgentChatResponse(BaseModel):
     conversation_id: str
     message: str
     tool_calls: list[ChatToolCall] = Field(default_factory=list)
+
+
+class ReminderResponse(BaseModel):
+    id: UUID
+    citizen_id: UUID
+    trigger_doc_id: UUID | None = None
+    kind: Literal["in_scope_procedure", "external_redirect"]
+    procedure_id: str | None = None
+    redirect_target: str | None = None
+    title: str
+    due_date: date | None = None
+    status: Literal["pending", "started", "done", "dismissed"]
+    created_at: datetime
+
+
+class PatchAttributesRequest(BaseModel):
+    attributes: dict[str, Any]

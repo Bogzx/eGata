@@ -1,0 +1,74 @@
+# Environment files (never commit secrets)
+.env
+.env.local
+.env.*.local
+*.env
+!*.env.example
+!.env.example
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+build/
+*.log
+.npm/
+.pnpm-store/
+.yarn/
+.turbo/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+.python-version
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+coverage.xml
+htmlcov/
+.hypothesis/
+
+# Testing / E2E
+playwright-report/
+test-results/
+.nyc_output/
+coverage/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.history/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Build / deploy artifacts
+.vercel
+.railway
+.serverless/
+*.tsbuildinfo
+
+# Local PDFs (we generate temp PDFs during dev)
+backend/tmp/
+*.pdf
+!docs/**/*.pdf
+
+# Local dev server logs we wrote ad-hoc
+dev-server.log
+frontend/dev-server.log
+backend/uvicorn.log
