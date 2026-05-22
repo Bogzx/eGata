@@ -1,40 +1,40 @@
-"""OpenAI embedding pipeline for procedure RAG."""
+"""Gemini embedding pipeline for procedure RAG."""
 from __future__ import annotations
 
 import math
 from functools import lru_cache
 from typing import Any
 
-from openai import OpenAI
+from google import genai
 
 from app.config import get_settings
 from app.db import get_pg_connection
 from app.models import Procedure
 
-EMBEDDING_MODEL = "text-embedding-3-small"
-EMBEDDING_DIM = 1536
+EMBEDDING_MODEL = "text-embedding-004"
+EMBEDDING_DIM = 768
 
 
 @lru_cache(maxsize=1)
-def _get_client() -> OpenAI:
-    return OpenAI(api_key=get_settings().openai_api_key)
+def _get_client() -> Any:
+    return genai.Client(api_key=get_settings().gemini_api_key)
 
 
 # Module-level alias kept for monkeypatching in tests
-_openai_client: Any = None
+_gemini_client: Any = None
 
 
 def _client() -> Any:
-    global _openai_client
-    if _openai_client is None:
-        _openai_client = _get_client()
-    return _openai_client
+    global _gemini_client
+    if _gemini_client is None:
+        _gemini_client = _get_client()
+    return _gemini_client
 
 
 def embed_text(text: str) -> list[float]:
     client = _client()
-    resp = client.embeddings.create(model=EMBEDDING_MODEL, input=text)
-    return list(resp.data[0].embedding)
+    resp = client.models.embed_content(model=EMBEDDING_MODEL, contents=text)
+    return list(resp.embeddings[0].values)
 
 
 def procedure_source_text(proc: Procedure) -> str:

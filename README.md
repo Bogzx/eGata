@@ -21,15 +21,15 @@ At Checkpoint 1, frontend (Plan 1) talks to backend (Plan 2) directly — no MSW
 
 ### 1. Backend
 
-Prereqs: Python 3.12, a Supabase project (EU region), an OpenAI key.
+Prereqs: Python 3.12, a Supabase project (EU region), a Gemini API key.
 
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\Activate.ps1
 pip install -e .
-cp ../.env.example .env                                # fill in SUPABASE_* + OPENAI_API_KEY
+cp ../.env.example .env                                # fill in SUPABASE_* + GEMINI_API_KEY
 python scripts/apply_migrations.py                     # creates schema + seeds 3 demo citizens
-python scripts/embed_procedures.py                     # embeds the 7 procedure JSONs into pgvector
+python scripts/embed_procedures.py                     # embeds the 7 procedure JSONs (Gemini text-embedding-004, 768 dims)
 uvicorn app.main:app --reload --port 8000
 ```
 
