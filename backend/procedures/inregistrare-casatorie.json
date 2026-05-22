@@ -1,0 +1,20 @@
+{
+  "id": "inregistrare-casatorie",
+  "title": "Înregistrare căsătorie",
+  "description": "Depunerea declarației pentru oficierea căsătoriei civile.",
+  "scope": "primarie",
+  "category": "stare-civila",
+  "synonyms": ["casatorie", "act casatorie", "oficiere casatorie"],
+  "sample_queries": [
+    "vreau să mă căsătoresc",
+    "cum depun actele pentru căsătorie"
+  ],
+  "fields": [
+    { "name": "nume_complet_solicitant", "label": "Nume complet solicitant", "source": "profile", "required": true },
+    { "name": "cnp_solicitant",          "label": "CNP solicitant",          "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "nume_partener",           "label": "Nume partener",           "source": "ask",     "required": true },
+    { "name": "data_propusa",            "label": "Data propusă",            "source": "ask",     "required": true }
+  ],
+  "template": "inregistrare-casatorie.tex",
+  "next_steps": []
+}
