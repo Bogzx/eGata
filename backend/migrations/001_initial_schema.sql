@@ -63,7 +63,7 @@ create index idx_reminders_status on reminders(status);
 
 create table procedures_embeddings (
   procedure_id  text primary key,
-  embedding     vector(1536) not null,
+  embedding     vector(768) not null,
   source_text   text not null,
   updated_at    timestamptz not null default now()
 );
