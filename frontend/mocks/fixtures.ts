@@ -1,12 +1,14 @@
 import type { Citizen, Document, LedgerResponse, Procedure, Reminder } from "@/lib/types";
 
+// Personas and UUIDs match backend/migrations/002_seed_data.sql.
+// Keep these in sync when adding personas on either side.
 export const maria: Citizen = {
-  id: "00000000-0000-0000-0000-000000000001",
+  id: "11111111-1111-1111-1111-111111111111",
   cnp: "2851014123456",
   nume: "Ionescu",
   prenume: "Maria",
   data_nasterii: "1985-03-14",
-  email: "maria@example.com",
+  email: "maria.ionescu@example.com",
   phone: "+40712345678",
   attributes: {
     owns_vehicle: true,
@@ -20,50 +22,49 @@ export const maria: Citizen = {
   },
 };
 
-export const ion: Citizen = {
-  id: "00000000-0000-0000-0000-000000000002",
-  cnp: "1700212123456",
-  nume: "Pop",
-  prenume: "Ion",
-  data_nasterii: "1970-02-12",
-  email: "ion@example.com",
-  phone: "+40722334455",
+export const andrei: Citizen = {
+  id: "22222222-2222-2222-2222-222222222222",
+  cnp: "1900512123456",
+  nume: "Popa",
+  prenume: "Andrei",
+  data_nasterii: "1990-05-12",
+  email: "andrei.popa@example.com",
+  phone: "+40722345678",
   attributes: {
     owns_vehicle: false,
     marital_status: "căsătorit",
     has_children: true,
-    employer: "Pensionar",
-    medic_familie: "Dr. Marin, Cluj",
+    employer: "Bosch Cluj",
+    medic_familie: "Dr. Vasilescu, Cluj",
     preferred_language: "ro",
     current_address: "Str. Memorandumului 12, Cluj-Napoca",
-    accessibility: { voice_only: true, simple_language: true, large_text: true },
+    accessibility: { voice_only: false, simple_language: true, large_text: false },
   },
 };
 
 export const elena: Citizen = {
-  id: "00000000-0000-0000-0000-000000000003",
-  cnp: "2950820123456",
-  nume: "Mureșan",
+  id: "33333333-3333-3333-3333-333333333333",
+  cnp: "2620908123456",
+  nume: "Dumitru",
   prenume: "Elena",
-  data_nasterii: "1995-08-20",
-  email: "elena@example.com",
-  phone: "+40733998877",
+  data_nasterii: "1962-09-08",
+  email: "elena.dumitru@example.com",
+  phone: "+40732345678",
   attributes: {
     owns_vehicle: true,
-    marital_status: "căsătorit",
+    marital_status: "văduv",
     has_children: true,
-    employer: "SC Tech SRL",
-    medic_familie: "Dr. Antoniu, Cluj",
+    medic_familie: "Dr. Munteanu, Cluj",
     preferred_language: "ro",
-    current_address: "Str. Horea 28, Cluj-Napoca",
-    accessibility: { voice_only: false, simple_language: false, large_text: false },
+    current_address: "Str. Horea 8, Cluj-Napoca",
+    accessibility: { voice_only: true, simple_language: true, large_text: true },
   },
 };
 
 export const personas = [
-  { id: "maria-ionescu", citizen: maria, label: "Maria Ionescu (35, mută adresa)" },
-  { id: "ion-pop", citizen: ion, label: "Ion Pop (55, voice-only, simplu)" },
-  { id: "elena-muresan", citizen: elena, label: "Elena Mureșan (30, familie)" },
+  { id: "maria-ionescu", citizen: maria, label: "Maria Ionescu (40, schimbă domiciliul)" },
+  { id: "andrei-popa", citizen: andrei, label: "Andrei Popa (36, simplu)" },
+  { id: "elena-dumitru", citizen: elena, label: "Elena Dumitru (63, vocal+simplu+text mare)" },
 ] as const;
 
 export const schimbareDomiciliu: Procedure = {
@@ -132,20 +133,21 @@ export const schimbareDomiciliu: Procedure = {
   ],
 };
 
+// Mirrors backend/procedures/*.json — IDs and required fields stay in sync.
 export const knownProcedures: Procedure[] = [
   schimbareDomiciliu,
   {
     id: "adeverinta-venit",
     title: "Adeverință de venit",
-    description: "Adeverință de venit pentru bancă",
+    description: "Adeverință de venit pentru bancă sau alte instituții.",
     scope: "primarie",
     category: "evidenta-persoanelor",
-    synonyms: ["adeverinta venit", "venit pentru banca"],
+    synonyms: ["adeverinta venit", "venit pentru banca", "dovada venit"],
     sample_queries: ["am nevoie de adeverință de venit"],
     fields: [
       { name: "nume_complet", label: "Nume complet", source: "profile", required: true },
       { name: "cnp", label: "CNP", source: "profile", required: true, redact_in_voice: true },
-      { name: "scopul", label: "Scopul adeverinței", source: "ask", required: true },
+      { name: "banca", label: "Banca/Instituția", source: "ask", required: true },
     ],
     template: "adeverinta-venit.tex",
     next_steps: [],
@@ -153,40 +155,93 @@ export const knownProcedures: Procedure[] = [
   {
     id: "preschimbare-ci",
     title: "Preschimbare carte de identitate",
-    description: "Preschimbarea cărții de identitate",
+    description: "Eliberare carte de identitate nouă.",
     scope: "primarie",
     category: "evidenta-persoanelor",
-    synonyms: ["buletin nou", "schimb buletin"],
+    synonyms: ["buletin nou", "schimb buletin", "ci nouă", "expiră buletinul"],
     sample_queries: ["vreau să-mi schimb buletinul"],
     fields: [
       { name: "nume_complet", label: "Nume complet", source: "profile", required: true },
       { name: "cnp", label: "CNP", source: "profile", required: true },
+      { name: "motivul", label: "Motivul preschimbării", source: "ask", required: true },
     ],
     template: "preschimbare-ci.tex",
     next_steps: [],
   },
   {
-    id: "certificat-nastere",
+    id: "certificat-nastere-copie",
     title: "Copie certificat de naștere",
-    description: "Eliberare duplicat certificat de naștere",
+    description: "Eliberare duplicat certificat de naștere.",
     scope: "primarie",
     category: "stare-civila",
-    synonyms: ["copie nastere", "duplicat nastere"],
+    synonyms: ["copie nastere", "duplicat nastere", "certificat nastere copie"],
     sample_queries: ["vreau o copie a certificatului de naștere"],
     fields: [
       { name: "nume_complet", label: "Nume complet", source: "profile", required: true },
       { name: "cnp", label: "CNP", source: "profile", required: true },
       { name: "scopul", label: "Scopul", source: "ask", required: false },
     ],
-    template: "certificat-nastere.tex",
+    template: "certificat-nastere-copie.tex",
+    next_steps: [],
+  },
+  {
+    id: "certificat-fiscal",
+    title: "Certificat fiscal",
+    description: "Atestare lipsă datorii la bugetul local.",
+    scope: "primarie",
+    category: "taxe-locale",
+    synonyms: ["certificat fiscal", "atestare fiscală", "lipsa datorii"],
+    sample_queries: ["am nevoie de un certificat fiscal"],
+    fields: [
+      { name: "nume_complet", label: "Nume complet", source: "profile", required: true },
+      { name: "cnp", label: "CNP", source: "profile", required: true },
+      { name: "scopul", label: "Scopul", source: "ask", required: true },
+    ],
+    template: "certificat-fiscal.tex",
+    next_steps: [],
+  },
+  {
+    id: "inregistrare-casatorie",
+    title: "Înregistrare căsătorie",
+    description: "Declarație de căsătorie la oficiul stării civile.",
+    scope: "primarie",
+    category: "stare-civila",
+    synonyms: ["căsătorie", "casatorie", "vreau să mă căsătoresc"],
+    sample_queries: ["vrem să ne căsătorim"],
+    fields: [
+      { name: "nume_complet", label: "Nume complet", source: "profile", required: true },
+      { name: "cnp", label: "CNP", source: "profile", required: true },
+      { name: "partener_nume", label: "Nume partener", source: "ask", required: true },
+      { name: "partener_cnp", label: "CNP partener", source: "ask", required: true },
+      { name: "data_dorita", label: "Data dorită", source: "ask", required: true },
+    ],
+    template: "inregistrare-casatorie.tex",
+    next_steps: [],
+  },
+  {
+    id: "ajutor-social",
+    title: "Ajutor social",
+    description: "Cerere pentru ajutor social (venit minim garantat).",
+    scope: "primarie",
+    category: "asistenta-sociala",
+    synonyms: ["ajutor social", "venit minim", "vmg"],
+    sample_queries: ["am nevoie de ajutor social"],
+    fields: [
+      { name: "nume_complet", label: "Nume complet", source: "profile", required: true },
+      { name: "cnp", label: "CNP", source: "profile", required: true },
+      { name: "venit_lunar", label: "Venit lunar (lei)", source: "ask", required: true },
+      { name: "componenta_familie", label: "Componența familiei", source: "ask", required: true },
+    ],
+    template: "ajutor-social.tex",
     next_steps: [],
   },
 ];
 
 const now = new Date().toISOString();
 
+// Document UUIDs match backend seed (002_seed_data.sql).
 export const draftDoc: Document = {
-  id: "11111111-1111-1111-1111-111111111111",
+  id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
   citizen_id: maria.id,
   procedure_id: "schimbare-domiciliu",
   status: "draft",
@@ -199,14 +254,14 @@ export const draftDoc: Document = {
 };
 
 export const deliveredDoc: Document = {
-  id: "22222222-2222-2222-2222-222222222222",
+  id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
   citizen_id: maria.id,
   procedure_id: "adeverinta-venit",
   status: "finalized",
-  fields: { nume_complet: "Maria Ionescu", scopul: "credit bancar" },
+  fields: { nume_complet: "Maria Ionescu", cnp: "2851014123456", banca: "BCR" },
   delivery: "send",
-  ref_number: "CV-A4B7",
-  pdf_url: "https://example.com/doc-2222.pdf",
+  ref_number: "CV-AAAA",
+  pdf_url: "https://example.supabase.co/storage/v1/object/public/pdfs/seed-adeverinta.pdf",
   created_at: now,
   delivered_at: now,
 };
@@ -249,23 +304,26 @@ export const ledgerFor = (docId: string): LedgerResponse => ({
   verified: true,
 });
 
+// Reminder UUIDs match backend seed (002_seed_data.sql).
 export const seededReminders: Reminder[] = [
   {
-    id: "r1",
+    id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
     citizen_id: maria.id,
     kind: "in_scope_procedure",
     procedure_id: "preschimbare-ci",
-    title: "Cartea de identitate expiră în 23 de zile",
+    title: "Cartea de identitate expiră în 23 de zile — programează preschimbarea",
     due_date: "2026-06-15",
     status: "pending",
     created_at: now,
   },
   {
-    id: "r2",
+    id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
     citizen_id: maria.id,
+    trigger_doc_id: deliveredDoc.id,
     kind: "external_redirect",
     redirect_target: "DRPCIV",
-    title: "Actualizare certificat înmatriculare auto",
+    title:
+      "După schimbarea domiciliului trebuie să-ți actualizezi certificatul de înmatriculare la DRPCIV",
     due_date: "2026-06-22",
     status: "pending",
     created_at: now,

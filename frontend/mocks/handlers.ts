@@ -1,9 +1,9 @@
 import { http, HttpResponse } from "msw";
 import {
+  andrei,
   deliveredDoc,
   draftDoc,
   elena,
-  ion,
   knownProcedures,
   ledgerFor,
   maria,
@@ -19,19 +19,19 @@ const BASE =
 
 const citizensByToken = new Map<string, Citizen>([
   ["mock-token-maria", maria],
-  ["mock-token-ion", ion],
+  ["mock-token-andrei", andrei],
   ["mock-token-elena", elena],
 ]);
 
 const tokenByPersona: Record<string, string> = {
   "maria-ionescu": "mock-token-maria",
-  "ion-pop": "mock-token-ion",
-  "elena-muresan": "mock-token-elena",
+  "andrei-popa": "mock-token-andrei",
+  "elena-dumitru": "mock-token-elena",
 };
 
 const tokenByCnp: Record<string, string> = {
   [maria.cnp]: "mock-token-maria",
-  [ion.cnp]: "mock-token-ion",
+  [andrei.cnp]: "mock-token-andrei",
   [elena.cnp]: "mock-token-elena",
 };
 
@@ -99,7 +99,13 @@ export const handlers = [
     if (q.includes("anaf") || q.includes("taxa") || q.includes("impozit")) {
       return HttpResponse.json({ matches: [], redirect_candidate: "ANAF" });
     }
-    if (q.includes("buletin") || q.includes("carte de identitate")) {
+    if (q.includes("cnas") || q.includes("medic de familie") || q.includes("asigurare sănătate")) {
+      return HttpResponse.json({ matches: [], redirect_candidate: "CNAS" });
+    }
+    if (q.includes("permis") || q.includes("înmatricul") || q.includes("talon")) {
+      return HttpResponse.json({ matches: [], redirect_candidate: "DRPCIV" });
+    }
+    if (q.includes("buletin") || q.includes("carte de identitate") || q.includes("ci nouă")) {
       return HttpResponse.json({
         matches: [
           { procedure_id: "preschimbare-ci", title: "Preschimbare carte de identitate", score: 0.88 },
@@ -113,15 +119,39 @@ export const handlers = [
         redirect_candidate: null,
       });
     }
-    if (q.includes("naster") || q.includes("certificat")) {
+    if (q.includes("certificat fiscal") || q.includes("atestare fiscal") || q.includes("datorii")) {
+      return HttpResponse.json({
+        matches: [{ procedure_id: "certificat-fiscal", title: "Certificat fiscal", score: 0.86 }],
+        redirect_candidate: null,
+      });
+    }
+    if (q.includes("naster") || q.includes("certificat de nast")) {
       return HttpResponse.json({
         matches: [
           {
-            procedure_id: "certificat-nastere",
+            procedure_id: "certificat-nastere-copie",
             title: "Copie certificat de naștere",
             score: 0.85,
           },
         ],
+        redirect_candidate: null,
+      });
+    }
+    if (q.includes("căsător") || q.includes("casator")) {
+      return HttpResponse.json({
+        matches: [
+          {
+            procedure_id: "inregistrare-casatorie",
+            title: "Înregistrare căsătorie",
+            score: 0.87,
+          },
+        ],
+        redirect_candidate: null,
+      });
+    }
+    if (q.includes("ajutor social") || q.includes("venit minim")) {
+      return HttpResponse.json({
+        matches: [{ procedure_id: "ajutor-social", title: "Ajutor social", score: 0.84 }],
         redirect_candidate: null,
       });
     }

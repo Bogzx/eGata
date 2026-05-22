@@ -94,6 +94,33 @@ paths:
                 $ref: '#/components/schemas/CitizenResponse'
       security:
       - HTTPBearer: []
+  /citizens/me/attributes:
+    patch:
+      tags:
+      - citizens
+      summary: Patch Attributes
+      operationId: patch_attributes_citizens_me_attributes_patch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchAttributesRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CitizenResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
   /procedures:
     get:
       tags:
@@ -391,6 +418,59 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - HTTPBearer: []
+  /reminders:
+    get:
+      tags:
+      - reminders
+      summary: List My Reminders
+      operationId: list_my_reminders_reminders_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ReminderResponse'
+                type: array
+                title: Response List My Reminders Reminders Get
+      security:
+      - HTTPBearer: []
+  /reminders/{reminder_id}:
+    patch:
+      tags:
+      - reminders
+      summary: Patch Reminder
+      operationId: patch_reminder_reminders__reminder_id__patch
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: reminder_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Reminder Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchReminderRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReminderResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /health:
     get:
       summary: Health
@@ -778,6 +858,16 @@ components:
       - access_token
       - citizen_id
       title: OTPResponse
+    PatchAttributesRequest:
+      properties:
+        attributes:
+          additionalProperties: true
+          type: object
+          title: Attributes
+      type: object
+      required:
+      - attributes
+      title: PatchAttributesRequest
     PatchFieldsRequest:
       properties:
         fields:
@@ -788,6 +878,20 @@ components:
       required:
       - fields
       title: PatchFieldsRequest
+    PatchReminderRequest:
+      properties:
+        status:
+          type: string
+          enum:
+          - pending
+          - started
+          - done
+          - dismissed
+          title: Status
+      type: object
+      required:
+      - status
+      title: PatchReminderRequest
     Procedure:
       properties:
         id:
@@ -924,6 +1028,68 @@ components:
       - title
       - score
       title: ProcedureMatch
+    ReminderResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        citizen_id:
+          type: string
+          format: uuid
+          title: Citizen Id
+        trigger_doc_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Trigger Doc Id
+        kind:
+          type: string
+          enum:
+          - in_scope_procedure
+          - external_redirect
+          title: Kind
+        procedure_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Procedure Id
+        redirect_target:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Redirect Target
+        title:
+          type: string
+          title: Title
+        due_date:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Due Date
+        status:
+          type: string
+          enum:
+          - pending
+          - started
+          - done
+          - dismissed
+          title: Status
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - citizen_id
+      - kind
+      - title
+      - status
+      - created_at
+      title: ReminderResponse
     ValidationError:
       properties:
         loc:
