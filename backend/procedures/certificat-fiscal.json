@@ -1,0 +1,19 @@
+{
+  "id": "certificat-fiscal",
+  "title": "Certificat fiscal",
+  "description": "Eliberare certificat de atestare fiscală pentru persoane fizice.",
+  "scope": "primarie",
+  "category": "fiscalitate-locala",
+  "synonyms": ["certificat atestare fiscala", "dovada fiscala", "lipsa datorii"],
+  "sample_queries": [
+    "am nevoie de certificat fiscal",
+    "vreau să-mi iau un certificat de atestare fiscală"
+  ],
+  "fields": [
+    { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
+    { "name": "cnp",          "label": "CNP",          "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "scop",         "label": "Scopul",       "source": "ask",     "required": true }
+  ],
+  "template": "certificat-fiscal.tex",
+  "next_steps": []
+}
