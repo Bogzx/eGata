@@ -1,0 +1,6 @@
+□ The team can say in two sentences who they help and how.
+□ There is a real problem at the center, not just a pretty UI.
+□ Security is taken into account (ROeID + 2FA, integrity, access).
+□ It moves fast and smooth, with a modern design, not clunky like the state’s apps.
+□ Accessibility is on the radar from the start.
+□ They have a plan to put the solution online in time.
