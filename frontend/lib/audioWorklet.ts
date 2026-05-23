@@ -39,7 +39,7 @@ export async function startMicRecorder(
     })),
   );
 
-  // Match the recorder context to Gemini Live's expected input rate
+  // Match the recorder context to the backend's expected input rate
   // (16 kHz) so the browser handles the downsample on the input node with
   // a proper anti-alias filter, rather than the worklet trying to decimate
   // by hand. Older recorders ran the context at the system default

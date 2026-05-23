@@ -31,6 +31,7 @@
     { "name": "apartament", "label": "Apartamentul", "source": "ask", "required": false },
     { "name": "judet", "label": "Județul", "source": "ask", "required": true },
     { "name": "telefon", "label": "Telefon", "source": "profile", "required": true },
+    { "name": "email", "label": "Email", "source": "profile", "required": false },
     { "name": "motiv", "label": "Motivul", "source": "ask", "options": ["expirare", "pierdere", "schimbare domiciliu", "deteriorare"], "required": true }
   ],
   "template": "preschimbare-ci.tex",
