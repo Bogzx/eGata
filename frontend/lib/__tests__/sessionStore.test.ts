@@ -40,7 +40,7 @@ describe("sessionStore appendMessage", () => {
       via: "text",
     });
     expect(useSessionStore.getState().messages).toHaveLength(1);
-    const raw = localStorage.getItem("civicai:session:d1");
+    const raw = localStorage.getItem("egata:session:d1");
     expect(raw).toContain("hi");
   });
 

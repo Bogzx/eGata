@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the CivicAI frontend usable on mobile (≤640px), tablet (641–1024px), and desktop (≥1025px) via CSS-only refinement of `app/globals.css`, plus a small mobile Chat/Document segmented toggle in `ChatSurface`.
+**Goal:** Make the eGata frontend usable on mobile (≤640px), tablet (641–1024px), and desktop (≥1025px) via CSS-only refinement of `app/globals.css`, plus a small mobile Chat/Document segmented toggle in `ChatSurface`.
 
 **Architecture:** Approach A from the spec — extend `globals.css` with new `@media` blocks, introduce one piece of React state (`mobileView`) in `ChatSurface`, render a new `MobileViewToggle` component, and adjust the `components/ui/` primitives for touch targets and mobile sizing. Desktop layout above 1024px is preserved byte-for-byte.
 
@@ -60,7 +60,7 @@ Expected: typecheck passes; the existing `ChoiceWidget` test passes. If either f
 
 - [ ] **Step 1: Add breakpoint custom properties**
 
-In `frontend/app/globals.css`, inside the `:root { }` block (between line 9 `@layer base { :root {` and the existing custom properties), add the two breakpoint tokens at the top so they sit with the other tokens. Insert after the `/* CivicAI palette */` comment block and before `/* Bridge to legacy shadcn tokens */`:
+In `frontend/app/globals.css`, inside the `:root { }` block (between line 9 `@layer base { :root {` and the existing custom properties), add the two breakpoint tokens at the top so they sit with the other tokens. Insert after the `/* eGata palette */` comment block and before `/* Bridge to legacy shadcn tokens */`:
 
 ```css
     /* Responsive breakpoint tokens (used in human-readable comments,
@@ -525,7 +525,7 @@ npm run dev
 ```
 
 Open the page at 375px (DevTools responsive mode). The TopBar should show:
-- Brand mark (32px) + "CivicAI" name only (no "Primărie · România" sub-label)
+- Brand mark (32px) + "eGata" name only (no "Primărie · România" sub-label)
 - "Documentele mele" chip collapsed to icon-only with badge
 - Voice chip icon-only (was already)
 - Profile chip with avatar circle + caret only (no name)

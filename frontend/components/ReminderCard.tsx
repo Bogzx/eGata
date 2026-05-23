@@ -155,7 +155,7 @@ export function ReminderCard({ reminder, onDismissed, onStarted }: Props) {
                   </p>
                   <p className="text-xs italic">
                     Pe roadmap: integrare directă, astfel încât să nu mai fie nevoie să
-                    ieși din CivicAI.
+                    ieși din eGata.
                   </p>
                 </div>
               ) : null}

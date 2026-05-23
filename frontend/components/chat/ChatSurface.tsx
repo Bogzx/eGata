@@ -216,7 +216,7 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
         return;
       } catch (err) {
         console.warn(
-          "[civicai] WS widget submit failed; falling back to HTTP",
+          "[egata] WS widget submit failed; falling back to HTTP",
           err,
         );
       }
@@ -251,7 +251,7 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
         Sări la conținut
       </a>
       <h1 className="sr-only">
-        CivicAI — asistent digital pentru primărie
+        eGata — asistent digital pentru primărie
       </h1>
 
       <AnimatedBackground variant={engaged ? "static" : "mesh"} />
@@ -272,7 +272,7 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
         >
           <section
             className={"civic-left " + (engaged ? "engaged" : "idle")}
-            aria-label="Chat cu asistentul CivicAI"
+            aria-label="Chat cu asistentul eGata"
           >
             {engaged ? (
               <ChatStream onWidgetSubmit={onWidgetSubmit} />

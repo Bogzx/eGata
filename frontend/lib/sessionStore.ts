@@ -16,8 +16,8 @@ import type {
   WidgetSpec,
 } from "./types";
 
-const LS_MSG_KEY = (docId: string) => `civicai:session:${docId}`;
-const LS_CONV_KEY = (docId: string) => `civicai:conv:${docId}`;
+const LS_MSG_KEY = (docId: string) => `egata:session:${docId}`;
+const LS_CONV_KEY = (docId: string) => `egata:conv:${docId}`;
 
 function makeId(): string {
   return Math.random().toString(36).slice(2, 11);

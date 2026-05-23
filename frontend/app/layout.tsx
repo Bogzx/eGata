@@ -21,7 +21,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CivicAI — Asistentul tău pentru primărie",
+  title: "eGata — Asistentul tău pentru primărie",
   description:
     "Spune-i ce ai nevoie. Îți spune ce acte îți trebuie. Le și completează cu tine.",
 };

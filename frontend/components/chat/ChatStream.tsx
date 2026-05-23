@@ -87,9 +87,9 @@ function MsgAgent({
       </div>
       <div className="bubble bubble-agent">
         <div className="bubble-name" aria-hidden="true">
-          CivicAI
+          eGata
         </div>
-        <span className="sr-only">CivicAI:</span>
+        <span className="sr-only">eGata:</span>
         <div>
           {text}
           {streaming && text.length > 0 ? <StreamingCaret /> : null}
@@ -138,7 +138,7 @@ export function ChatStream({ onWidgetSubmit }: Props) {
       role="log"
       aria-live="polite"
       aria-relevant="additions"
-      aria-label="Conversație cu asistentul CivicAI"
+      aria-label="Conversație cu asistentul eGata"
     >
       {messages.map((m: Message) => (
         <li

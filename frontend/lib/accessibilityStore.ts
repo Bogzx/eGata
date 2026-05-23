@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { api } from "./api";
 import { getSession } from "./session";
 
-const KEY = "civicai.a11y";
+const KEY = "egata.a11y";
 
 type Persisted = {
   voice_only: boolean;

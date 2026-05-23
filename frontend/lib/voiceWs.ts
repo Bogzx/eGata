@@ -9,9 +9,9 @@
  */
 
 const LOG = (...args: unknown[]) =>
-  console.log("[civicai:voiceWs]", ...args);
+  console.log("[egata:voiceWs]", ...args);
 const ERR = (...args: unknown[]) =>
-  console.error("[civicai:voiceWs]", ...args);
+  console.error("[egata:voiceWs]", ...args);
 
 export type VoiceWsToolCall = {
   name: string;

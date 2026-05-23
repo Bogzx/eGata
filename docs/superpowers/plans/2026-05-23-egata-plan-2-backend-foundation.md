@@ -1,4 +1,4 @@
-# CivicAI — Plan 2: Backend Foundation
+# eGata — Plan 2: Backend Foundation
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -47,7 +47,7 @@ client = TestClient(app)
 def test_health_returns_ok() -> None:
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "service": "civicai-backend"}
+    assert response.json() == {"status": "ok", "service": "egata-backend"}
 ```
 
 - [ ] **Step 2: Run test, verify it fails**
@@ -62,9 +62,9 @@ Expected: FAIL with `ModuleNotFoundError: No module named 'app'` (or `app.main`)
 `backend/pyproject.toml`:
 ```toml
 [project]
-name = "civicai-backend"
+name = "egata-backend"
 version = "0.1.0"
-description = "CivicAI FastAPI backend"
+description = "eGata FastAPI backend"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "fastapi==0.115.4",
@@ -209,7 +209,7 @@ LEDGER_GENESIS_HASH=0x0000000000000000000000000000000000000000000000000000000000
 
 `backend/app/__init__.py`:
 ```python
-"""CivicAI FastAPI backend."""
+"""eGata FastAPI backend."""
 ```
 
 `backend/app/main.py`:
@@ -221,7 +221,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
-    title="CivicAI",
+    title="eGata",
     description="Civic AI agent for Romanian primărie procedures",
     version="0.1.0",
 )
@@ -237,7 +237,7 @@ app.add_middleware(
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "civicai-backend"}
+    return {"status": "ok", "service": "egata-backend"}
 ```
 
 `backend/tests/__init__.py`:
@@ -405,7 +405,7 @@ from app.config import get_settings
 settings = get_settings()
 
 app = FastAPI(
-    title="CivicAI",
+    title="eGata",
     description="Civic AI agent for Romanian primărie procedures",
     version="0.1.0",
 )
@@ -421,7 +421,7 @@ app.add_middleware(
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "civicai-backend"}
+    return {"status": "ok", "service": "egata-backend"}
 ```
 
 `backend/scripts/export_openapi.py`:
@@ -1407,7 +1407,7 @@ def mint_access_token(citizen_id: UUID | str) -> str:
         "sub": str(citizen_id),
         "iat": now,
         "exp": now + settings.jwt_expires_seconds,
-        "iss": "civicai",
+        "iss": "egata",
     }
     return jwt.encode(payload, settings.jwt_signing_secret, algorithm=settings.jwt_algorithm)
 
@@ -1599,7 +1599,7 @@ from app.config import get_settings
 settings = get_settings()
 
 app = FastAPI(
-    title="CivicAI",
+    title="eGata",
     description="Civic AI agent for Romanian primărie procedures",
     version="0.1.0",
 )
@@ -1617,7 +1617,7 @@ app.include_router(auth_router)
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "civicai-backend"}
+    return {"status": "ok", "service": "egata-backend"}
 ```
 
 - [ ] **Step 4: Run test, verify it passes**
@@ -3560,7 +3560,7 @@ def send_delivery_sms(phone: str, ref_number: str) -> None:
     if not settings.twilio_account_sid or not settings.twilio_phone_number:
         return
     body = (
-        f"CivicAI: cererea a fost trimisă la primărie. "
+        f"eGata: cererea a fost trimisă la primărie. "
         f"Număr de înregistrare: {ref_number}."
     )
     client = TwilioClient(settings.twilio_account_sid, settings.twilio_auth_token)
@@ -3761,7 +3761,7 @@ KEYWORD_TO_PROCEDURE: list[tuple[tuple[str, ...], str, str]] = [
 ]
 
 DEFAULT_REPLY = (
-    "Salut! Sunt CivicAI, asistentul digital al primăriei. "
+    "Salut! Sunt eGata, asistentul digital al primăriei. "
     "Spune-mi cu ce te pot ajuta — de exemplu: «vreau să-mi schimb domiciliul» sau "
     "«am nevoie de o adeverință de venit»."
 )
@@ -4060,7 +4060,7 @@ web: uvicorn app.main:app --host 0.0.0.0 --port $PORT
 
 `backend/RUNBOOK.md`:
 ```markdown
-# CivicAI Backend Runbook
+# eGata Backend Runbook
 
 ## Local dev
 
@@ -4115,7 +4115,7 @@ uvicorn app.main:app --reload
 """Live smoke test against a deployed Railway URL.
 
 Skipped unless SMOKE_BASE_URL is set. Run manually after deploy:
-    SMOKE_BASE_URL=https://civicai.up.railway.app pytest tests/test_smoke_deployed.py -v
+    SMOKE_BASE_URL=https://egata.up.railway.app pytest tests/test_smoke_deployed.py -v
 """
 from __future__ import annotations
 

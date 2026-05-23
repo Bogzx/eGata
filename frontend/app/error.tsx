@@ -23,7 +23,7 @@ export default function GlobalError({
         >
           <h1 className="mb-3 text-2xl font-semibold">A apărut o eroare</h1>
           <p className="mb-6 text-muted-foreground">
-            Ne pare rău — ceva nu a mers cum trebuia. Echipa CivicAI a fost
+            Ne pare rău — ceva nu a mers cum trebuia. Echipa eGata a fost
             notificată automat.
           </p>
           <button

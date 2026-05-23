@@ -1,4 +1,4 @@
-# CivicAI
+# eGata
 
 Conversational AI agent for Romanian primărie procedures. Built for the Cluj Hackathon 2026 (Bosch Cluj, May 22-24).
 
@@ -13,7 +13,7 @@ contracts/          OpenAPI 3.1 spec exported from FastAPI
 docs/superpowers/   Design spec + the four implementation plans + execution roadmap
 ```
 
-See `docs/superpowers/specs/2026-05-23-civicai-design.md` for the full product+architecture spec.
+See `docs/superpowers/specs/2026-05-23-egata-design.md` for the full product+architecture spec.
 
 ## Checkpoint 1 — running the integrated stack
 
@@ -94,7 +94,7 @@ Each JSON file defines field schemas, the LaTeX template name, and `next_steps[]
 - **Wave 2 (next)** — Plans 3 (agent + Azure VoiceLive voice bridge) + 4 (proactive worker, polish, a11y final pass).
 - **Checkpoint 2** — full agent-driven flow + reminders worker + a11y certification.
 
-See `docs/superpowers/plans/2026-05-23-civicai-execution-roadmap.md` for the full execution model.
+See `docs/superpowers/plans/2026-05-23-egata-execution-roadmap.md` for the full execution model.
 
 ## Regenerating the OpenAPI contract
 
@@ -114,4 +114,4 @@ Backend:
 cd backend && pytest
 ```
 
-Frontend (Vitest + Playwright are installed but most test files were skipped to ship faster — see `docs/superpowers/plans/2026-05-23-civicai-plan-1-frontend-foundation.md` for the full test plan if you want to backfill).
+Frontend (Vitest + Playwright are installed but most test files were skipped to ship faster — see `docs/superpowers/plans/2026-05-23-egata-plan-1-frontend-foundation.md` for the full test plan if you want to backfill).

@@ -1,4 +1,4 @@
-# CivicAI Chat Audit — 2026-05-23
+# eGata Chat Audit — 2026-05-23
 
 Demo: **2026-05-24** (tomorrow). Auditor focus: chat capability (text + voice), tool loop, widget round-trip, persistence.
 Stack: Next.js + Zustand frontend, FastAPI + Gemini backend, SSE-over-POST streaming, Gemini Live voice bridge.
