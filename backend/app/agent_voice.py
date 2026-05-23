@@ -25,6 +25,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google import genai
 from google.genai import types as genai_types
 
+from app.agent import _conversations, _remember
 from app.config import get_settings
 from app.prompts import build_system_prompt
 from app.security import decode_token
@@ -235,17 +236,33 @@ class VoiceBridgeSession:
             output_audio_transcription=genai_types.AudioTranscriptionConfig(),
         )
 
+        history = list(_conversations.get(self.conv_id, []))
+
         async with client.aio.live.connect(
             model=settings.gemini_voice_model, config=config
         ) as gemini:
             self.gemini = gemini
             await self.send_json({"type": "ready", "conversation_id": self.conv_id})
             log.info(
-                "voice bridge ready conv=%s citizen=%s doc=%s",
+                "voice bridge ready conv=%s citizen=%s doc=%s history_turns=%d",
                 self.conv_id,
                 self.citizen_id,
                 self.start_payload.document_id,
+                len(history),
             )
+
+            # Seed Gemini Live with any prior text-chat history so the voice
+            # session has context. turn_complete=False so the model does not
+            # respond yet — it just absorbs the prior turns.
+            if history:
+                try:
+                    await gemini.send_client_content(
+                        turns=history,
+                        turn_complete=False,
+                    )
+                except Exception:
+                    log.exception("history seed failed — continuing without")
+
             await asyncio.gather(
                 self._pump_mic_to_gemini(gemini),
                 self._pump_gemini_to_client(gemini),
@@ -401,8 +418,16 @@ class VoiceBridgeSession:
             await self._persist_turn(role="model", text=text)
 
     async def _persist_turn(self, role: str, text: str) -> None:
-        # History persistence wired in Task 5.
-        return
+        try:
+            content = genai_types.Content(
+                role=role,
+                parts=[genai_types.Part.from_text(text=text)],
+            )
+            current = list(_conversations.get(self.conv_id, []))
+            current.append(content)
+            _remember(self.conv_id, current)
+        except Exception:
+            log.exception("persist_turn failed for role=%s", role)
 
     async def _dispatch_tool(
         self, name: str, args: dict[str, Any], call_id: str | None
