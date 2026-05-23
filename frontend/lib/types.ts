@@ -165,7 +165,8 @@ export type RightPaneState =
   | { kind: "review" }
   | { kind: "pdf"; url: string }
   | { kind: "delivery" }
-  | { kind: "done"; refNumber: string };
+  | { kind: "done"; refNumber: string }
+  | { kind: "plan"; scenarioId: string };
 
 export type WidgetSpec =
   | {
