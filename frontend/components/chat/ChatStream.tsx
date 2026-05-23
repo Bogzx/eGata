@@ -115,16 +115,18 @@ function MsgSystem({ text }: { text: string }) {
 export function ChatStream({ onWidgetSubmit }: Props) {
   const messages = useSessionStore((s) => s.messages);
   const sending = useSessionStore((s) => s.sending);
-  const pendingUser = useSessionStore((s) => s.pendingUser);
-  const pendingAgent = useSessionStore((s) => s.pendingAgent);
   const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, sending, pendingUser?.text, pendingAgent?.text]);
+  }, [messages, sending]);
 
-  const showTyping =
-    sending && !(pendingAgent && pendingAgent.text.trim().length > 0);
+  // Show the typing dots only when we are sending and there is no live
+  // agent message yet (the live message itself shows the streaming caret).
+  const hasLiveAgent = messages.some(
+    (m) => m.role === "agent" && m.live && m.text.trim().length > 0,
+  );
+  const showTyping = sending && !hasLiveAgent;
 
   return (
     <ol
@@ -159,28 +161,6 @@ export function ChatStream({ onWidgetSubmit }: Props) {
           )}
         </li>
       ))}
-
-      {pendingUser && pendingUser.text.trim() ? (
-        <li
-          key={`pending-user-${pendingUser.id}`}
-          aria-label="Mesajul tău se transcrie"
-        >
-          <MsgUser text={cleanText(pendingUser.text)} streaming />
-        </li>
-      ) : null}
-
-      {pendingAgent && pendingAgent.text.trim() ? (
-        <li
-          key={`pending-agent-${pendingAgent.id}`}
-          aria-label="Asistentul răspunde"
-        >
-          <MsgAgent
-            text={cleanText(pendingAgent.text)}
-            streaming
-            onWidgetSubmit={onWidgetSubmit}
-          />
-        </li>
-      ) : null}
 
       {showTyping ? (
         <li aria-label="Asistentul scrie">
