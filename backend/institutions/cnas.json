@@ -1,0 +1,10 @@
+{
+  "id": "cnas",
+  "nume_scurt": "CNAS",
+  "nume_complet": "Casa Națională de Asigurări de Sănătate",
+  "scope": "Medic de familie, asigurare medicală, card de sănătate.",
+  "url": "https://www.cnas.ro",
+  "phone": "0800 800 950",
+  "online_disponibil": true,
+  "note_ai_cannot_complete": "Schimbarea medicului de familie se face la CNAS. CivicAI nu poate emite documente CNAS."
+}

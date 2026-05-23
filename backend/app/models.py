@@ -206,3 +206,104 @@ class ReminderResponse(BaseModel):
 
 class PatchAttributesRequest(BaseModel):
     attributes: dict[str, Any]
+
+
+# ---- Multi-procedure RAG: institutions, scenarios, resolved shapes ----
+
+
+class Institutie(BaseModel):
+    id: str
+    nume_scurt: str
+    nume_complet: str
+    scope: str
+    url: str | None = None
+    phone: str | None = None
+    online_disponibil: bool = False
+    note_ai_cannot_complete: str | None = None
+
+
+class ScenarioInScopeStep(BaseModel):
+    ordine: int
+    procedure_id: str
+    deadline_days: int | None = None
+    note: str | None = None
+
+
+class ScenarioExternalStep(BaseModel):
+    ordine: int
+    institutie_id: str
+    obligatoriu: bool = True
+    note: str | None = None
+
+
+class Scenario(BaseModel):
+    id: str
+    title: str
+    description: str
+    summary_for_rag: str
+    synonyms: list[str] = Field(default_factory=list)
+    sample_queries: list[str] = Field(default_factory=list)
+    complexitate: str | None = None
+    termen_total: str | None = None
+    applies_if: str | None = None
+    in_scope_steps: list[ScenarioInScopeStep] = Field(default_factory=list)
+    external_steps: list[ScenarioExternalStep] = Field(default_factory=list)
+
+
+class ResolvedExternalStep(BaseModel):
+    institutie_id: str
+    institutie_nume: str
+    scope: str | None = None
+    url: str | None = None
+    phone: str | None = None
+    obligatoriu: bool = True
+    note: str | None = None
+    note_ai_cannot_complete: str | None = None
+
+
+class ResolvedActeNecesareItem(BaseModel):
+    denumire: str
+    emitent: str | None = None
+    emitent_id: str | None = None
+    institutie_nume: str | None = None
+    note_ai_cannot_complete: str | None = None
+    format: str | None = None
+    observatie: str | None = None
+    obligatoriu: bool = True
+    alternative: list[str] = Field(default_factory=list)
+
+
+class ResolvedInScopeStep(BaseModel):
+    ordine: int
+    procedure_id: str
+    procedure_title: str
+    deadline_days: int | None = None
+    note: str | None = None
+    acte_necesare: list[ResolvedActeNecesareItem] = Field(default_factory=list)
+
+
+class ScenarioPlan(BaseModel):
+    scenario_id: str
+    title: str
+    summary: str
+    complexitate: str | None = None
+    termen_total: str | None = None
+    in_scope_steps: list[ResolvedInScopeStep]
+    external_steps: list[ResolvedExternalStep]
+
+
+class ResolvedProcedure(BaseModel):
+    """Same shape as Procedure, but acte_necesare items are enriched with
+    institution name + AI-cannot-complete note when an emitent_id is present.
+    """
+    id: str
+    title: str
+    description: str
+    scope: Literal["primarie", "external"]
+    category: str
+    synonyms: list[str]
+    sample_queries: list[str]
+    acte_necesare: list[ResolvedActeNecesareItem] = Field(default_factory=list)
+    fields: list[ProcedureField]
+    template: str
+    next_steps: list[NextStep] = Field(default_factory=list)

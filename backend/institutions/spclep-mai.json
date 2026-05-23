@@ -1,0 +1,10 @@
+{
+  "id": "spclep-mai",
+  "nume_scurt": "SPCLEP",
+  "nume_complet": "Serviciul Public Comunitar Local de Evidență a Persoanelor (MAI)",
+  "scope": "Eliberare carte de identitate, evidența persoanelor.",
+  "url": "https://depabd.mai.gov.ro",
+  "phone": null,
+  "online_disponibil": false,
+  "note_ai_cannot_complete": "CI nou se predă fizic la SPCLEP/Primărie. Cererea (Anexa 1) se completează în CivicAI dar prezentarea fizică este necesară."
+}

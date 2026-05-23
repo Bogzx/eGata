@@ -1,0 +1,22 @@
+{
+  "id": "sc-persoana-dizabilitati",
+  "title": "Persoană cu dizabilități — drepturi și facilități",
+  "description": "Plan pentru o persoană cu dizabilități încadrată într-un grad: card de parcare, transport urban gratuit, indemnizație.",
+  "summary_for_rag": "Cetățeanul (sau aparținătorul) este o persoană cu dizabilități cu certificat de încadrare. La primărie poate cere: cardul european de parcare, gratuitate transport urban, indemnizație lunară (dacă nu o primește de la altă sursă). Pașii externi: comisia de evaluare medicală pentru reînnoirea certificatului (DGASPC).",
+  "synonyms": ["persoană dizabilități", "handicap", "facilități dizabilități", "card parcare handicap"],
+  "sample_queries": [
+    "am certificat de handicap, ce drepturi am la primărie",
+    "card de parcare pentru dizabilități",
+    "vreau gratuitate transport pentru handicap",
+    "indemnizație persoană cu dizabilități"
+  ],
+  "complexitate": "mediu",
+  "termen_total": "2-4 săptămâni",
+  "applies_if": null,
+  "in_scope_steps": [
+    { "ordine": 1, "procedure_id": "card-parcare-dizabilitati",    "deadline_days": null, "note": "Card european de parcare." },
+    { "ordine": 2, "procedure_id": "transport-urban-dizabilitati", "deadline_days": null, "note": "Gratuitate transport urban (CTP)." },
+    { "ordine": 3, "procedure_id": "indemnizatie-dizabilitati",    "deadline_days": null, "note": "Indemnizație lunară — verifică eligibilitatea." }
+  ],
+  "external_steps": []
+}

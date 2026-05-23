@@ -9,6 +9,8 @@ import type {
   Procedure,
   ProcedureLookupResponse,
   Reminder,
+  ScenarioPlan,
+  ScenarioSummary,
   VoicePreferences,
 } from "./types";
 
@@ -73,6 +75,10 @@ export const api = {
   listProcedures: () => request<Procedure[]>("/procedures"),
 
   getProcedure: (id: string) => request<Procedure>(`/procedures/${id}`),
+
+  listScenarios: () => request<ScenarioSummary[]>("/scenarios"),
+
+  getScenarioPlan: (id: string) => request<ScenarioPlan>(`/scenarios/${id}`),
 
   createDocument: (b: { procedure_id: string }) =>
     request<Document>("/documents", { method: "POST", body: b }),

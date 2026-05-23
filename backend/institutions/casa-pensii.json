@@ -1,0 +1,10 @@
+{
+  "id": "casa-pensii",
+  "nume_scurt": "CNPP",
+  "nume_complet": "Casa Națională de Pensii Publice",
+  "scope": "Pensii, decizii de pensionare, adeverințe venit pensie.",
+  "url": "https://www.cnpp.ro",
+  "phone": "021 316 9498",
+  "online_disponibil": true,
+  "note_ai_cannot_complete": "Deciziile și adeverințele de pensie se obțin de la CNPP. CivicAI nu poate emite documente CNPP."
+}

@@ -1,0 +1,10 @@
+{
+  "id": "anevar",
+  "nume_scurt": "ANEVAR",
+  "nume_complet": "Asociația Națională a Evaluatorilor Autorizați din România",
+  "scope": "Rapoarte de evaluare a bunurilor (imobiliare, mobiliare, întreprinderi).",
+  "url": "https://www.anevar.ro",
+  "phone": "021 315 6504",
+  "online_disponibil": false,
+  "note_ai_cannot_complete": "Raportul de evaluare se eliberează de un evaluator autorizat ANEVAR după inspecție. CivicAI nu îl poate emite."
+}

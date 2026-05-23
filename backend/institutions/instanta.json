@@ -1,0 +1,10 @@
+{
+  "id": "instanta",
+  "nume_scurt": "Instanță",
+  "nume_complet": "Instanța de judecată (judecătorie, tribunal)",
+  "scope": "Hotărâri judecătorești, sentințe, certificate emise de instanță.",
+  "url": "https://portal.just.ro",
+  "phone": null,
+  "online_disponibil": true,
+  "note_ai_cannot_complete": "Hotărârile judecătorești se eliberează doar de instanța competentă. CivicAI nu poate emite acte judecătorești."
+}

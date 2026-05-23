@@ -12,6 +12,7 @@ import type {
   Message,
   Procedure,
   RightPaneState,
+  ScenarioPlan,
   VoiceStatus,
   WidgetSpec,
 } from "./types";
@@ -72,10 +73,12 @@ export interface SessionState {
   drawerOpen: boolean;
   profileMenuOpen: boolean;
   sending: boolean;
+  scenarioPlan: ScenarioPlan | null;
 
   hydrateCitizen(): Promise<void>;
   startProcedure(procedureId: string): Promise<void>;
   loadDocument(docId: string): Promise<void>;
+  openScenarioPlan(scenarioId: string): Promise<void>;
   sendText(text: string, opts?: { viaWs?: boolean }): Promise<void>;
   applyToolResult(
     toolName: string,
@@ -104,6 +107,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   drawerOpen: false,
   profileMenuOpen: false,
   sending: false,
+  scenarioPlan: null,
 
   async hydrateCitizen() {
     const c = await api.getCitizenMe();
@@ -130,6 +134,25 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       drawerOpen: false,
     });
     pushPath(`/r/${doc.id}`);
+  },
+
+  async openScenarioPlan(scenarioId: string) {
+    try {
+      const plan = await api.getScenarioPlan(scenarioId);
+      set({
+        scenarioPlan: plan,
+        rightPane: { kind: "plan", scenarioId },
+        drawerOpen: false,
+      });
+      pushPath(`/p/${scenarioId}`);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "necunoscută";
+      get().appendMessage({
+        id: makeId(),
+        role: "system",
+        text: `Nu am putut încărca planul: ${detail}`,
+      });
+    }
   },
 
   async loadDocument(docId: string) {
@@ -222,7 +245,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         }
         break;
       }
-      case "lookup_procedure":
+      case "lookup_procedure": {
+        const res = _result as { scenario_plan?: ScenarioPlan | null } | undefined;
+        const sp = res?.scenario_plan ?? null;
+        if (sp && !activeDocId) {
+          set({
+            scenarioPlan: sp,
+            rightPane: { kind: "plan", scenarioId: sp.scenario_id },
+          });
+          pushPath(`/p/${sp.scenario_id}`);
+        }
+        break;
+      }
       case "find_redirect":
       case "set_reminder":
       case "propose_widget":
@@ -271,6 +305,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       rightPane: { kind: "welcome" },
       drawerOpen: false,
       profileMenuOpen: false,
+      scenarioPlan: null,
     });
     pushPath("/");
   },
