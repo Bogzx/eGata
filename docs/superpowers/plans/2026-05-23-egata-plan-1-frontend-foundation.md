@@ -1,4 +1,4 @@
-# CivicAI — Plan 1: Frontend Foundation
+# eGata — Plan 1: Frontend Foundation
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -179,7 +179,7 @@ import { Button } from "@/components/ui/button";
 export default function Page() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background text-foreground">
-      <Button>CivicAI</Button>
+      <Button>eGata</Button>
     </main>
   );
 }
@@ -250,8 +250,8 @@ import { Button } from "@/components/ui/button";
 
 describe("sanity", () => {
   it("renders a shadcn button", () => {
-    render(<Button>CivicAI</Button>);
-    expect(screen.getByRole("button", { name: "CivicAI" })).toBeInTheDocument();
+    render(<Button>eGata</Button>);
+    expect(screen.getByRole("button", { name: "eGata" })).toBeInTheDocument();
   });
 });
 ```
@@ -324,9 +324,9 @@ export default defineConfig({
 ```ts
 import { test, expect } from "@playwright/test";
 
-test("home page renders CivicAI button", async ({ page }) => {
+test("home page renders eGata button", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "CivicAI" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "eGata" })).toBeVisible();
 });
 ```
 
@@ -624,7 +624,7 @@ git commit -m "feat(plan-1): shared TypeScript types matching OpenAPI contract"
 `frontend/lib/session.ts`:
 
 ```ts
-const KEY = "civicai.session";
+const KEY = "egata.session";
 
 export type StoredSession = {
   access_token: string;
@@ -1396,7 +1396,7 @@ import "./globals.css";
 import { MockProvider } from "@/components/MockProvider";
 
 export const metadata: Metadata = {
-  title: "CivicAI — Asistentul tău digital la primărie",
+  title: "eGata — Asistentul tău digital la primărie",
   description: "Spune-i ce ai nevoie. Îți spune ce acte îți trebuie.",
 };
 
@@ -1475,7 +1475,7 @@ type Variant = "standard" | "simple";
 type Entry = { standard: string; simple?: string };
 
 const strings = {
-  "app.title": { standard: "CivicAI" },
+  "app.title": { standard: "eGata" },
   "app.tagline": {
     standard: "Spune-i ce ai nevoie. Îți spune ce acte îți trebuie.",
     simple: "Spune ce vrei. Te ajutăm cu actele.",
@@ -3454,7 +3454,7 @@ export function reduceCompletionMode(
   }
 }
 
-const KEY = (docId: string) => `civicai.mode.${docId}`;
+const KEY = (docId: string) => `egata.mode.${docId}`;
 
 export function loadPersistedMode(docId: string): CompletionMode | null {
   if (typeof window === "undefined") return null;
@@ -4580,7 +4580,7 @@ describe("AccessibilityToggles", () => {
   it("persists state to localStorage", async () => {
     render(<AccessibilityToggles />);
     await userEvent.click(screen.getByRole("switch", { name: /Mod vocal/i }));
-    const raw = window.localStorage.getItem("civicai.a11y");
+    const raw = window.localStorage.getItem("egata.a11y");
     expect(raw).toBeTruthy();
     expect(JSON.parse(raw!).voice_only).toBe(true);
   });
@@ -4597,7 +4597,7 @@ Replace `frontend/components/AccessibilityToggles.tsx`:
 import { useEffect, useState } from "react";
 import { t } from "@/lib/i18n";
 
-const KEY = "civicai.a11y";
+const KEY = "egata.a11y";
 
 type State = {
   voice_only: boolean;
@@ -4883,7 +4883,7 @@ git commit -m "test(plan-1): E2E login + procedure flow against MSW"
 ```bash
 cd C:/Users/Bogdan/Documents/ClujHackathon/frontend
 npx --yes vercel@latest login
-npx --yes vercel@latest link --yes --project civicai-frontend
+npx --yes vercel@latest link --yes --project egata-frontend
 ```
 
 Expected: writes `frontend/.vercel/`.
@@ -4908,7 +4908,7 @@ Expected: writes `frontend/.vercel/`.
 ```bash
 npx --yes vercel@latest env add NEXT_PUBLIC_DEMO_MODE preview --yes <<< "1"
 npx --yes vercel@latest env add NEXT_PUBLIC_USE_MOCKS preview --yes <<< "1"
-npx --yes vercel@latest env add NEXT_PUBLIC_API_BASE_URL preview --yes <<< "https://civicai-backend-staging.example.com"
+npx --yes vercel@latest env add NEXT_PUBLIC_API_BASE_URL preview --yes <<< "https://egata-backend-staging.example.com"
 ```
 
 (If Plan 2's backend URL is not yet known, use a placeholder; MSW will short-circuit network calls regardless.)
@@ -4919,7 +4919,7 @@ npx --yes vercel@latest env add NEXT_PUBLIC_API_BASE_URL preview --yes <<< "http
 npx --yes vercel@latest --yes
 ```
 
-Capture the deployed URL printed at the end of the command (e.g. `https://civicai-frontend-xxxx.vercel.app`).
+Capture the deployed URL printed at the end of the command (e.g. `https://egata-frontend-xxxx.vercel.app`).
 
 - [ ] **Step 5: Smoke test the deployed URL**
 
@@ -4930,7 +4930,7 @@ npx --yes playwright test --config frontend/playwright.config.ts -g "smoke" --re
 Override `baseURL` for this run:
 
 ```bash
-PLAYWRIGHT_BASE_URL=https://civicai-frontend-xxxx.vercel.app npx --yes playwright test --config frontend/playwright.config.ts -g "home page renders CivicAI button"
+PLAYWRIGHT_BASE_URL=https://egata-frontend-xxxx.vercel.app npx --yes playwright test --config frontend/playwright.config.ts -g "home page renders eGata button"
 ```
 
 (If your shell does not support inline env-vars — common on PowerShell — set `$env:PLAYWRIGHT_BASE_URL` first; on bash use the inline form above.)
@@ -4949,7 +4949,7 @@ Update `playwright.config.ts` `use.baseURL` to honor `PLAYWRIGHT_BASE_URL` if it
 `frontend/README.md`:
 
 ```markdown
-# CivicAI — Frontend (Plan 1)
+# eGata — Frontend (Plan 1)
 
 Next.js 15 + Tailwind + shadcn/ui + framer-motion.
 

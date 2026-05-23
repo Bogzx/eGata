@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: CivicAI
+  title: eGata
   description: Civic AI agent for Romanian primărie procedures
   version: 0.1.0
 paths:

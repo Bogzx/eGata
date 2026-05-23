@@ -336,7 +336,7 @@ Then add (or extract) at the bottom of `backend/app/security.py`:
 ```python
 def current_citizen_id_from_cookies(cookies: dict) -> UUID | None:
     """Resolve citizen ID from a raw cookies dict (e.g., from a WebSocket upgrade)."""
-    token = cookies.get("civicai_session") or cookies.get("session")
+    token = cookies.get("egata_session") or cookies.get("session")
     if not token:
         return None
     try:
@@ -345,7 +345,7 @@ def current_citizen_id_from_cookies(cookies: dict) -> UUID | None:
         return None
 ```
 
-Replace `civicai_session` / `session` / `_decode_session_token` with the actual cookie name and decode function found in `security.py`. If the existing dep already accepts cookies, just import and adapt.
+Replace `egata_session` / `session` / `_decode_session_token` with the actual cookie name and decode function found in `security.py`. If the existing dep already accepts cookies, just import and adapt.
 
 - [ ] **Step 3: Register the router**
 
@@ -863,9 +863,9 @@ Stand up the raw client. No React, no store wiring yet.
  */
 
 const LOG = (...args: unknown[]) =>
-  console.log("[civicai:voiceWs]", ...args);
+  console.log("[egata:voiceWs]", ...args);
 const ERR = (...args: unknown[]) =>
-  console.error("[civicai:voiceWs]", ...args);
+  console.error("[egata:voiceWs]", ...args);
 
 export type VoiceWsToolCall = {
   name: string;
@@ -1171,18 +1171,18 @@ Find the chat CSS (likely `frontend/styles/chat.css` or similar). Add:
 ```css
 .message-live {
   border-left: 2px solid currentColor;
-  animation: civicai-live-pulse 1.2s ease-in-out infinite;
+  animation: egata-live-pulse 1.2s ease-in-out infinite;
 }
 .message-live-caret {
   display: inline-block;
   margin-left: 2px;
-  animation: civicai-live-caret-blink 0.9s steps(2) infinite;
+  animation: egata-live-caret-blink 0.9s steps(2) infinite;
 }
-@keyframes civicai-live-pulse {
+@keyframes egata-live-pulse {
   0%, 100% { border-left-color: currentColor; }
   50%      { border-left-color: transparent; }
 }
-@keyframes civicai-live-caret-blink {
+@keyframes egata-live-caret-blink {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0; }
 }
@@ -1237,9 +1237,9 @@ import {
 } from "./useVoiceAgent";
 
 const LOG = (...args: unknown[]) =>
-  console.log("[civicai:voice-bridge]", ...args);
+  console.log("[egata:voice-bridge]", ...args);
 const ERR = (...args: unknown[]) =>
-  console.error("[civicai:voice-bridge]", ...args);
+  console.error("[egata:voice-bridge]", ...args);
 
 function wsUrlFor(path: string): string {
   if (typeof window === "undefined") return path;

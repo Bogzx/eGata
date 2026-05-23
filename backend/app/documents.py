@@ -133,7 +133,7 @@ def send_delivery_sms(phone: str, ref_number: str) -> None:
     if not settings.twilio_account_sid or not settings.twilio_phone_number:
         return
     body = (
-        f"CivicAI: cererea a fost trimisă la primărie. "
+        f"eGata: cererea a fost trimisă la primărie. "
         f"Număr de înregistrare: {ref_number}."
     )
     client = TwilioClient(settings.twilio_account_sid, settings.twilio_auth_token)

@@ -12,7 +12,7 @@ function Logo({ onHome }: { onHome: () => void }) {
       type="button"
       className="brand"
       onClick={onHome}
-      aria-label="Acasă · CivicAI"
+      aria-label="Acasă · eGata"
     >
       <div className="brand-mark" aria-hidden="true">
         <svg
@@ -32,7 +32,7 @@ function Logo({ onHome }: { onHome: () => void }) {
         </svg>
       </div>
       <div className="brand-text">
-        <div className="brand-name">CivicAI</div>
+        <div className="brand-name">eGata</div>
         <div className="brand-sub">Primărie · România</div>
       </div>
     </button>

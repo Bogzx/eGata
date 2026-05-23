@@ -16,8 +16,8 @@
  */
 import { getSession } from "./session";
 
-const LOG = (...args: unknown[]) => console.log("[civicai:sse]", ...args);
-const ERR = (...args: unknown[]) => console.error("[civicai:sse]", ...args);
+const LOG = (...args: unknown[]) => console.log("[egata:sse]", ...args);
+const ERR = (...args: unknown[]) => console.error("[egata:sse]", ...args);
 
 const BASE_URL =
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_BASE_URL) ||

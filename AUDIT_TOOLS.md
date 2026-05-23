@@ -1,4 +1,4 @@
-# CivicAI — Tool-Calling & Document Auto-Completion Audit
+# eGata — Tool-Calling & Document Auto-Completion Audit
 
 Audit date: 2026-05-23 (demo eve). Scope: the tool-calling subsystem + the
 "user says a thing, doc opens, fields fill live, PDF delivered" flow.
@@ -501,7 +501,7 @@ Voice/text symmetric:
   feeding the same `Session.step()` engine.
 
 Risk: high. This is a rewrite of the agent loop, frontend store, and
-tools. ~5 working days. Worth it if CivicAI is going to be a real product
+tools. ~5 working days. Worth it if eGata is going to be a real product
 because the current shape will rot fast as you add procedures.
 
 What you gain: every procedure is just a JSON schema + a `.tex` template.
@@ -547,7 +547,7 @@ include a click on "Începe" or, post-fix, can omit it.**
 **Post-demo: do Option B in the first week.** Tool surface collapse +
 single schema source + widget structured round-trip + `/tools/*` deletion
 = a much smaller, cleaner codebase that's still recognizable, in ~2 days
-of focused work. Option C is for if/when CivicAI becomes a product.
+of focused work. Option C is for if/when eGata becomes a product.
 
 ---
 

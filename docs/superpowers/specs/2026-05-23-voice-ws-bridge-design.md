@@ -1,4 +1,4 @@
-# CivicAI Voice WS Bridge — Design
+# eGata Voice WS Bridge — Design
 
 **Status:** Draft for implementation
 **Date:** 2026-05-23
