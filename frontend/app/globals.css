@@ -348,6 +348,13 @@ html.large-text {
   font-weight: 600;
   margin: -2px 0;
 }
+.chip-caret {
+  transition: transform 0.2s ease;
+  transform-origin: center;
+}
+.chip[aria-expanded="true"] .chip-caret {
+  transform: rotate(180deg);
+}
 
 /* ============ Main grid ============ */
 
