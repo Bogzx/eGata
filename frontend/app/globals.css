@@ -444,11 +444,11 @@ html.large-text {
 }
 
 .hello {
-  font-size: clamp(38px, 5.5vw, 64px);
+  font-size: clamp(46px, 6.2vw, 76px);
   font-weight: 500;
   line-height: 1.05;
   letter-spacing: -0.035em;
-  margin: 0 0 18px;
+  margin: 0 0 14px;
   max-width: 16ch;
   text-wrap: balance;
 }

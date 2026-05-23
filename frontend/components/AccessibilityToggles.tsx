@@ -14,8 +14,8 @@ function Toggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex items-center justify-between gap-4 rounded-lg border bg-background p-3">
-      <span className="text-sm font-medium">{label}</span>
+    <label className="flex items-center justify-between gap-4 rounded-lg border bg-background p-3.5">
+      <span className="text-base font-medium">{label}</span>
       <button
         type="button"
         role="switch"
@@ -24,16 +24,16 @@ function Toggle({
         onClick={() => onChange(!checked)}
         className={
           checked
-            ? "relative h-7 w-12 rounded-full bg-primary transition"
-            : "relative h-7 w-12 rounded-full bg-muted transition"
+            ? "relative h-8 w-14 rounded-full bg-primary transition"
+            : "relative h-8 w-14 rounded-full bg-muted transition"
         }
       >
         <span
           aria-hidden
           className={
             checked
-              ? "absolute left-0 top-0.5 block h-6 w-6 translate-x-5 rounded-full bg-white shadow transition"
-              : "absolute left-0 top-0.5 block h-6 w-6 translate-x-1 rounded-full bg-white shadow transition"
+              ? "absolute left-0 top-0.5 block h-7 w-7 translate-x-6 rounded-full bg-white shadow transition"
+              : "absolute left-0 top-0.5 block h-7 w-7 translate-x-1 rounded-full bg-white shadow transition"
           }
         />
       </button>
