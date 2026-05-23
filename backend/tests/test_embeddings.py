@@ -4,7 +4,6 @@ import pytest
 
 from app.embeddings import (
     EMBEDDING_DIM,
-    EMBEDDING_MODEL,
     cosine_similarity,
     procedure_source_text,
 )
@@ -26,8 +25,9 @@ def _make_proc() -> Procedure:
     )
 
 
-def test_embedding_model_constants() -> None:
-    assert EMBEDDING_MODEL == "gemini-embedding-001"
+def test_embedding_dim_unchanged() -> None:
+    # Same dim as before the Azure migration so the pgvector column shape
+    # stays compatible (vectors themselves still need re-ingestion).
     assert EMBEDDING_DIM == 768
 
 

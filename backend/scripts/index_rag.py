@@ -1,7 +1,8 @@
 """Re-index all procedures + scenarios into rag_entries.
 
 Idempotent. Safe to run after every JSON change. Requires Supabase DB env vars
-and a working GEMINI_API_KEY.
+plus AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT + an embedding deployment
+(set via AZURE_OPENAI_EMBED_DEPLOYMENT, default text-embedding-3-small).
 """
 from __future__ import annotations
 

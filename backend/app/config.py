@@ -26,11 +26,27 @@ class Settings(BaseSettings):
     twilio_phone_number: str = Field(default="")
     mock_otp: bool = Field(default=True)
 
-    gemini_api_key: str = Field(default="")
-    gemini_model: str = Field(default="gemini-2.5-flash")
-    gemini_voice_model: str = Field(default="gemini-3.1-flash-live-preview")
-    gemini_voice_name: str = Field(default="Aoede")
-    openai_api_key: str = Field(default="")
+    # Azure OpenAI — used for text chat (session_engine) + embeddings.
+    azure_openai_endpoint: str = Field(
+        default="https://mihaikun2501-5356-resource.openai.azure.com/"
+    )
+    azure_openai_api_key: str = Field(default="")
+    azure_openai_chat_deployment: str = Field(default="gpt-5-mini")
+    azure_openai_embed_deployment: str = Field(default="text-embedding-3-large")
+    azure_openai_api_version: str = Field(default="2024-10-21")
+
+    # Azure VoiceLive — used for browser voice WS + Twilio phone bridge.
+    # Direct model mode: we own system_instruction + tool declarations
+    # client-side.
+    azure_voicelive_endpoint: str = Field(
+        default="https://mihaikun2501-5356-resource.services.ai.azure.com/"
+    )
+    azure_voicelive_api_key: str = Field(default="")
+    azure_voicelive_model: str = Field(default="gpt-realtime")
+    azure_voicelive_voice: str = Field(default="en-US-Ava:DragonHDLatestNeural")
+    azure_voicelive_api_version: str = Field(default="2026-04-10")
+
+    embedding_dim: int = Field(default=768)
 
     jwt_signing_secret: str = Field(...)
     jwt_algorithm: str = Field(default="HS256")

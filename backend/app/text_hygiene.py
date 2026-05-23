@@ -1,6 +1,7 @@
 """Strip internal-thought artifacts from LLM output.
 
-The Gemini 2.5 Flash native-audio model occasionally leaks its scratchpad as:
+Reasoning models occasionally leak their scratchpad into the user-facing
+stream, e.g.:
 
     **Initiating Communication Strategy**
 
@@ -13,7 +14,7 @@ paragraphs, repeated up to three times, then trim. Romanian bold headings
 (which always contain diacritics like ăâîșț) are left alone.
 
 We also strip ``<thinking>``/``<scratchpad>``/``<reasoning>`` XML blocks
-anywhere in the text — older models still emit these despite instructions.
+anywhere in the text — some models still emit these despite instructions.
 
 The frontend has the same logic as belt-and-braces; this is the server-side
 defence so the same cleaned text is what we persist into history.

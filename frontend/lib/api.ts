@@ -140,7 +140,7 @@ export const api = {
     preferences?: VoicePreferences;
   }) => request<ChatResponse>("/agent/chat", { method: "POST", body: b }),
 
-  /** Resolve a pending widget without round-tripping through Gemini.
+  /** Resolve a pending widget without round-tripping through the model.
    *
    * Returns `requires_chat_followup=true` when the widget had no
    * target_field — the answer is a signal the agent must react to, so

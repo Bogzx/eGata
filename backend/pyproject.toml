@@ -10,9 +10,9 @@ dependencies = [
   "pydantic-settings==2.6.1",
   "supabase>=2.18.0,<3.0",
   "psycopg[binary,pool]==3.2.3",
-  "google-genai>=2.0.0,<3.0",
-  # google-genai 2.x async streaming calls aiohttp.StreamReader.readline(max_line_length=...);
-  # that kwarg only exists in aiohttp >=3.11. Floor it explicitly.
+  "azure-ai-voicelive>=1.0.0b6",
+  "azure-core>=1.32.0",
+  "openai>=1.55.0,<2",
   "aiohttp>=3.11,<4",
   "twilio==9.3.5",
   "python-multipart==0.0.17",
