@@ -10,13 +10,23 @@
  *   - toolCall: server emits a function-call → we dispatch HTTP to FastAPI
  *   - toolResponse: we send the tool result back
  *   - serverContent: agent text + base64 PCM16 24 kHz audio
- *   - generationComplete / interrupted: end-of-turn / barge-in events
+ *   - generationComplete / turnComplete / interrupted: end-of-turn / barge-in
+ *
+ * Buffering: Gemini emits transcripts as a stream of partials ("Bun", "Bună",
+ * "Bună zi", ...). We buffer per turn and emit ONE message via onUserMessage /
+ * onAgentMessage when the turn boundary fires (turnComplete, generationComplete,
+ * or when the other side starts talking).
  */
 
 export type FunctionDecl = {
   name: string;
   description: string;
   parameters: Record<string, unknown>;
+};
+
+export type AgentToolCall = {
+  name: string;
+  args: Record<string, unknown>;
 };
 
 export type GeminiLiveOpts = {
@@ -26,8 +36,10 @@ export type GeminiLiveOpts = {
   systemPrompt: string;
   functionDeclarations: FunctionDecl[];
   onAgentAudio: (pcm: ArrayBuffer) => void;
-  onAgentText: (text: string) => void;
-  onUserTranscript: (text: string) => void;
+  /** Fired once per completed user turn with the full transcript. */
+  onUserMessage: (text: string) => void;
+  /** Fired once per completed agent turn with the full text + any tool calls. */
+  onAgentMessage: (text: string, toolCalls: AgentToolCall[]) => void;
   onInterrupted: () => void;
   onToolCall: (
     name: string,
@@ -43,10 +55,48 @@ type ToolCallFromServer = {
   args?: Record<string, unknown>;
 };
 
+// Gemini 2.5 Flash native-audio sometimes leaks its scratchpad into the
+// response text, formatted like:
+//   **Initiating Communication Strategy**
+//
+//   I've got a tricky starting point here, an ellipsis alone! ...
+//
+//   Bună ziua! Cu ce te pot ajuta?
+// A leading markdown bold-header followed by a paragraph is treated as
+// thinking and stripped. We repeat the strip up to 3 times in case there
+// are multiple thinking blocks back-to-back.
+const LEADING_THINKING_BLOCK_RE =
+  /^\s*\*\*[^*\n]+\*\*[^\n]*\n(?:\s*\n)*(?:[^\n]+\n)+(?:\s*\n)*/;
+// Any remaining ``**Heading**`` lines anywhere — strip the line entirely.
+const ANY_MD_HEADING_BOLD_RE = /^\s*\*\*[^*\n]+\*\*\s*$/gm;
+// Legacy XML-style tags (defense in depth alongside the server-side strip).
+const XML_THINKING_RE =
+  /<(?:thinking|scratchpad|reasoning)>[\s\S]*?<\/(?:thinking|scratchpad|reasoning)>/gi;
+
+function scrubAgentText(text: string): string {
+  if (!text) return text;
+  let out = text.replace(XML_THINKING_RE, "");
+  // Strip leading thinking-block(s).
+  for (let i = 0; i < 3; i++) {
+    const before = out;
+    out = out.replace(LEADING_THINKING_BLOCK_RE, "");
+    if (out === before) break;
+  }
+  // Strip any stray markdown-bold-header lines mid-response.
+  out = out.replace(ANY_MD_HEADING_BOLD_RE, "");
+  return out.replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export class GeminiLiveSession {
   private ws: WebSocket | null = null;
   private opts: GeminiLiveOpts;
   private opened = false;
+
+  // Turn buffering state
+  private userBuf = "";
+  private agentBuf = "";
+  private agentToolCalls: AgentToolCall[] = [];
+  private active: "user" | "agent" | null = null;
 
   constructor(opts: GeminiLiveOpts) {
     this.opts = opts;
@@ -71,7 +121,15 @@ export class GeminiLiveSession {
                 },
                 languageCode: "ro-RO",
               },
-              temperature: 0.7,
+              temperature: 0.6,
+              // Let Gemini 2.5 think internally (dynamic budget) but exclude
+              // thought parts from the response stream so the chat UI shows
+              // only the final answer. The model still reasons — we just hide
+              // the scratchpad.
+              thinkingConfig: {
+                thinkingBudget: -1,
+                includeThoughts: false,
+              },
             },
             systemInstruction: {
               role: "system",
@@ -97,9 +155,34 @@ export class GeminiLiveSession {
       ws.onclose = () => {
         this.opened = false;
         this.ws = null;
+        // Flush whatever's left so the UI sees it.
+        this.flushUser();
+        this.flushAgent();
       };
       ws.onmessage = (e) => void this.handleMessage(e);
     });
+  }
+
+  private flushUser(): void {
+    const t = this.userBuf.trim();
+    this.userBuf = "";
+    if (t) this.opts.onUserMessage(t);
+  }
+
+  private flushAgent(): void {
+    const cleaned = scrubAgentText(this.agentBuf);
+    const calls = this.agentToolCalls;
+    this.agentBuf = "";
+    this.agentToolCalls = [];
+    if (cleaned || calls.length > 0) {
+      this.opts.onAgentMessage(cleaned, calls);
+    }
+  }
+
+  private setActive(next: "user" | "agent"): void {
+    if (this.active === "user" && next === "agent") this.flushUser();
+    if (this.active === "agent" && next === "user") this.flushAgent();
+    this.active = next;
   }
 
   private async handleMessage(event: MessageEvent): Promise<void> {
@@ -115,11 +198,22 @@ export class GeminiLiveSession {
 
     const sc = msg.serverContent as Record<string, unknown> | undefined;
     if (sc) {
-      if (sc.interrupted) this.opts.onInterrupted();
+      if (sc.interrupted) {
+        this.opts.onInterrupted();
+        // Drop any half-buffered agent text; the model was cut off.
+        this.agentBuf = "";
+      }
+
+      // Agent text / audio (modelTurn). Skip any part Gemini flags as a thought.
       const modelTurn = sc.modelTurn as { parts?: unknown[] } | undefined;
       const parts = (modelTurn?.parts ?? []) as Array<Record<string, unknown>>;
       for (const p of parts) {
-        if (typeof p.text === "string") this.opts.onAgentText(p.text);
+        // Gemini marks internal-reasoning parts with thought=true. Drop them.
+        if (p.thought === true) continue;
+        if (typeof p.text === "string") {
+          this.setActive("agent");
+          this.agentBuf += p.text;
+        }
         const inline = p.inlineData as
           | { mimeType?: string; data?: string }
           | undefined;
@@ -127,16 +221,40 @@ export class GeminiLiveSession {
           this.opts.onAgentAudio(base64ToArrayBuffer(inline.data));
         }
       }
+
+      // User STT
       const inputT = sc.inputTranscription as { text?: string } | undefined;
-      if (inputT?.text) this.opts.onUserTranscript(inputT.text);
+      if (inputT?.text) {
+        this.setActive("user");
+        this.userBuf += inputT.text;
+      }
+
+      // Agent TTS transcript (audio captioning)
       const outputT = sc.outputTranscription as { text?: string } | undefined;
-      if (outputT?.text) this.opts.onAgentText(outputT.text);
+      if (outputT?.text) {
+        this.setActive("agent");
+        this.agentBuf += outputT.text;
+      }
+
+      // Turn boundary signals → flush agent buffer
+      if (sc.turnComplete || sc.generationComplete) {
+        this.flushAgent();
+        this.active = null;
+      }
     }
 
     const tc = msg.toolCall as
       | { functionCalls?: ToolCallFromServer[] }
       | undefined;
     if (tc && Array.isArray(tc.functionCalls)) {
+      this.setActive("agent");
+      // Buffer the tool calls so they're attached to the next agent message flush.
+      for (const fc of tc.functionCalls) {
+        this.agentToolCalls.push({
+          name: fc.name,
+          args: fc.args || {},
+        });
+      }
       const responses = await Promise.all(
         tc.functionCalls.map(async (fc) => {
           const callId = fc.id ?? "";
@@ -179,6 +297,9 @@ export class GeminiLiveSession {
 
   sendText(text: string): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    // The user typed something — finalize any in-flight buffers first.
+    this.flushUser();
+    this.flushAgent();
     this.ws.send(
       JSON.stringify({
         clientContent: {
@@ -219,3 +340,6 @@ function base64ToArrayBuffer(b64: string): ArrayBuffer {
   for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
   return buf.buffer as ArrayBuffer;
 }
+
+// Exported for unit tests.
+export const _internal = { scrubAgentText };
