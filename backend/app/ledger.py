@@ -70,6 +70,9 @@ def _invalidate_global_verified_cache() -> None:
     _global_verified_cache["stamp"] = 0.0
 
 
+_APPEND_LEDGER_MAX_ATTEMPTS = 3
+
+
 def append_ledger(
     citizen_id: UUID | str,
     event_type: LedgerEventType,
@@ -78,46 +81,71 @@ def append_ledger(
 ) -> dict[str, Any]:
     """Append a ledger row via the Postgres append_ledger() function.
 
-    Returns the inserted row data (event_type, hashes, created_at).
-    Raises if prev_hash mismatch (chain integrity violation).
+    The tip-hash read and the INSERT live on different connections, so
+    between read and write another process can append. The DB function
+    rejects the mismatched prev_hash with a Postgres exception — we catch
+    that on the chain-integrity error string and retry up to
+    `_APPEND_LEDGER_MAX_ATTEMPTS` times, re-reading the tip each time.
+
+    Returns the inserted row data on success. Re-raises if the retry
+    budget is exhausted or the exception isn't a prev_hash mismatch.
     """
-    prev_hash = _fetch_tip_hash()
     payload_hash = compute_payload_hash(payload)
-    iso_ts = datetime.now(timezone.utc).isoformat()
-    row_hash = compute_row_hash(event_type.value, payload_hash, prev_hash, iso_ts)
+    last_exc: Exception | None = None
 
-    with get_pg_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            "select append_ledger(%s, %s, %s, %s::jsonb, %s, %s, %s) as id;",
-            (
-                str(citizen_id),
-                str(document_id) if document_id is not None else None,
-                event_type.value,
-                canonical_json(payload),
-                payload_hash,
-                prev_hash,
-                row_hash,
-            ),
-        )
-        row = cur.fetchone()
-        if row is None:
-            raise RuntimeError("append_ledger returned no row")
-        conn.commit()
-        ledger_id = int(row["id"])
+    for _ in range(_APPEND_LEDGER_MAX_ATTEMPTS):
+        prev_hash = _fetch_tip_hash()
+        iso_ts = datetime.now(timezone.utc).isoformat()
+        row_hash = compute_row_hash(event_type.value, payload_hash, prev_hash, iso_ts)
 
-    # The global verified cache becomes stale on append. Invalidate so
-    # the next /ledger response recomputes against the updated chain.
-    _invalidate_global_verified_cache()
+        try:
+            with get_pg_connection() as conn, conn.cursor() as cur:
+                cur.execute(
+                    "select append_ledger(%s, %s, %s, %s::jsonb, %s, %s, %s) as id;",
+                    (
+                        str(citizen_id),
+                        str(document_id) if document_id is not None else None,
+                        event_type.value,
+                        canonical_json(payload),
+                        payload_hash,
+                        prev_hash,
+                        row_hash,
+                    ),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    raise RuntimeError("append_ledger returned no row")
+                conn.commit()
+                ledger_id = int(row["id"])
+        except Exception as e:  # noqa: BLE001
+            # The Postgres append_ledger() function raises with the message
+            # "append_ledger: prev_hash mismatch. expected=... got=...".
+            # That's the only retryable case; everything else (FK violation,
+            # type error, RuntimeError above) we re-raise immediately.
+            if "prev_hash mismatch" in str(e):
+                last_exc = e
+                continue
+            raise
 
-    return {
-        "id": ledger_id,
-        "event_type": event_type.value,
-        "payload": payload,
-        "payload_hash": payload_hash,
-        "prev_hash": prev_hash,
-        "row_hash": row_hash,
-        "created_at": iso_ts,
-    }
+        # The global verified cache becomes stale on append. Invalidate so
+        # the next /ledger response recomputes against the updated chain.
+        _invalidate_global_verified_cache()
+
+        return {
+            "id": ledger_id,
+            "event_type": event_type.value,
+            "payload": payload,
+            "payload_hash": payload_hash,
+            "prev_hash": prev_hash,
+            "row_hash": row_hash,
+            "created_at": iso_ts,
+        }
+
+    # Retries exhausted.
+    raise RuntimeError(
+        f"append_ledger: prev_hash mismatch persisted across "
+        f"{_APPEND_LEDGER_MAX_ATTEMPTS} attempts; last error: {last_exc}"
+    )
 
 
 def fetch_ledger_for_document(document_id: UUID | str) -> list[dict[str, Any]]:
