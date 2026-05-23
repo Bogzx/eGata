@@ -1,0 +1,10 @@
+{
+  "id": "drpciv",
+  "nume_scurt": "DRPCIV",
+  "nume_complet": "Direcția Regim Permise de Conducere și Înmatriculare a Vehiculelor",
+  "scope": "Talon auto, permis de conducere, înmatriculare.",
+  "url": "https://www.drpciv.ro",
+  "phone": "021 9665",
+  "online_disponibil": true,
+  "note_ai_cannot_complete": "Actualizarea talonului auto se face la DRPCIV după schimbarea CI. CivicAI nu poate emite documente DRPCIV."
+}

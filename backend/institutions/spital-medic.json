@@ -1,0 +1,10 @@
+{
+  "id": "spital-medic",
+  "nume_scurt": "Spital / Medic",
+  "nume_complet": "Spital sau medic de familie",
+  "scope": "Certificate medicale, fișe medicale, adeverințe de sănătate.",
+  "url": null,
+  "phone": null,
+  "online_disponibil": false,
+  "note_ai_cannot_complete": "Documentele medicale se eliberează după consult. CivicAI nu le poate emite."
+}

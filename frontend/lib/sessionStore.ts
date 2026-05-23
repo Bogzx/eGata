@@ -6,12 +6,15 @@ import {
   allRequiredFilled,
   computeInitialRightPaneFrom,
 } from "./rightPaneState";
+import { streamChat, type StreamChatToolCall } from "./sseChat";
 import type {
   Citizen,
   Document,
   Message,
+  PendingMessage,
   Procedure,
   RightPaneState,
+  ScenarioPlan,
   VoiceStatus,
   WidgetSpec,
 } from "./types";
@@ -67,15 +70,21 @@ export interface SessionState {
   procedure: Procedure | null;
   conversationId: string | null;
   messages: Message[];
+  /** In-progress user turn, rendered as a live-updating bubble. */
+  pendingUser: PendingMessage | null;
+  /** In-progress agent turn, rendered as a live-updating bubble. */
+  pendingAgent: PendingMessage | null;
   rightPane: RightPaneState;
   voiceStatus: VoiceStatus;
   drawerOpen: boolean;
   profileMenuOpen: boolean;
   sending: boolean;
+  scenarioPlan: ScenarioPlan | null;
 
   hydrateCitizen(): Promise<void>;
   startProcedure(procedureId: string): Promise<void>;
   loadDocument(docId: string): Promise<void>;
+  openScenarioPlan(scenarioId: string): Promise<void>;
   sendText(text: string, opts?: { viaWs?: boolean }): Promise<void>;
   applyToolResult(
     toolName: string,
@@ -83,6 +92,11 @@ export interface SessionState {
     result: unknown,
   ): Promise<void>;
   appendMessage(m: Message): void;
+  upsertPendingUser(text: string, via?: "text" | "voice"): void;
+  upsertPendingAgent(text: string): void;
+  finalizePendingUser(): void;
+  finalizePendingAgent(widgets?: WidgetSpec[]): void;
+  clearPending(): void;
   transitionRightPane(next: RightPaneState): void;
   setVoiceStatus(s: VoiceStatus): void;
   openDrawer(): void;
@@ -99,11 +113,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   procedure: null,
   conversationId: null,
   messages: [],
+  pendingUser: null,
+  pendingAgent: null,
   rightPane: { kind: "welcome" },
   voiceStatus: "idle",
   drawerOpen: false,
   profileMenuOpen: false,
   sending: false,
+  scenarioPlan: null,
 
   async hydrateCitizen() {
     const c = await api.getCitizenMe();
@@ -126,10 +143,31 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       procedure,
       conversationId: null,
       messages,
+      pendingUser: null,
+      pendingAgent: null,
       rightPane: { kind: "guide", procedureId },
       drawerOpen: false,
     });
     pushPath(`/r/${doc.id}`);
+  },
+
+  async openScenarioPlan(scenarioId: string) {
+    try {
+      const plan = await api.getScenarioPlan(scenarioId);
+      set({
+        scenarioPlan: plan,
+        rightPane: { kind: "plan", scenarioId },
+        drawerOpen: false,
+      });
+      pushPath(`/p/${scenarioId}`);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "necunoscută";
+      get().appendMessage({
+        id: makeId(),
+        role: "system",
+        text: `Nu am putut încărca planul: ${detail}`,
+      });
+    }
   },
 
   async loadDocument(docId: string) {
@@ -143,6 +181,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       procedure,
       conversationId,
       messages,
+      pendingUser: null,
+      pendingAgent: null,
       rightPane: computeInitialRightPaneFrom(doc, procedure),
       drawerOpen: false,
     });
@@ -159,40 +199,71 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     };
     get().appendMessage(userMsg);
     if (opts?.viaWs) {
-      // Voice WS active — agent reply will arrive via outputTranscription.
+      // Voice WS active — agent reply arrives via outputTranscription deltas.
       return;
     }
     set({ sending: true });
+    const pendingId = makeId();
+    set({ pendingAgent: { id: pendingId, role: "agent", text: "" } });
+    const collectedToolCalls: StreamChatToolCall[] = [];
     try {
-      const r = await api.chat({
-        conversation_id: conversationId,
-        document_id: activeDocId ?? undefined,
-        message: text,
-      });
-      const widgets = deriveWidgets(r.tool_calls);
-      const agentMsg: Message = {
-        id: makeId(),
-        role: "agent",
-        text: r.message,
-        widgets: widgets.length ? widgets : undefined,
-      };
-      get().appendMessage(agentMsg);
-      if (r.conversation_id !== conversationId) {
-        set({ conversationId: r.conversation_id });
-        if (activeDocId) saveConvId(activeDocId, r.conversation_id);
-      }
-      for (const tc of r.tool_calls ?? []) {
-        await get().applyToolResult(tc.name, tc.arguments, null);
-      }
+      await streamChat(
+        {
+          conversation_id: conversationId,
+          document_id: activeDocId ?? undefined,
+          message: text,
+        },
+        {
+          onConversation: (id) => {
+            if (id !== get().conversationId) {
+              set({ conversationId: id });
+              if (activeDocId) saveConvId(activeDocId, id);
+            }
+          },
+          onDelta: (full) => {
+            const cur = get().pendingAgent;
+            if (!cur || cur.id !== pendingId) return;
+            set({ pendingAgent: { ...cur, text: full } });
+          },
+          onToolCall: (call) => {
+            collectedToolCalls.push(call);
+          },
+          onToolResult: async (name, output) => {
+            const call = collectedToolCalls.find((c) => c.name === name);
+            await get().applyToolResult(name, call?.arguments ?? {}, output);
+          },
+          onDone: (final) => {
+            const widgets = deriveWidgets(final.tool_calls);
+            const agentMsg: Message = {
+              id: makeId(),
+              role: "agent",
+              text: final.message,
+              widgets: widgets.length ? widgets : undefined,
+            };
+            set({ pendingAgent: null });
+            get().appendMessage(agentMsg);
+            if (final.conversation_id && final.conversation_id !== conversationId) {
+              set({ conversationId: final.conversation_id });
+              if (activeDocId) saveConvId(activeDocId, final.conversation_id);
+            }
+          },
+          onError: (err) => {
+            const detail = err instanceof Error ? err.message : "necunoscută";
+            set({ pendingAgent: null });
+            get().appendMessage({
+              id: makeId(),
+              role: "system",
+              text: `Eroare: ${detail}`,
+            });
+          },
+        },
+      );
     } catch (err) {
-      const detail = err instanceof Error ? err.message : "necunoscută";
-      get().appendMessage({
-        id: makeId(),
-        role: "system",
-        text: `Eroare: ${detail}`,
-      });
+      // streamChat re-throws on fetch / parse errors after invoking onError —
+      // onError has already pushed the system bubble, so we just clean up.
+      void err;
     } finally {
-      set({ sending: false });
+      set({ sending: false, pendingAgent: null });
     }
   },
 
@@ -222,7 +293,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         }
         break;
       }
-      case "lookup_procedure":
+      case "lookup_procedure": {
+        const res = _result as { scenario_plan?: ScenarioPlan | null } | undefined;
+        const sp = res?.scenario_plan ?? null;
+        if (sp && !activeDocId) {
+          set({
+            scenarioPlan: sp,
+            rightPane: { kind: "plan", scenarioId: sp.scenario_id },
+          });
+          pushPath(`/p/${sp.scenario_id}`);
+        }
+        break;
+      }
       case "find_redirect":
       case "set_reminder":
       case "propose_widget":
@@ -238,6 +320,40 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set({ messages: next });
     const id = get().activeDocId;
     if (id) saveMessages(id, next);
+  },
+
+  upsertPendingUser(text, via = "voice") {
+    const cur = get().pendingUser;
+    if (cur) {
+      set({ pendingUser: { ...cur, text, via } });
+    } else {
+      set({
+        pendingUser: { id: makeId(), role: "user", text, via },
+      });
+    }
+  },
+
+  upsertPendingAgent(text) {
+    const cur = get().pendingAgent;
+    if (cur) {
+      set({ pendingAgent: { ...cur, text } });
+    } else {
+      set({
+        pendingAgent: { id: makeId(), role: "agent", text },
+      });
+    }
+  },
+
+  finalizePendingUser() {
+    set({ pendingUser: null });
+  },
+
+  finalizePendingAgent(_widgets) {
+    set({ pendingAgent: null });
+  },
+
+  clearPending() {
+    set({ pendingUser: null, pendingAgent: null });
   },
 
   transitionRightPane(next) {
@@ -268,9 +384,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       procedure: null,
       conversationId: null,
       messages: [],
+      pendingUser: null,
+      pendingAgent: null,
       rightPane: { kind: "welcome" },
       drawerOpen: false,
       profileMenuOpen: false,
+      scenarioPlan: null,
     });
     pushPath("/");
   },
@@ -288,9 +407,7 @@ function deriveWidgets(
     const a = tc.arguments;
     const type = a.type as WidgetSpec["type"] | undefined;
     const question = (a.question as string | undefined) ?? "";
-    const widgetId =
-      (a.widget_id as string | undefined) ??
-      Math.random().toString(36).slice(2);
+    const widgetId = Math.random().toString(36).slice(2);
     if (type === "choice") {
       out.push({
         type: "choice",
