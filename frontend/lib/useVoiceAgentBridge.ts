@@ -9,24 +9,63 @@ import {
   type PlayerHandle,
   type RecorderHandle,
 } from "./audioWorklet";
-import { VoiceWs, voiceWsUrl } from "./voiceWs";
-import {
-  VoiceAgentMicDeniedError,
-  type ToolCallHandler,
-  type VoiceAgentHook,
-  type VoiceAgentStartOpts,
-  type VoiceAgentState,
-} from "./useVoiceAgent";
+import type { VoicePreferences } from "./types";
+import { VoiceWs, type VoiceWsToolCall, voiceWsUrl } from "./voiceWs";
 
 const LOG = (...args: unknown[]) =>
   console.log("[civicai:voice-bridge]", ...args);
 const ERR = (...args: unknown[]) =>
   console.error("[civicai:voice-bridge]", ...args);
 
+// ---- Voice hook surface (was previously in useVoiceAgent.ts; now lives
+// here since the bridge is the only voice path).
+
+export type VoiceAgentState =
+  | "idle"
+  | "connecting"
+  | "listening"
+  | "speaking"
+  | "error";
+
+export type ToolCallHandler = (
+  name: string,
+  args: Record<string, unknown>,
+) => Promise<Record<string, unknown>>;
+
+export type VoiceAgentToolCall = {
+  name: string;
+  args: Record<string, unknown>;
+};
+
+export type VoiceAgentStartOpts = {
+  documentId?: string;
+  preferences?: VoicePreferences;
+  onUserDelta?: (text: string) => void;
+  onAgentDelta?: (text: string) => void;
+  onUserMessage?: (text: string) => void;
+  onAgentMessage?: (text: string, toolCalls: VoiceAgentToolCall[]) => void;
+};
+
+export type VoiceAgentHook = {
+  state: VoiceAgentState;
+  start: (opts: VoiceAgentStartOpts) => Promise<void>;
+  stop: () => void;
+  sendText: (text: string) => Promise<void>;
+  registerToolHandler: (handler: ToolCallHandler) => void;
+};
+
+export class VoiceAgentMicDeniedError extends Error {
+  constructor() {
+    super("Microphone permission denied — fall back to text chat.");
+    this.name = "VoiceAgentMicDeniedError";
+  }
+}
+
 /**
- * Drop-in replacement for useVoiceAgent that talks to the backend
- * /agent/voice/ws bridge instead of opening a browser-direct WS to
- * Gemini. Same hook surface — swappable behind NEXT_PUBLIC_VOICE_BRIDGE.
+ * The voice hook. Talks to the backend /agent/voice/ws bridge,
+ * pipes mic chunks up, agent audio down, transcripts straight to the
+ * sessionStore's live-message lifecycle, and snapshot frames straight to
+ * sessionStore.session.
  */
 export function useVoiceAgentBridge(): VoiceAgentHook {
   const [state, setState] = useState<VoiceAgentState>("idle");
