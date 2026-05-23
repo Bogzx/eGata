@@ -1,0 +1,29 @@
+{
+  "id": "aviz-principiu-constructii",
+  "title": "Aviz de principiu pentru construcții (Spații Verzi)",
+  "description": "Aviz emis de Direcția Ecologie Urbană / Spații Verzi când lucrările de construire afectează arbori, plantări sau spații verzi.",
+  "scope": "primarie",
+  "category": "urbanism-constructii",
+  "synonyms": ["aviz spații verzi", "aviz arbori", "aviz ecologie urbană", "460.006"],
+  "sample_queries": [
+    "vreau aviz spații verzi pentru construcție",
+    "construcție lângă arbori",
+    "aviz principiu Direcția Ecologie",
+    "afectez arbori cu construcția"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere tipizată (Cod 460.006)", "emitent": "primarie" },
+    { "denumire": "Plan situație vizat OCPI cu marcaj arbori/spații verzi", "emitent_id": "ocpi-ancpi" },
+    { "denumire": "Descriere lucrare construire", "emitent": "user" },
+    { "denumire": "Extras CF actualizat", "emitent_id": "ocpi-ancpi", "format": "original" }
+  ],
+  "fields": [
+    { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
+    { "name": "cnp", "label": "CNP", "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "adresa_imobil", "label": "Adresa imobil", "source": "ask", "required": true },
+    { "name": "tip_lucrare", "label": "Tip lucrare", "source": "ask", "required": true },
+    { "name": "afectare_arbori", "label": "Arbori/plantări afectate", "source": "ask", "required": false }
+  ],
+  "template": "aviz-principiu-constructii.tex",
+  "next_steps": []
+}

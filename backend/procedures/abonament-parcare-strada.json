@@ -1,0 +1,31 @@
+{
+  "id": "abonament-parcare-strada",
+  "title": "Abonament parcare stradală reședință",
+  "description": "Abonament anual pentru parcare în zona de reședință (cetățean care locuiește pe strada respectivă).",
+  "scope": "primarie",
+  "category": "parcare",
+  "synonyms": ["parcare reședință", "loc parcare", "abonament parcare", "parcare bloc"],
+  "sample_queries": [
+    "vreau abonament de parcare la bloc",
+    "să-mi iau loc parcare pe strada mea",
+    "cum obțin parcare reședință",
+    "abonament parcare anual"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere tipizată (Cod 700.001)", "emitent": "primarie" },
+    { "denumire": "CI cu domiciliul în zonă", "emitent": "user", "format": "original" },
+    { "denumire": "Certificat înmatriculare auto", "emitent_id": "drpciv", "format": "original" },
+    { "denumire": "Document proprietate vehicul sau contract leasing", "emitent_id": "drpciv", "format": "original" },
+    { "denumire": "Chitanță plată taxă", "emitent": "extern", "observatie": "Plata online (ghiseul.ro) sau la casierie" }
+  ],
+  "fields": [
+    { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
+    { "name": "cnp", "label": "CNP", "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "adresa_domiciliu", "label": "Adresa de domiciliu", "source": "profile", "required": true },
+    { "name": "nr_inmatriculare", "label": "Număr înmatriculare auto", "source": "ask", "required": true },
+    { "name": "marca_model", "label": "Marca și modelul", "source": "ask", "required": true },
+    { "name": "zona_solicitata", "label": "Zona / strada solicitată", "source": "ask", "required": true }
+  ],
+  "template": "abonament-parcare-strada.tex",
+  "next_steps": []
+}

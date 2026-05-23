@@ -1,0 +1,34 @@
+{
+  "id": "atestare-edificare",
+  "title": "Atestare edificare/extindere construcție",
+  "description": "Cerere pentru eliberarea certificatului care atestă că o construcție a fost edificată/extinsă conform autorizației — necesar pentru intabularea în CF.",
+  "scope": "primarie",
+  "category": "urbanism-constructii",
+  "synonyms": ["atestare edificare", "atestare extindere", "intabulare construire", "432.008"],
+  "sample_queries": [
+    "vreau atestare construcție",
+    "am terminat casa, ce fac mai departe",
+    "intabulare imobil construit",
+    "atestare edificare 432.008"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere tipizată (Cod 432.008)", "emitent": "primarie" },
+    { "denumire": "Autorizația de construire", "emitent": "user", "format": "original" },
+    { "denumire": "Proces verbal recepție lucrări", "emitent_id": "diriginte-santier", "format": "original" },
+    { "denumire": "Plan releveu vizat OCPI", "emitent_id": "ocpi-ancpi", "format": "original" },
+    { "denumire": "Documentație cadastrală finală", "emitent_id": "ocpi-ancpi" },
+    { "denumire": "Extras CF actualizat", "emitent_id": "ocpi-ancpi", "format": "original" },
+    { "denumire": "Chitanță plată taxă", "emitent": "extern" }
+  ],
+  "fields": [
+    { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
+    { "name": "cnp", "label": "CNP", "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "adresa_imobil", "label": "Adresa imobil", "source": "ask", "required": true },
+    { "name": "nr_ac", "label": "Număr AC", "source": "ask", "required": true },
+    { "name": "data_finalizare", "label": "Data finalizării lucrărilor", "source": "ask", "required": true }
+  ],
+  "template": "atestare-edificare.tex",
+  "next_steps": [
+    { "kind": "in_scope_procedure", "procedure_id": "declarare-cladire", "deadline_days": 30, "title": "Declarare clădire nouă (ITL-001) după atestare" }
+  ]
+}

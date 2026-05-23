@@ -1,0 +1,35 @@
+{
+  "id": "cerere-certificat-urbanism",
+  "title": "Certificat de urbanism (CU)",
+  "description": "Cerere pentru emiterea unui certificat de urbanism — actul necesar pentru obținerea autorizației de construire sau pentru orice operațiune ce ține de regim juridic teren/clădire.",
+  "scope": "primarie",
+  "category": "urbanism-constructii",
+  "synonyms": ["CU", "certificat urbanism", "regim juridic teren", "informare urbanism"],
+  "sample_queries": [
+    "vreau să construiesc o casă",
+    "am nevoie de certificat urbanism",
+    "regim juridic pentru teren",
+    "informații urbanism pentru construire"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere tipizată (Cod 431.001)", "emitent": "primarie" },
+    { "denumire": "Extras carte funciară (max 30 zile)", "emitent_id": "ocpi-ancpi", "format": "original" },
+    { "denumire": "Plan de situație vizat OCPI (sc. 1:500 sau 1:2000)", "emitent_id": "ocpi-ancpi", "format": "original" },
+    { "denumire": "Plan de încadrare în zonă (sc. 1:5000 sau 1:10000)", "emitent_id": "ocpi-ancpi", "format": "original" },
+    { "denumire": "Document proprietate / contract concesiune", "emitent_id": "notariat", "format": "original" },
+    { "denumire": "Chitanță plată taxă CU", "emitent": "extern" }
+  ],
+  "fields": [
+    { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
+    { "name": "cnp", "label": "CNP", "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "adresa_imobil", "label": "Adresa imobil/teren", "source": "ask", "required": true },
+    { "name": "nr_cadastral", "label": "Număr cadastral", "source": "ask", "required": true },
+    { "name": "scopul_lucrarii", "label": "Scopul lucrării", "source": "ask", "required": true, "suggest_default": "Construire locuință familială" },
+    { "name": "suprafata_constructie", "label": "Suprafață construită propusă (m²)", "source": "ask", "required": false }
+  ],
+  "template": "cerere-certificat-urbanism.tex",
+  "next_steps": [
+    { "kind": "in_scope_procedure", "procedure_id": "prelungire-certificat-urbanism", "deadline_days": 720, "title": "Prelungire CU înainte de expirare (24 luni)" },
+    { "kind": "external_redirect", "redirect_target": "OAR/RUR", "title": "Contact arhitect/proiectant pentru proiect tehnic" }
+  ]
+}

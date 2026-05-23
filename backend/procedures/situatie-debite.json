@@ -1,0 +1,25 @@
+{
+  "id": "situatie-debite",
+  "title": "Situație debite contribuabil",
+  "description": "Cerere pentru eliberarea unui document care arată situația debitelor (impozite, taxe, amenzi) ale contribuabilului la primărie.",
+  "scope": "primarie",
+  "category": "fiscalitate-locala",
+  "synonyms": ["dovadă plată", "lipsa datorii primarie", "situație impozite", "491.004"],
+  "sample_queries": [
+    "vreau dovada că nu am datorii la primărie",
+    "situatie debite",
+    "ce am de plătit la primărie"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere tipizată (Cod 491.004)", "emitent": "primarie" },
+    { "denumire": "CI", "emitent": "user", "format": "original" },
+    { "denumire": "Împuternicire notarială", "emitent_id": "notariat", "obligatoriu": false, "observatie": "Dacă cererea se face prin reprezentant" }
+  ],
+  "fields": [
+    { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
+    { "name": "cnp", "label": "CNP", "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "scop", "label": "Scopul cererii", "source": "ask", "required": true }
+  ],
+  "template": "situatie-debite.tex",
+  "next_steps": []
+}

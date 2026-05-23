@@ -1,0 +1,33 @@
+{
+  "id": "indemnizatie-dizabilitati",
+  "title": "Indemnizație lunară pentru persoane cu handicap",
+  "description": "Cerere pentru acordarea indemnizației lunare pentru persoanele cu handicap grav, accentuat sau însoțitor personal.",
+  "scope": "primarie",
+  "category": "dizabilitati",
+  "synonyms": ["indemnizație handicap", "indemnizație lunară DASM", "asistent personal", "802.013"],
+  "sample_queries": [
+    "vreau indemnizație pentru handicap",
+    "indemnizație lunară persoană cu dizabilități",
+    "asistent personal handicap"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere tipizată (Cod 802.013)", "emitent": "primarie" },
+    { "denumire": "Certificat de încadrare în grad de handicap", "emitent_id": "dgaspc", "format": "original" },
+    { "denumire": "CI titular sau reprezentant legal", "emitent": "user", "format": "original" },
+    { "denumire": "Extras de cont (IBAN) pentru virament", "emitent_id": "banca", "obligatoriu": false, "observatie": "Doar dacă opțiunea de plată e virament bancar" },
+    { "denumire": "Cupon pensie", "emitent_id": "casa-pensii", "obligatoriu": false },
+    { "denumire": "Hotărâre tutelă", "emitent_id": "instanta", "obligatoriu": false, "observatie": "Doar pentru reprezentant legal" }
+  ],
+  "fields": [
+    { "name": "nume_titular", "label": "Nume titular", "source": "ask", "required": true },
+    { "name": "cnp_titular", "label": "CNP titular", "source": "ask", "required": true, "redact_in_voice": true },
+    { "name": "grad_handicap", "label": "Grad handicap", "source": "ask", "options": ["grav cu asistent", "grav", "accentuat", "mediu"], "required": true },
+    { "name": "modalitate_plata", "label": "Modalitate plată", "source": "ask", "options": ["virament bancar", "mandat poștal", "casierie"], "required": true },
+    { "name": "iban", "label": "IBAN (dacă virament)", "source": "ask", "required": false }
+  ],
+  "template": "indemnizatie-dizabilitati.tex",
+  "next_steps": [
+    { "kind": "in_scope_procedure", "procedure_id": "card-parcare-dizabilitati", "title": "Card parcare gratuit (reutilizează certificatul handicap)" },
+    { "kind": "in_scope_procedure", "procedure_id": "transport-urban-dizabilitati", "title": "Transport urban gratuit" }
+  ]
+}

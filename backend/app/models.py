@@ -75,6 +75,24 @@ class NextStep(BaseModel):
     applies_if: str | None = None
 
 
+class ActNecesar(BaseModel):
+    """A required document for a procedure.
+
+    emitent values used in JSON catalog:
+      - "primarie"  → generated/issued by city hall (or filled in this app)
+      - "user"      → citizen already has it (CI, old certificates, etc.)
+      - "extern"    → third party not in institution catalog (e.g. payment receipt)
+      - <omitted>   → use emitent_id to reference institutii-externe.json
+    """
+    denumire: str
+    emitent: str | None = None
+    emitent_id: str | None = None
+    format: str | None = None
+    observatie: str | None = None
+    obligatoriu: bool = True
+    alternative: list[str] = Field(default_factory=list)
+
+
 class Procedure(BaseModel):
     id: str
     title: str
@@ -83,6 +101,7 @@ class Procedure(BaseModel):
     category: str
     synonyms: list[str]
     sample_queries: list[str]
+    acte_necesare: list[ActNecesar] = Field(default_factory=list)
     fields: list[ProcedureField]
     template: str
     next_steps: list[NextStep] = Field(default_factory=list)

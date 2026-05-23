@@ -1,0 +1,31 @@
+{
+  "id": "card-parcare-dizabilitati",
+  "title": "Card-legitimație parcare persoane cu handicap",
+  "description": "Eliberarea cardului de parcare pentru persoanele cu certificat de handicap, ce permite parcarea gratuită în locurile rezervate.",
+  "scope": "primarie",
+  "category": "dizabilitati",
+  "synonyms": ["card parcare handicap", "legitimație parcare dizabilități", "loc parcare handicap", "802.012"],
+  "sample_queries": [
+    "vreau card de parcare pentru handicap",
+    "am certificat handicap, vreau loc parcare",
+    "card parcare persoană cu dizabilități"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere tipizată (Cod 802.012)", "emitent": "primarie" },
+    { "denumire": "Certificat de încadrare în grad de handicap", "emitent_id": "dgaspc", "format": "original" },
+    { "denumire": "CI titular sau reprezentant legal", "emitent": "user", "format": "original" },
+    { "denumire": "Fotografie tip pașaport", "emitent": "extern", "observatie": "Fotostudio" },
+    { "denumire": "Procură legalizată", "emitent_id": "notariat", "obligatoriu": false, "observatie": "Doar pentru reprezentant legal" }
+  ],
+  "fields": [
+    { "name": "nume_titular", "label": "Nume titular handicap", "source": "ask", "required": true },
+    { "name": "cnp_titular", "label": "CNP titular", "source": "ask", "required": true, "redact_in_voice": true },
+    { "name": "grad_handicap", "label": "Grad handicap", "source": "ask", "options": ["grav", "accentuat", "mediu", "ușor"], "required": true },
+    { "name": "nr_certificat", "label": "Număr certificat handicap", "source": "ask", "required": true },
+    { "name": "valabilitate_certificat", "label": "Valabilitate certificat", "source": "ask", "required": true }
+  ],
+  "template": "card-parcare-dizabilitati.tex",
+  "next_steps": [
+    { "kind": "in_scope_procedure", "procedure_id": "transport-urban-dizabilitati", "title": "Transport urban gratuit (reutilizează certificatul handicap)" }
+  ]
+}
