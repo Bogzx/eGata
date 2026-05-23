@@ -48,9 +48,28 @@ export type VoiceAgentStartOpts = {
 
 export type VoiceAgentHook = {
   state: VoiceAgentState;
+  /** WS is open and Gemini Live is connected. True for state in
+   * `listening` / `speaking`, false during `connecting` and after `stop`. */
+  wsReady: boolean;
+  /** Microphone is currently recording. Orthogonal to wsReady — you can
+   * have wsReady=true with micOn=false (text-only mode using the same
+   * Live session). */
+  micOn: boolean;
+  /** Open the WS + audio player. Does NOT start the microphone — call
+   * `enableMic()` if you want voice input. Used by text-only sessions
+   * that want to share the Live session with potential later voice. */
   start: (opts: VoiceAgentStartOpts) => Promise<void>;
   stop: () => void;
+  /** Start microphone capture. WS must be open (call `start()` first).
+   * Throws `VoiceAgentMicDeniedError` on permission deny. */
+  enableMic: () => Promise<void>;
+  /** Stop microphone capture but keep WS open. */
+  disableMic: () => void;
   sendText: (text: string) => Promise<void>;
+  /** Submit a widget answer through the active WS bridge. Throws if the
+   * bridge isn't started — callers should check `wsReady` first or fall
+   * back to the HTTP `/widget-result` endpoint via `sessionStore.submitWidget`. */
+  submitWidget: (widgetId: string, value: unknown) => Promise<void>;
   registerToolHandler: (handler: ToolCallHandler) => void;
 };
 
@@ -67,8 +86,26 @@ export class VoiceAgentMicDeniedError extends Error {
  * sessionStore's live-message lifecycle, and snapshot frames straight to
  * sessionStore.session.
  */
+type ReadyDeferred = {
+  promise: Promise<void>;
+  resolve: () => void;
+  reject: (e: Error) => void;
+};
+
+function makeReadyDeferred(): ReadyDeferred {
+  let resolve!: () => void;
+  let reject!: (e: Error) => void;
+  const promise = new Promise<void>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 export function useVoiceAgentBridge(): VoiceAgentHook {
   const [state, setState] = useState<VoiceAgentState>("idle");
+  const [wsReady, setWsReady] = useState(false);
+  const [micOn, setMicOn] = useState(false);
 
   const wsRef = useRef<VoiceWs | null>(null);
   const recorderRef = useRef<RecorderHandle | null>(null);
@@ -77,6 +114,11 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
   const liveUserIdRef = useRef<string | null>(null);
   const liveAgentIdRef = useRef<string | null>(null);
   const stateRef = useRef<VoiceAgentState>("idle");
+  // Resolves when the backend sends the `ready` frame (Live connected
+  // + tools registered). start() awaits this so that callers can sendText
+  // / sendAudio / submitWidget immediately after start() resolves without
+  // racing the Live handshake.
+  const readyDeferredRef = useRef<ReadyDeferred | null>(null);
 
   // Keep stateRef in sync so async callbacks see the latest value
   // without forcing re-renders / stale closures.
@@ -99,6 +141,10 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
     liveUserIdRef.current = null;
     liveAgentIdRef.current = null;
     setState("idle");
+    setWsReady(false);
+    setMicOn(false);
+    readyDeferredRef.current?.reject(new Error("Bridge stopped"));
+    readyDeferredRef.current = null;
   }, []);
 
   const start: VoiceAgentHook["start"] = useCallback(
@@ -139,6 +185,9 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
               useSessionStore.setState({ conversationId: convId });
             }
             setState("listening");
+            setWsReady(true);
+            readyDeferredRef.current?.resolve();
+            readyDeferredRef.current = null;
           },
           onUserDelta: (text) => {
             if (liveAgentIdRef.current) {
@@ -199,6 +248,11 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
             void store().handleFrontendEvent(event);
           },
           onAudio: (pcm) => {
+            // Mic-gated playback: drop audio when the user hasn't engaged
+            // the microphone (text-only sessions still receive audio from
+            // Live but we don't play it — per UX choice). recorderRef is
+            // our authoritative micOn flag (synchronous, unlike state).
+            if (!recorderRef.current) return;
             playerRef.current?.feed(pcm);
           },
           onInterrupted: () => {
@@ -209,15 +263,29 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
           onError: (detail) => {
             ERR("bridge error:", detail);
             setState("error");
+            readyDeferredRef.current?.reject(new Error(detail));
+            readyDeferredRef.current = null;
           },
           onClose: () => {
             LOG("ws closed");
             if (stateRef.current !== "error") setState("idle");
+            setWsReady(false);
+            setMicOn(false);
+            readyDeferredRef.current?.reject(
+              new Error("WS closed before ready frame arrived"),
+            );
+            readyDeferredRef.current = null;
           },
         });
         wsRef.current = ws;
 
         await ws.connect(voiceWsUrl());
+
+        // Arm the ready-deferred BEFORE sendStart so any auth-fail close
+        // frame the backend sends back is observed via the WS handlers
+        // and translated into a rejected promise here.
+        readyDeferredRef.current = makeReadyDeferred();
+
         // Reuse the existing conversation_id from the store so a voice
         // reconnect picks up the text-chat history instead of getting a
         // fresh `conv_*` minted server-side and an amnesic agent.
@@ -232,17 +300,11 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
           },
         });
 
-        let recorder: RecorderHandle;
-        try {
-          recorder = await startMicRecorder((chunk) => ws.sendAudio(chunk));
-        } catch (micErr) {
-          ERR("mic denied", micErr);
-          stop();
-          throw new VoiceAgentMicDeniedError();
-        }
-        recorderRef.current = recorder;
+        // Block until the backend confirms Live is up. Callers can then
+        // immediately sendText / submitWidget without a Live handshake race.
+        await readyDeferredRef.current.promise;
 
-        LOG("listening — fully wired");
+        LOG("Live ready — call enableMic() to add voice input");
       } catch (err) {
         ERR("start failed", err);
         if (!(err instanceof VoiceAgentMicDeniedError)) stop();
@@ -253,6 +315,34 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
     [stop],
   );
 
+  const enableMic: VoiceAgentHook["enableMic"] = useCallback(async () => {
+    if (!wsRef.current) {
+      throw new Error("WS not open; call start() first.");
+    }
+    if (recorderRef.current) return; // already on
+    try {
+      const ws = wsRef.current;
+      const recorder = await startMicRecorder((chunk) => ws.sendAudio(chunk));
+      recorderRef.current = recorder;
+      setMicOn(true);
+      LOG("mic enabled");
+    } catch (micErr) {
+      ERR("mic denied", micErr);
+      throw new VoiceAgentMicDeniedError();
+    }
+  }, []);
+
+  const disableMic: VoiceAgentHook["disableMic"] = useCallback(() => {
+    if (!recorderRef.current) return;
+    recorderRef.current.stop();
+    recorderRef.current = null;
+    // Flush any buffered agent audio so the speech doesn't keep playing
+    // for a second after the user has muted the mic.
+    playerRef.current?.flush();
+    setMicOn(false);
+    LOG("mic disabled");
+  }, []);
+
   const sendText: VoiceAgentHook["sendText"] = useCallback(async (text) => {
     if (!wsRef.current) {
       throw new Error("Voice bridge not started; call start() first.");
@@ -260,9 +350,30 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
     wsRef.current.sendText(text);
   }, []);
 
+  const submitWidget: VoiceAgentHook["submitWidget"] = useCallback(
+    async (widgetId, value) => {
+      if (!wsRef.current) {
+        throw new Error("Voice bridge not started; call start() first.");
+      }
+      wsRef.current.sendWidgetSubmission(widgetId, value);
+    },
+    [],
+  );
+
   useEffect(() => {
     return () => stop();
   }, [stop]);
 
-  return { state, start, stop, sendText, registerToolHandler };
+  return {
+    state,
+    wsReady,
+    micOn,
+    start,
+    stop,
+    enableMic,
+    disableMic,
+    sendText,
+    submitWidget,
+    registerToolHandler,
+  };
 }

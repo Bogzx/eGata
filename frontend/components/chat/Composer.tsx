@@ -14,12 +14,14 @@ export function Composer({ onSendText, onStartVoice, onStopVoice }: Props) {
   const sending = useSessionStore((s) => s.sending);
   const abortCurrentTurn = useSessionStore((s) => s.abortCurrentTurn);
   const voiceStatus = useSessionStore((s) => s.voiceStatus);
+  const micOn = useSessionStore((s) => s.micOn);
   const fieldId = useId();
 
-  const voiceActive =
-    voiceStatus === "listening" ||
-    voiceStatus === "speaking" ||
-    voiceStatus === "connecting";
+  // Mic button visual: tracks mic state only. Text-only sessions never
+  // open the voice WS, so voiceStatus stays "idle" while typing — but
+  // include "connecting" here so the button reflects the brief WS-handshake
+  // when the user clicks mic (before micOn flips true).
+  const voiceActive = micOn || voiceStatus === "connecting";
 
   // Mic pill collapses (label slides out) as soon as the user types or
   // when voice is already active — keeps the composer tidy mid-conversation.

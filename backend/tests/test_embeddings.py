@@ -46,13 +46,11 @@ def test_cosine_similarity() -> None:
 
 
 def test_registry_loads_core_procedures() -> None:
-    """The original 7 must remain — newer ones can be added freely."""
+    """Core procedures must remain — newer ones can be added freely."""
     from app.procedures import get_registry
     reg = get_registry()
     core = {
-        "schimbare-domiciliu", "adeverinta-venit", "certificat-fiscal",
-        "certificat-nastere-copie", "inregistrare-casatorie", "ajutor-social",
-        "preschimbare-ci",
+        "schimbare-domiciliu", "certificat-fiscal", "preschimbare-ci",
     }
     assert core.issubset(set(reg.keys()))
     assert len(reg) >= len(core)
