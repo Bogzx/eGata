@@ -27,6 +27,12 @@ from app.models import (
     PatchFieldsRequest,
 )
 from app.pdf import render_and_compile
+from app.procedure_state import (
+    FieldValidationError,
+    all_required_satisfied,
+    coerce_field_value,
+    validate_field_value,
+)
 from app.procedures import get_registry
 from app.security import current_citizen_id
 from app.storage import upload_pdf_to_storage
@@ -149,17 +155,25 @@ def fetch_phone_for_citizen(citizen_id: UUID) -> str:
     return str(row["phone"])
 
 
+def _fetch_citizen_attributes(citizen_id: UUID) -> dict[str, Any]:
+    """Read citizen.attributes for applies_if evaluation.
+
+    `procedure_state.all_required_satisfied` needs these to decide which
+    fields are applicable under the current context. Without it, the
+    completion check ignores conditional fields entirely.
+    """
+    with get_pg_connection() as conn, conn.cursor() as cur:
+        cur.execute("select attributes from citizens where id = %s;", (str(citizen_id),))
+        row = cur.fetchone()
+    if row is None:
+        return {}
+    attrs = row.get("attributes") or {}
+    return dict(attrs)
+
+
 def _require_owner(doc: dict[str, Any], citizen_id: UUID) -> None:
     if str(doc["citizen_id"]) != str(citizen_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your document")
-
-
-def _all_required_present(procedure_id: str, fields: dict[str, Any]) -> bool:
-    reg = get_registry()
-    proc = reg.get(procedure_id)
-    if proc is None:
-        return False
-    return all(not (f.required and not fields.get(f.name)) for f in proc.fields)
 
 
 @router.post("", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
@@ -204,11 +218,39 @@ def patch_fields(
     req: PatchFieldsRequest,
     citizen_id: UUID = Depends(current_citizen_id),
 ) -> DocumentResponse:
+    """Patch fields with the same validation the agent's set_field tool uses.
+
+    Previously this route did `jsonb || jsonb` with no schema check, so any
+    unknown key was silently accepted. It also gated the completed_draft
+    ledger event on a static required-set check (ignoring applies_if), which
+    diverged from the agent-tool path. Now both paths use procedure_state.
+    """
     doc = fetch_document(document_id)
     _require_owner(doc, citizen_id)
-    was_complete = _all_required_present(doc["procedure_id"], doc["fields"])
-    updated = update_document_fields(document_id, req.fields)
-    now_complete = _all_required_present(updated["procedure_id"], updated["fields"])
+
+    reg = get_registry()
+    proc = reg.get(doc["procedure_id"])
+    if proc is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Procedure {doc['procedure_id']!r} not found",
+        )
+
+    coerced: dict[str, Any] = {}
+    for name, value in req.fields.items():
+        v = coerce_field_value(proc, name, value)
+        try:
+            validate_field_value(proc, name, v)
+        except FieldValidationError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        coerced[name] = v
+
+    citizen_attrs = _fetch_citizen_attributes(citizen_id)
+    was_complete = all_required_satisfied(proc, doc["fields"] or {}, citizen_attrs)
+    updated = update_document_fields(document_id, coerced)
+    now_complete = all_required_satisfied(
+        proc, updated["fields"] or {}, citizen_attrs
+    )
     if not was_complete and now_complete:
         append_ledger(
             citizen_id=citizen_id,
@@ -224,6 +266,13 @@ def generate_pdf(
     document_id: UUID,
     citizen_id: UUID = Depends(current_citizen_id),
 ) -> GeneratePDFResponse:
+    """Render the document's LaTeX template to PDF.
+
+    Refuses if the document still has missing required fields (applies_if
+    aware). Pre-fix this route would happily render empty-fielded PDFs that
+    the user would then "deliver" — the agent path enforced this; the HTTP
+    path didn't.
+    """
     doc = fetch_document(document_id)
     _require_owner(doc, citizen_id)
 
@@ -231,6 +280,13 @@ def generate_pdf(
     proc = reg.get(doc["procedure_id"])
     if proc is None:
         raise HTTPException(status_code=400, detail=f"Procedure {doc['procedure_id']} not found")
+
+    citizen_attrs = _fetch_citizen_attributes(citizen_id)
+    if not all_required_satisfied(proc, doc["fields"] or {}, citizen_attrs):
+        raise HTTPException(
+            status_code=409,
+            detail="Mai sunt câmpuri obligatorii necompletate. Completează-le mai întâi.",
+        )
 
     pdf_bytes = render_and_compile(proc.template, doc["fields"])
     object_path = f"{citizen_id}/{document_id}.pdf"
@@ -253,8 +309,37 @@ def deliver(
     req: DeliverRequest,
     citizen_id: UUID = Depends(current_citizen_id),
 ) -> DocumentResponse:
+    """Finalize the document and apply the chosen delivery.
+
+    Refuses if the document has no PDF yet (caller must POST generate-pdf
+    first) and if any required field is still missing. Idempotent: if the
+    document is already finalized, re-returns the row instead of double-
+    appending DELIVERED to the ledger or firing a second SMS.
+    """
     doc = fetch_document(document_id)
     _require_owner(doc, citizen_id)
+
+    # Idempotency — match the agent-tool path's short-circuit.
+    if doc.get("status") == "finalized" and doc.get("ref_number"):
+        return DocumentResponse(**doc)
+
+    reg = get_registry()
+    proc = reg.get(doc["procedure_id"])
+    if proc is None:
+        raise HTTPException(status_code=400, detail=f"Procedure {doc['procedure_id']} not found")
+
+    citizen_attrs = _fetch_citizen_attributes(citizen_id)
+    if not all_required_satisfied(proc, doc["fields"] or {}, citizen_attrs):
+        raise HTTPException(
+            status_code=409,
+            detail="Mai sunt câmpuri obligatorii necompletate. Completează-le mai întâi.",
+        )
+
+    if not doc.get("pdf_url"):
+        raise HTTPException(
+            status_code=409,
+            detail="PDF nu a fost generat. Apelează generate-pdf înainte.",
+        )
 
     ref_number = generate_ref_number(document_id)
     finalized = finalize_document(document_id, req.delivery, ref_number)
