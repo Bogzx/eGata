@@ -429,6 +429,16 @@ export const handlers = [
       }
       return HttpResponse.json({ target: null });
     }
+    if (name === "propose_widget") {
+      return HttpResponse.json({
+        acknowledged: true,
+        widget_id: `mock-${Math.random().toString(36).slice(2)}`,
+        type: args.type ?? "choice",
+        question: args.question ?? "",
+        options: args.options ?? [],
+        target_field: args.target_field ?? null,
+      });
+    }
     return HttpResponse.json({ ok: true, _mock_tool: name, _args: args });
   }),
 ];
