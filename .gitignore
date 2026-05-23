@@ -72,3 +72,6 @@ backend/tmp/
 dev-server.log
 frontend/dev-server.log
 backend/uvicorn.log
+
+# Superpowers brainstorm visual companion
+.superpowers/
