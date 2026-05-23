@@ -282,4 +282,153 @@ export const handlers = [
     reminders.set(updated.id, updated);
     return HttpResponse.json(updated);
   }),
+
+  // ---- Plan 4: start a reminder (creates a draft document from it) ----
+  http.post(`${BASE}/reminders/:id/start`, ({ params, request }) => {
+    const citizen = authedCitizen(request) ?? maria;
+    const r = reminders.get(String(params.id));
+    if (!r) return HttpResponse.json({ detail: "not found" }, { status: 404 });
+    if (r.kind !== "in_scope_procedure" || !r.procedure_id) {
+      return HttpResponse.json(
+        { detail: "Reminder is not an in-scope procedure" },
+        { status: 400 },
+      );
+    }
+    docCounter += 1;
+    const id = `44444444-4444-4444-4444-${String(docCounter).padStart(12, "0")}`;
+    const doc: Document = {
+      id,
+      citizen_id: citizen.id,
+      procedure_id: r.procedure_id,
+      status: "draft",
+      fields: {
+        nume_complet: `${citizen.prenume} ${citizen.nume}`,
+        cnp: citizen.cnp,
+      },
+      created_at: new Date().toISOString(),
+    };
+    documents.set(id, doc);
+    reminders.set(r.id, { ...r, status: "started" });
+    return HttpResponse.json({
+      id: r.id,
+      status: "started",
+      document_id: id,
+      procedure_id: r.procedure_id,
+    });
+  }),
+
+  // ---- Plan 4: dismiss a reminder ----
+  http.post(`${BASE}/reminders/:id/dismiss`, ({ params }) => {
+    const r = reminders.get(String(params.id));
+    if (!r) return HttpResponse.json({ detail: "not found" }, { status: 404 });
+    const updated: Reminder = { ...r, status: "dismissed" };
+    reminders.set(updated.id, updated);
+    return HttpResponse.json(updated);
+  }),
+
+  // ---- Plan 4: demo reset (clears + reseeds for the citizen) ----
+  http.post(`${BASE}/demo/reset`, async ({ request }) => {
+    const citizen = authedCitizen(request) ?? maria;
+    for (const [id, doc] of documents.entries()) {
+      if (doc.citizen_id === citizen.id) documents.delete(id);
+    }
+    for (const [id, rem] of reminders.entries()) {
+      if (rem.citizen_id === citizen.id) reminders.delete(id);
+    }
+    // Reseed the demo reminders that belong to this citizen
+    seededReminders
+      .filter((r) => r.citizen_id === citizen.id)
+      .forEach((r) => reminders.set(r.id, { ...r }));
+    return HttpResponse.json({ ok: true, citizen_id: citizen.id });
+  }),
+
+  // ---- Plan 3: voice session bootstrap (mock — no real Gemini WS) ----
+  http.post(`${BASE}/voice/session`, async ({ request }) => {
+    const citizen = authedCitizen(request) ?? maria;
+    const body = (await request.json().catch(() => ({}))) as {
+      document_id?: string;
+      preferences?: { simple_language?: boolean; voice_only?: boolean };
+    };
+    let documentContext: Record<string, unknown> | null = null;
+    if (body.document_id) {
+      const doc = documents.get(body.document_id);
+      if (doc) {
+        const proc = knownProcedures.find((p) => p.id === doc.procedure_id);
+        documentContext = {
+          id: doc.id,
+          procedure_id: doc.procedure_id,
+          procedure_title: proc?.title ?? doc.procedure_id,
+          fields: doc.fields,
+        };
+      }
+    }
+    return HttpResponse.json({
+      session_id: `mock_session_${Date.now()}`,
+      gemini_api_key: "mock-api-key",
+      gemini_model: "gemini-mock-voice",
+      gemini_voice: "Aoede",
+      system_prompt: "MOCK system prompt (MSW)",
+      tool_jwt: "mock.jwt.token",
+      tool_base_url: `${BASE}/tools`,
+      tool_names: [
+        "lookup_procedure",
+        "set_field",
+        "generate_pdf",
+        "deliver",
+        "find_redirect",
+        "set_reminder",
+      ],
+      citizen_context: {
+        id: citizen.id,
+        nume: citizen.nume,
+        prenume: citizen.prenume,
+        attributes: citizen.attributes,
+      },
+      document_context: documentContext,
+      _mock_note:
+        "MSW does not implement Gemini Live WS — UI shows connecting state only. Use a real backend (Mode A/B) to exercise voice.",
+    });
+  }),
+
+  // ---- Plan 3: tool dispatch (mock — no JWT verification, just round-trip) ----
+  http.post(`${BASE}/tools/:name`, async ({ params, request }) => {
+    const name = String(params.name);
+    const args = (await request.json().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
+    if (name === "lookup_procedure") {
+      const q = String(args.query || "").toLowerCase();
+      if (q.includes("domic") || q.includes("mutare")) {
+        const proc = knownProcedures.find((p) => p.id === "schimbare-domiciliu");
+        return HttpResponse.json({
+          matches: [
+            {
+              procedure_id: "schimbare-domiciliu",
+              title: "Schimbare domiciliu",
+              score: 0.92,
+              description: proc?.description,
+              acte_necesare: proc?.acte_necesare ?? [],
+            },
+          ],
+          redirect_candidate: null,
+        });
+      }
+      return HttpResponse.json({ matches: [], redirect_candidate: null });
+    }
+    if (name === "find_redirect") {
+      const q = String(args.query || "").toLowerCase();
+      if (q.includes("impozit") || q.includes("anaf")) {
+        return HttpResponse.json({
+          target: "ANAF",
+          name: "ANAF",
+          url: "https://www.anaf.ro",
+          phone: "031 403 9160",
+          explanation: "Impozite, taxe, fiscalitate.",
+        });
+      }
+      return HttpResponse.json({ target: null });
+    }
+    return HttpResponse.json({ ok: true, _mock_tool: name, _args: args });
+  }),
 ];

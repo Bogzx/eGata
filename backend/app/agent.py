@@ -146,6 +146,12 @@ def _build_context_preamble(citizen_id: UUID, document_id: UUID | None) -> str:
             filled = doc.get("fields") or {}
             missing = [f.name for f in proc.fields if f.required and not filled.get(f.name)]
             lines.append(f"Câmpuri obligatorii rămase: {missing}")
+            if proc.acte_necesare:
+                lines.append("Acte necesare pe care cetățeanul trebuie să le aducă fizic:")
+                for a in proc.acte_necesare:
+                    flag = "" if a.obligatoriu else " (opțional)"
+                    note = f" — {a.observatie}" if a.observatie else ""
+                    lines.append(f"  • {a.denumire}{flag}{note}")
     return "\n".join(lines)
 
 

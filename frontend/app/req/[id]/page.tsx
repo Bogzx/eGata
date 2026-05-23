@@ -53,6 +53,7 @@ export default function ProcedureFlowPage() {
   const docId = params.id;
   const isKiosk = useKioskMode();
   const simpleLanguage = useAccessibilityPrefs((s) => s.simpleLanguage);
+  const voiceOnly = useAccessibilityPrefs((s) => s.voiceOnly);
 
   const [doc, setDoc] = useState<Document | null>(null);
   const [procedure, setProcedure] = useState<Procedure | null>(null);
@@ -91,6 +92,15 @@ export default function ProcedureFlowPage() {
   useEffect(() => {
     if (doc) persistMode(doc.id, modeState.mode);
   }, [doc, modeState.mode]);
+
+  // Auto-select voice mode for citizens with voice_only accessibility preference,
+  // unless they've already picked a different mode (persisted choice wins).
+  useEffect(() => {
+    if (!doc || modeState.mode) return;
+    if (voiceOnly || citizen?.attributes.accessibility?.voice_only) {
+      dispatchMode({ type: "CHOOSE", mode: "voice" });
+    }
+  }, [doc, modeState.mode, voiceOnly, citizen]);
 
   const variant = useMemo(
     () => (simpleLanguage ? "simple" : getVariant(citizen?.attributes)),
@@ -181,9 +191,12 @@ export default function ProcedureFlowPage() {
         values={doc.fields}
         onPatch={patchFields}
         preferences={{
-          simple_language: citizen.attributes.accessibility?.simple_language,
-          voice_only: citizen.attributes.accessibility?.voice_only,
+          simple_language:
+            simpleLanguage || citizen.attributes.accessibility?.simple_language,
+          voice_only:
+            voiceOnly || citizen.attributes.accessibility?.voice_only,
         }}
+        onTextFallback={() => dispatchMode({ type: "SWITCH", mode: "guided" })}
       />
     );
   })();
@@ -217,8 +230,19 @@ export default function ProcedureFlowPage() {
               messages={messages}
               onMessagesChange={setMessages}
               preferences={{
-                simple_language: citizen.attributes.accessibility?.simple_language,
-                voice_only: citizen.attributes.accessibility?.voice_only,
+                simple_language:
+                  simpleLanguage || citizen.attributes.accessibility?.simple_language,
+                voice_only:
+                  voiceOnly || citizen.attributes.accessibility?.voice_only,
+              }}
+              onDocumentSideEffect={async (toolName) => {
+                if (toolName === "set_field" || toolName === "deliver" || toolName === "generate_pdf") {
+                  try {
+                    const fresh = await api.getDocument(doc.id);
+                    setDoc(fresh);
+                    if (fresh.ref_number) setRefNumber(fresh.ref_number);
+                  } catch { /* swallow */ }
+                }
               }}
             />
           </CardContent>

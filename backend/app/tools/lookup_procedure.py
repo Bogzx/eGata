@@ -8,10 +8,20 @@ from app.procedures import REDIRECT_THRESHOLD, get_registry, guess_redirect_targ
 from app.tools import ToolContext, register
 
 
+class ActeNecesareItem(BaseModel):
+    denumire: str
+    emitent: str | None = None
+    emitent_id: str | None = None
+    obligatoriu: bool = True
+    observatie: str | None = None
+
+
 class ProcedureMatch(BaseModel):
     procedure_id: str
     title: str
     score: float
+    description: str | None = None
+    acte_necesare: list[ActeNecesareItem] = Field(default_factory=list)
 
 
 class LookupResult(BaseModel):
@@ -42,7 +52,22 @@ async def lookup_procedure(ctx: ToolContext, query: str) -> LookupResult:
         if proc is None:
             continue
         matches.append(
-            ProcedureMatch(procedure_id=pid, title=proc.title, score=float(row["score"]))
+            ProcedureMatch(
+                procedure_id=pid,
+                title=proc.title,
+                score=float(row["score"]),
+                description=proc.description,
+                acte_necesare=[
+                    ActeNecesareItem(
+                        denumire=a.denumire,
+                        emitent=a.emitent,
+                        emitent_id=a.emitent_id,
+                        obligatoriu=a.obligatoriu,
+                        observatie=a.observatie,
+                    )
+                    for a in proc.acte_necesare
+                ],
+            )
         )
 
     top_score = matches[0].score if matches else 0.0
