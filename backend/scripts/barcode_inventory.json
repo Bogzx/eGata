@@ -1,0 +1,188 @@
+{
+  "scenariu-1-certificat-atestare-fiscala/491002-Cerere-CAF-source.pdf": {
+    "barcode": "491002",
+    "page_count": 1,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-1-certificat-atestare-fiscala/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "skip_reason": "consimtamant (pdfpages wrapper)"
+  },
+  "scenariu-10-sesizare-ambrozia/304001-Sesizare-ambrozia-source.pdf": {
+    "barcode": "304001",
+    "page_count": 2,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-10-sesizare-ambrozia/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "skip_reason": "consimtamant (pdfpages wrapper)"
+  },
+  "scenariu-2-cumparare-apartament/700.001-Cerere-abonament-parcare-strada-PF-source.pdf": {
+    "barcode": "700001",
+    "page_count": 1,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-2-cumparare-apartament/Anexa-1-Cerere-eliberare-CI-source.pdf": {
+    "barcode": null,
+    "page_count": 2,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-2-cumparare-apartament/Anexa-5-Declaratie-gazduitor-source.pdf": {
+    "barcode": "311006",
+    "page_count": 1,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-2-cumparare-apartament/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "skip_reason": "consimtamant (pdfpages wrapper)"
+  },
+  "scenariu-2-cumparare-apartament/ITL-001-Declaratie-impozit-cladiri-PF-source.pdf": {
+    "barcode": "491007",
+    "page_count": 3,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-3-autorizatie-construire-casa/431.001-Cerere-emitere-certificat-urbanism-source.pdf": {
+    "barcode": "431001",
+    "page_count": 4,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-3-autorizatie-construire-casa/432.002-Cerere-prelungire-AC-AD-source.pdf": {
+    "barcode": "432002",
+    "page_count": 2,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-3-autorizatie-construire-casa/432.008-Cerere-atestare-edificare-extindere-source.pdf": {
+    "barcode": "432008",
+    "page_count": 2,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-3-autorizatie-construire-casa/460.006-Aviz-principiu-constructii-source.pdf": {
+    "barcode": "460006",
+    "page_count": 1,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-3-autorizatie-construire-casa/Cerere-prelungire-certificat-urbanism-source.pdf": {
+    "barcode": "431002",
+    "page_count": 2,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-3-autorizatie-construire-casa/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "skip_reason": "consimtamant (pdfpages wrapper)"
+  },
+  "scenariu-4-vanzare-apartament/491001-Cerere-actualizare-date-source.pdf": {
+    "barcode": "491001",
+    "page_count": 1,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-4-vanzare-apartament/491002-Cerere-CAF-source.pdf": {
+    "barcode": "491002",
+    "page_count": 1,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-4-vanzare-apartament/491004-Cerere-situatie-debite-source.pdf": {
+    "barcode": "491004",
+    "page_count": 1,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-4-vanzare-apartament/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "skip_reason": "consimtamant (pdfpages wrapper)"
+  },
+  "scenariu-4-vanzare-apartament/DITL-001-Cerere-compensare-source.pdf": {
+    "barcode": "492006",
+    "page_count": 1,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-4-vanzare-apartament/DITL-002-Cerere-restituire-source.pdf": {
+    "barcode": "492007",
+    "page_count": 1,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-4-vanzare-apartament/ITL-001-Declaratie-impozit-cladiri-PF-source.pdf": {
+    "barcode": "491007",
+    "page_count": 3,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-5-persoana-dizabilitati/802.012-Cerere-card-parcare-dizabilitati-source.pdf": {
+    "barcode": "802012",
+    "page_count": 1,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-5-persoana-dizabilitati/802.013-Cerere-indemnizatie-dizabilitati-source.pdf": {
+    "barcode": "802013",
+    "page_count": 2,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-5-persoana-dizabilitati/802.014-Cerere-transport-urban-dizabilitati-source.pdf": {
+    "barcode": "802014",
+    "page_count": 1,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-5-persoana-dizabilitati/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "skip_reason": "consimtamant (pdfpages wrapper)"
+  },
+  "scenariu-6-taiere-arbore-curte-privata/Cerere-aviz-doborare-arbori-curte-privata-source.pdf": {
+    "barcode": null,
+    "page_count": 1,
+    "image_only": true,
+    "notes": [
+      "OCR failed: RuntimeError: No tessdata specified and Tesseract is not installed"
+    ]
+  },
+  "scenariu-6-taiere-arbore-curte-privata/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "skip_reason": "consimtamant (pdfpages wrapper)"
+  },
+  "scenariu-7-placuta-numar-postal/446011-Cerere-eliberare-placuta-numar-postal-source.pdf": {
+    "barcode": "446011",
+    "page_count": 1,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-7-placuta-numar-postal/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "skip_reason": "consimtamant (pdfpages wrapper)"
+  },
+  "scenariu-8-premiu-100-ani/310001-Cerere-premiere-100-ani-source.pdf": {
+    "barcode": "313001",
+    "page_count": 1,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-8-premiu-100-ani/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "skip_reason": "consimtamant (pdfpages wrapper)"
+  },
+  "scenariu-9-tichete-alimente/801001-Cerere-tichete-alimente-source.pdf": {
+    "barcode": "801001",
+    "page_count": 3,
+    "image_only": false,
+    "notes": []
+  },
+  "scenariu-9-tichete-alimente/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "skip_reason": "consimtamant (pdfpages wrapper)"
+  }
+}

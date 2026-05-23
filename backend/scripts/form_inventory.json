@@ -1,0 +1,196 @@
+{
+  "scenariu-1-certificat-atestare-fiscala/491002-Cerere-CAF-source.pdf": {
+    "barcode": "491002",
+    "has_stema": true,
+    "page_count": 1,
+    "image_only": false
+  },
+  "scenariu-1-certificat-atestare-fiscala/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "has_stema": false,
+    "skip_reason": "consimtamant"
+  },
+  "scenariu-10-sesizare-ambrozia/304001-Sesizare-ambrozia-source.pdf": {
+    "barcode": "304001",
+    "has_stema": true,
+    "page_count": 2,
+    "image_only": false
+  },
+  "scenariu-10-sesizare-ambrozia/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "has_stema": false,
+    "skip_reason": "consimtamant"
+  },
+  "scenariu-2-cumparare-apartament/700.001-Cerere-abonament-parcare-strada-PF-source.pdf": {
+    "barcode": "700001",
+    "has_stema": true,
+    "page_count": 1,
+    "image_only": false
+  },
+  "scenariu-2-cumparare-apartament/Anexa-1-Cerere-eliberare-CI-source.pdf": {
+    "barcode": null,
+    "has_stema": false,
+    "page_count": 2,
+    "image_only": false
+  },
+  "scenariu-2-cumparare-apartament/Anexa-5-Declaratie-gazduitor-source.pdf": {
+    "barcode": "311006",
+    "has_stema": true,
+    "page_count": 1,
+    "image_only": false
+  },
+  "scenariu-2-cumparare-apartament/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "has_stema": false,
+    "skip_reason": "consimtamant"
+  },
+  "scenariu-2-cumparare-apartament/ITL-001-Declaratie-impozit-cladiri-PF-source.pdf": {
+    "barcode": "491007",
+    "has_stema": false,
+    "page_count": 3,
+    "image_only": false
+  },
+  "scenariu-3-autorizatie-construire-casa/431.001-Cerere-emitere-certificat-urbanism-source.pdf": {
+    "barcode": "431001",
+    "has_stema": true,
+    "page_count": 4,
+    "image_only": false
+  },
+  "scenariu-3-autorizatie-construire-casa/432.002-Cerere-prelungire-AC-AD-source.pdf": {
+    "barcode": "432002",
+    "has_stema": true,
+    "page_count": 2,
+    "image_only": false
+  },
+  "scenariu-3-autorizatie-construire-casa/432.008-Cerere-atestare-edificare-extindere-source.pdf": {
+    "barcode": "432008",
+    "has_stema": true,
+    "page_count": 2,
+    "image_only": false
+  },
+  "scenariu-3-autorizatie-construire-casa/460.006-Aviz-principiu-constructii-source.pdf": {
+    "barcode": "460006",
+    "has_stema": true,
+    "page_count": 1,
+    "image_only": false
+  },
+  "scenariu-3-autorizatie-construire-casa/Cerere-prelungire-certificat-urbanism-source.pdf": {
+    "barcode": "431002",
+    "has_stema": true,
+    "page_count": 2,
+    "image_only": false
+  },
+  "scenariu-3-autorizatie-construire-casa/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "has_stema": false,
+    "skip_reason": "consimtamant"
+  },
+  "scenariu-4-vanzare-apartament/491001-Cerere-actualizare-date-source.pdf": {
+    "barcode": "491001",
+    "has_stema": true,
+    "page_count": 1,
+    "image_only": false
+  },
+  "scenariu-4-vanzare-apartament/491002-Cerere-CAF-source.pdf": {
+    "barcode": "491002",
+    "has_stema": true,
+    "page_count": 1,
+    "image_only": false
+  },
+  "scenariu-4-vanzare-apartament/491004-Cerere-situatie-debite-source.pdf": {
+    "barcode": "491004",
+    "has_stema": true,
+    "page_count": 1,
+    "image_only": false
+  },
+  "scenariu-4-vanzare-apartament/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "has_stema": false,
+    "skip_reason": "consimtamant"
+  },
+  "scenariu-4-vanzare-apartament/DITL-001-Cerere-compensare-source.pdf": {
+    "barcode": "492006",
+    "has_stema": false,
+    "page_count": 1,
+    "image_only": false
+  },
+  "scenariu-4-vanzare-apartament/DITL-002-Cerere-restituire-source.pdf": {
+    "barcode": "492007",
+    "has_stema": false,
+    "page_count": 1,
+    "image_only": false
+  },
+  "scenariu-4-vanzare-apartament/ITL-001-Declaratie-impozit-cladiri-PF-source.pdf": {
+    "barcode": "491007",
+    "has_stema": false,
+    "page_count": 3,
+    "image_only": false
+  },
+  "scenariu-5-persoana-dizabilitati/802.012-Cerere-card-parcare-dizabilitati-source.pdf": {
+    "barcode": "802012",
+    "has_stema": true,
+    "page_count": 1,
+    "image_only": false
+  },
+  "scenariu-5-persoana-dizabilitati/802.013-Cerere-indemnizatie-dizabilitati-source.pdf": {
+    "barcode": "802013",
+    "has_stema": true,
+    "page_count": 2,
+    "image_only": false
+  },
+  "scenariu-5-persoana-dizabilitati/802.014-Cerere-transport-urban-dizabilitati-source.pdf": {
+    "barcode": "802014",
+    "has_stema": true,
+    "page_count": 1,
+    "image_only": false
+  },
+  "scenariu-5-persoana-dizabilitati/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "has_stema": false,
+    "skip_reason": "consimtamant"
+  },
+  "scenariu-6-taiere-arbore-curte-privata/Cerere-aviz-doborare-arbori-curte-privata-source.pdf": {
+    "barcode": "460007",
+    "has_stema": true,
+    "page_count": 1,
+    "image_only": true
+  },
+  "scenariu-6-taiere-arbore-curte-privata/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "has_stema": false,
+    "skip_reason": "consimtamant"
+  },
+  "scenariu-7-placuta-numar-postal/446011-Cerere-eliberare-placuta-numar-postal-source.pdf": {
+    "barcode": "446011",
+    "has_stema": true,
+    "page_count": 1,
+    "image_only": false
+  },
+  "scenariu-7-placuta-numar-postal/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "has_stema": false,
+    "skip_reason": "consimtamant"
+  },
+  "scenariu-8-premiu-100-ani/310001-Cerere-premiere-100-ani-source.pdf": {
+    "barcode": "313001",
+    "has_stema": true,
+    "page_count": 1,
+    "image_only": false
+  },
+  "scenariu-8-premiu-100-ani/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "has_stema": false,
+    "skip_reason": "consimtamant"
+  },
+  "scenariu-9-tichete-alimente/801001-Cerere-tichete-alimente-source.pdf": {
+    "barcode": "801001",
+    "has_stema": true,
+    "page_count": 3,
+    "image_only": false
+  },
+  "scenariu-9-tichete-alimente/Consimtamant-OUG-41-2016-source.pdf": {
+    "barcode": null,
+    "has_stema": false,
+    "skip_reason": "consimtamant"
+  }
+}

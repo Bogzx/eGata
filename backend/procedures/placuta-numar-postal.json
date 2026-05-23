@@ -1,0 +1,31 @@
+{
+  "id": "placuta-numar-postal",
+  "title": "Eliberare plăcuță număr poștal",
+  "description": "Cerere pentru eliberarea plăcuței cu numărul poștal al unui imobil — Serviciul Siguranța Circulației, Primăria Cluj-Napoca (cod 446.011).",
+  "scope": "primarie",
+  "category": "siguranta-circulatiei",
+  "synonyms": ["numar postal", "placuta casa", "numar casa", "adresa fizica casa", "numar imobil"],
+  "sample_queries": [
+    "am nevoie de plăcuță cu numărul casei",
+    "cum primesc numărul poștal pentru casa nouă",
+    "vreau să comand plăcuța de adresă",
+    "tocmai m-am mutat în casa nouă și nu are număr"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere eliberare plăcuță (cod 446.011)", "emitent": "primarie" },
+    { "denumire": "Act doveditor adresa", "emitent": "user", "observatie": "Certificat de nomenclatură stradală / Extras CF / Carte identitate", "alternative": ["extras CF (OCPI)", "certificat nomenclatură stradală (primărie)", "CI"] }
+  ],
+  "fields": [
+    { "name": "nume_complet",     "label": "Nume complet / Denumire SC",  "source": "profile",         "required": true },
+    { "name": "localitate",       "label": "Localitate domiciliu",         "source": "id_scan|profile", "required": true, "suggest_default": "Cluj-Napoca" },
+    { "name": "strada_domiciliu", "label": "Strada domiciliu",             "source": "id_scan|profile", "required": true },
+    { "name": "nr_domiciliu",     "label": "Număr domiciliu",              "source": "id_scan|profile", "required": true },
+    { "name": "ap_domiciliu",     "label": "Apartament domiciliu",         "source": "id_scan|profile", "required": false },
+    { "name": "telefon",          "label": "Telefon",                       "source": "profile",         "required": true },
+    { "name": "strada_placuta",   "label": "Strada pentru plăcuță",         "source": "ask",             "required": true, "observatie": "Implicit aceeași cu domiciliul" },
+    { "name": "nr_placuta",       "label": "Număr pentru plăcuță",          "source": "ask",             "required": true },
+    { "name": "email",            "label": "Email pentru comunicare",       "source": "profile",         "required": false }
+  ],
+  "template": "placuta-numar-postal.tex",
+  "next_steps": []
+}

@@ -1,0 +1,149 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[romanian]{babel}
+\usepackage[margin=2cm]{geometry}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{amssymb}
+\setlength{\parindent}{0pt}
+\newcommand{\fillline}[1][6cm]{\underline{\hspace{#1}}}
+\newcommand{\fillbox}[1][0.4cm]{\framebox[#1]{\rule{0pt}{#1}}}
+\newcommand{\checkboxempty}{$\square$}
+
+\begin{document}
+
+\noindent
+\begin{minipage}[t]{0.40\textwidth}
+\vspace{0pt}
+\includegraphics[height=1.5cm]{assets/stema-cluj.png}%
+\hspace{0.2cm}%
+\raisebox{0.5cm}{\parbox[t]{3.5cm}{\textbf{PRIMĂRIA}\\\textbf{CLUJ-NAPOCA}}}
+\end{minipage}%
+\begin{minipage}[t]{0.30\textwidth}
+\centering
+\vspace{0.4cm}
+\includegraphics[width=5cm]{assets/barcode-304001.png}
+\end{minipage}%
+\begin{minipage}[t]{0.30\textwidth}
+\raggedleft
+\vspace{0.6cm}
+Nr. \fillline[3cm] / \fillline[1cm]
+\end{minipage}
+
+\vspace{0.3cm}
+\hrule
+\vspace{0.6cm}
+
+\textbf{Către,}
+
+\vspace{0.2cm}
+
+\hspace{1cm}\textbf{Primăria Municipiului Cluj-Napoca}
+
+\vspace{0.7cm}
+
+\hspace{1cm}Subsemnatul (a) \underline{ {{nume_complet}} }, având CNP \underline{ {{cnp}} }, domiciliat (ă) în localitatea \underline{ {{localitate}} }, strada (comuna) \underline{ {{strada}} }, nr (sat) \underline{ {{numar}} }, bl. \underline{ {{bloc}} }, sc. \underline{ {{scara}} }, et. \underline{ {{etaj}} }, ap. \underline{ {{apartament}} }, judeţul (sectorul) \underline{ {{judet}} }, posesor al actului de identitate seria \underline{ {{ci_seria}} }, nr. \underline{ {{ci_numar}} }, eliberat la data de \underline{ {{ci_data_emitere}} } de \underline{ {{ci_emitent}} }, prin prezenta doresc să semnalez prezenţa speciei alergene ambrozia (\textit{Ambrosia artemisiifolia}) în zona (descriere cât mai detaliată, strada, nr., longitudine, latitudine) \underline{ {{zona_descriere}} }
+
+\vspace{0.2cm}
+
+\hrulefill
+
+\vspace{0.2cm}
+
+\hrulefill
+
+\vspace{0.5cm}
+
+Numărul aproximativ al tufelor de ambrozie: \underline{ {{numar_tufe}} }
+
+\vspace{0.3cm}
+
+Mărimea zonei afectate (mp): \underline{ {{suprafata_mp}} }
+
+\vspace{0.4cm}
+
+Tipul zonei afectate:
+\begin{itemize}[leftmargin=2cm,label=\checkboxempty]
+\item îngrădit
+\item neîngrădit
+\end{itemize}
+
+\vspace{0.2cm}
+
+Categoria de folosinţă a terenului:
+\begin{itemize}[leftmargin=2cm,label=\checkboxempty]
+\item arabil
+\item păşune
+\item fâneaţă
+\item livadă
+\item curţi-construcţii
+\item grădină
+\item teren abandonat/neîntreţinut
+\item alte categorii de folosinţă
+\end{itemize}
+
+\vspace{0.6cm}
+
+Proprietarul (în cazul în care se cunoaşte): \underline{ {{proprietar_teren}} }
+
+\vspace{0.3cm}
+
+Alte informaţii utile: \underline{ {{alte_informatii}} }
+
+\vspace{0.6cm}
+
+\hspace{1cm}În vederea identificării corecte a terenului vă rugăm să ataşaţi fotografii reprezentative.
+
+\vspace{0.6cm}
+
+\checkboxempty\ Prin prezenta solicit comunicarea răspunsului pe următoarea adresă de e-mail: \underline{ {{email}} }
+
+\vspace{0.4cm}
+
+\checkboxempty\ Mă oblig să comunic instituției orice modificare intervine în legătură cu această adresă de e-mail
+
+\checkboxempty\ Îmi exprim consimțământul ca Primăria Municipiului Cluj-Napoca să comunice orice informații, date personale, clarificări și completări pe adresa de e-mail indicată mai sus
+
+\checkboxempty\ Am luat la cunoștință faptul că în cazul nefuncționării serverului de e-mail comunicat sau în cazul adresei greșite de e-mail, Municipiul Cluj-Napoca nu poate fi tras la răspundere pentru acest lucru
+
+\vspace{0.8cm}
+
+Data: \fillline[4cm] \hfill Semnătura: \fillline[4cm]
+
+\vspace{0.4cm}
+
+Număr telefon: \underline{ {{telefon}} }
+
+\vspace{0.3cm}
+
+Email \underline{ {{email}} }
+
+\vfill
+\hrule
+\vspace{0.3cm}
+
+\begin{minipage}[t]{0.65\textwidth}
+www.primariaclujnapoca.ro\\
+telefon: 0264/596.030\\
+Cluj-Napoca, str. Moţilor, nr. 3
+\end{minipage}%
+\begin{minipage}[t]{0.35\textwidth}
+\raggedleft
+\includegraphics[width=4cm]{assets/barcode-304001.png}
+\end{minipage}
+
+\vspace{0.3cm}
+\hrule
+\vspace{0.2cm}
+
+{\footnotesize
+\textbf{Timp estimativ de completare: 10 minute}
+}
+
+\end{document}
