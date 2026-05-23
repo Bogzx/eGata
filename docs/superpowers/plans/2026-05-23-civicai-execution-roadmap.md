@@ -98,11 +98,7 @@ ClujHackathon/
 │   │       └── set_reminder.py
 │   ├── procedures/                  # Plan 2 (JSON registry)
 │   │   ├── schimbare-domiciliu.json
-│   │   ├── adeverinta-venit.json
 │   │   ├── certificat-fiscal.json
-│   │   ├── certificat-nastere-copie.json
-│   │   ├── inregistrare-casatorie.json
-│   │   ├── ajutor-social.json
 │   │   └── preschimbare-ci.json
 │   ├── templates/                   # Plan 2 (LaTeX); Plan 4 polish
 │   │   ├── base.tex

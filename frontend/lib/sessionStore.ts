@@ -53,11 +53,28 @@ function saveConvId(docId: string, id: string | null) {
   else localStorage.removeItem(LS_CONV_KEY(docId));
 }
 
-function pushPath(path: string) {
+// Navigation indirection: defaults to window.history.pushState (no React
+// dependency, works in tests), but the React tree replaces it with the
+// Next.js router via setNavigate() so the route tree actually re-renders
+// instead of just the URL bar changing. Without that, useParams() stays
+// stale after a store-driven navigation and the popstate handler is the
+// only thing that ever re-syncs.
+type Navigate = (path: string) => void;
+
+let _navigate: Navigate = (path) => {
   if (typeof window === "undefined") return;
   if (window.location.pathname !== path) {
     window.history.pushState(null, "", path);
   }
+};
+
+export function setNavigate(fn: Navigate): void {
+  _navigate = fn;
+}
+
+function pushPath(path: string) {
+  if (typeof window !== "undefined" && window.location.pathname === path) return;
+  _navigate(path);
 }
 
 export interface SessionState {
@@ -69,6 +86,10 @@ export interface SessionState {
   conversationId: string | null;
   messages: Message[];
   voiceStatus: VoiceStatus;
+  /** True when the microphone is actively recording. Orthogonal to
+   * voiceStatus: text-only sessions also open the unified Live WS
+   * (status becomes "listening") but the mic stays off. */
+  micOn: boolean;
   drawerOpen: boolean;
   profileMenuOpen: boolean;
   sending: boolean;
@@ -110,6 +131,7 @@ export interface SessionState {
   handleFrontendEvent(event: FrontendEvent): Promise<void>;
 
   setVoiceStatus(s: VoiceStatus): void;
+  setMicOn(on: boolean): void;
   openDrawer(): void;
   closeDrawer(): void;
   toggleProfileMenu(): void;
@@ -151,6 +173,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   conversationId: null,
   messages: [],
   voiceStatus: "idle",
+  micOn: false,
   drawerOpen: false,
   profileMenuOpen: false,
   sending: false,
@@ -302,11 +325,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     };
     const messages = [greeting];
     saveMessages(doc.id, messages);
+    // Preserve the existing conversationId: if the user arrived here from a
+    // matches pane after a `lookup_procedure` turn, the agent already has
+    // context. The backend folds the new document_id into the session via
+    // _resolve_session (CONFIRMING_MATCH → FILLING is a legal transition).
+    // Clearing it here would force a fresh session and the agent would lose
+    // memory of what the user just confirmed.
+    const { conversationId } = get();
+    if (conversationId) saveConvId(doc.id, conversationId);
     set({
       activeDocId: doc.id,
       document: doc,
       procedure,
-      conversationId: null,
       messages,
       drawerOpen: false,
     });
@@ -380,7 +410,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           onConversation: (id) => {
             if (id !== get().conversationId) {
               set({ conversationId: id });
-              if (activeDocId) saveConvId(activeDocId, id);
+              // Re-read activeDocId from the store: if the agent calls
+              // start_procedure mid-turn, document_opened fires before we
+              // get the conversation id back, and the closure's activeDocId
+              // is stale. Without this the convId never persists on a
+              // discovery-first flow that opens a doc.
+              const docId = get().activeDocId;
+              if (docId) saveConvId(docId, id);
             }
           },
           onDelta: (full) => {
@@ -409,10 +445,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             get().finalizeLiveMessage(liveId, finalText);
             if (
               final.conversation_id &&
-              final.conversation_id !== conversationId
+              final.conversation_id !== get().conversationId
             ) {
               set({ conversationId: final.conversation_id });
-              if (activeDocId) saveConvId(activeDocId, final.conversation_id);
+              const docId = get().activeDocId;
+              if (docId) saveConvId(docId, final.conversation_id);
             }
           },
           onError: (err) => {
@@ -560,6 +597,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   setVoiceStatus(s) {
     set({ voiceStatus: s });
+  },
+
+  setMicOn(on) {
+    set({ micOn: on });
   },
 
   openDrawer() {
