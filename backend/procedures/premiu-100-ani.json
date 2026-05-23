@@ -31,7 +31,8 @@
     { "name": "contact_nume",     "label": "Persoană de contact (rudă)","source": "ask",             "required": true, "observatie": "Numele unei rude apropiate" },
     { "name": "contact_telefon",  "label": "Telefon persoană contact",  "source": "ask",             "required": true },
     { "name": "contact_email",    "label": "Email persoană contact",    "source": "ask",             "required": false },
-    { "name": "telefon",          "label": "Telefon beneficiar",        "source": "profile",         "required": false }
+    { "name": "telefon",          "label": "Telefon beneficiar",        "source": "profile",         "required": false },
+    { "name": "data_cerere",      "label": "Data cererii",              "source": "ask",             "required": true, "suggest_default": "today" }
   ],
   "template": "premiu-100-ani.tex",
   "next_steps": []
