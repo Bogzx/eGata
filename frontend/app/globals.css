@@ -775,6 +775,10 @@ html.large-text {
   padding: 12px 4px;
   color: var(--c-ink);
   max-height: 120px;
+  scrollbar-width: none;        /* Firefox */
+}
+.composer-input::-webkit-scrollbar {
+  display: none;                /* Chrome / Safari / Edge */
 }
 .composer-input::placeholder {
   color: var(--c-ink-soft);
