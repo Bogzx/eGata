@@ -25,99 +25,31 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google import genai
 from google.genai import types as genai_types
 
-from app.agent import _conversations, _remember
+from app.agent_tools import REGISTRY as TOOLS_REGISTRY, ToolContext, dispatch, permitted_tools
+from app.citizens import fetch_citizen_by_id
 from app.config import get_settings
 from app.prompts import build_system_prompt
 from app.security import decode_token
-from app.tools import REGISTRY, ToolContext
+from app.sessions import (
+    Session as DbSession,
+    SessionState,
+    fetch_or_create_session,
+    update_session,
+)
 
 router = APIRouter(prefix="/agent", tags=["voice"])
 log = logging.getLogger("agent_voice")
 
 
-_BROWSER_FUNCTION_DECLS: list[dict[str, Any]] = [
-    {
-        "name": "lookup_procedure",
-        "description": "Caută procedura primăriei pentru o cerere în limba română.",
-        "parameters": {
-            "type": "OBJECT",
-            "properties": {"query": {"type": "STRING"}},
-            "required": ["query"],
-        },
-    },
-    {
-        "name": "set_field",
-        "description": "Setează un câmp în documentul activ.",
-        "parameters": {
-            "type": "OBJECT",
-            "properties": {
-                "name": {"type": "STRING"},
-                "value": {"type": "STRING"},
-            },
-            "required": ["name", "value"],
-        },
-    },
-    {
-        "name": "generate_pdf",
-        "description": "Generează PDF-ul documentului activ.",
-        "parameters": {"type": "OBJECT", "properties": {}},
-    },
-    {
-        "name": "deliver",
-        "description": "Finalizează documentul: save / send / print.",
-        "parameters": {
-            "type": "OBJECT",
-            "properties": {
-                "delivery": {"type": "STRING", "enum": ["save", "send", "print"]},
-            },
-            "required": ["delivery"],
-        },
-    },
-    {
-        "name": "find_redirect",
-        "description": "Decide dacă o cerere este în afara primăriei.",
-        "parameters": {
-            "type": "OBJECT",
-            "properties": {
-                "query": {"type": "STRING"},
-                "target": {"type": "STRING"},
-            },
-            "required": ["query"],
-        },
-    },
-    {
-        "name": "set_reminder",
-        "description": "Creează un memento proactiv (rar; numai la cerere explicită).",
-        "parameters": {
-            "type": "OBJECT",
-            "properties": {
-                "kind": {
-                    "type": "STRING",
-                    "enum": ["in_scope_procedure", "external_redirect"],
-                },
-                "title": {"type": "STRING"},
-                "procedure_id": {"type": "STRING"},
-                "redirect_target": {"type": "STRING"},
-                "deadline_days": {"type": "NUMBER"},
-            },
-            "required": ["kind", "title"],
-        },
-    },
-    {
-        "name": "propose_widget",
-        "description": "Propune o întrebare structurată ca widget UI (choice/confirm/date).",
-        "parameters": {
-            "type": "OBJECT",
-            "properties": {
-                "type": {"type": "STRING", "enum": ["choice", "confirm", "date"]},
-                "question": {"type": "STRING"},
-                "options": {"type": "ARRAY", "items": {"type": "STRING"}},
-                "target_field": {"type": "STRING"},
-            },
-            "required": ["type", "question"],
-        },
-    },
-]
+def _browser_function_declarations() -> list[dict[str, Any]]:
+    """Single source of truth: the agent_tools REGISTRY.
+
+    Gemini Live locks tools at connect time, so we send all 6 declarations.
+    The dispatcher then refuses out-of-state calls — the model gets an
+    error result it can apologize about, rather than a permitted-tools
+    list that changes mid-session.
+    """
+    return [t.function_declaration() for t in TOOLS_REGISTRY.values()]
 
 
 @dataclass
@@ -140,6 +72,7 @@ class VoiceBridgeSession:
     conv_id: str = ""
     start_payload: VoiceStartPayload | None = None
     tool_ctx: ToolContext | None = None
+    db_session: DbSession | None = None
     gemini: Any = None
     user_buf: str = ""
     agent_buf: str = ""
@@ -203,16 +136,43 @@ class VoiceBridgeSession:
             self.start_payload.conversation_id
             or f"conv_{secrets.token_urlsafe(8)}"
         )
+
+        # Resolve or create the Session and pull citizen attributes.
+        self.db_session = fetch_or_create_session(
+            self.citizen_id, session_id=self.conv_id
+        )
+        if (
+            self.start_payload.document_id
+            and not self.db_session.active_document_id
+        ):
+            self.db_session.active_document_id = self.start_payload.document_id
+            if self.db_session.state == SessionState.EXPLORING:
+                self.db_session.state = SessionState.FILLING
+
+        try:
+            citizen = fetch_citizen_by_id(UUID(self.citizen_id))
+            citizen_attrs = citizen.get("attributes") or {}
+        except Exception:
+            citizen_attrs = {}
         self.tool_ctx = ToolContext(
             citizen_id=self.citizen_id,
-            document_id=self.start_payload.document_id,
+            citizen_attributes=citizen_attrs,
         )
 
         settings = get_settings()
         client = genai.Client(api_key=settings.gemini_api_key)
 
-        system_prompt = build_system_prompt(
-            variant="conversational",
+        # Build the system instruction with full state-aware context.
+        # We compose a static system prompt + per-session preamble; Gemini
+        # Live locks system_instruction at connect time, so we cannot
+        # rebuild it per-turn the way the text path does. Subsequent state
+        # context lives in the conversation history via tool results +
+        # session_snapshot frames.
+        from app.session_engine import build_system_instruction
+
+        full_prompt = build_system_instruction(
+            self.db_session,
+            citizen_attrs,
             simple_language=self.start_payload.simple_language,
             voice_only=self.start_payload.voice_only,
         )
@@ -221,9 +181,9 @@ class VoiceBridgeSession:
             response_modalities=["AUDIO"],
             system_instruction=genai_types.Content(
                 role="system",
-                parts=[genai_types.Part.from_text(text=system_prompt)],
+                parts=[genai_types.Part.from_text(text=full_prompt)],
             ),
-            tools=[{"function_declarations": _BROWSER_FUNCTION_DECLS}],
+            tools=[{"function_declarations": _browser_function_declarations()}],
             speech_config=genai_types.SpeechConfig(
                 voice_config=genai_types.VoiceConfig(
                     prebuilt_voice_config=genai_types.PrebuiltVoiceConfig(
@@ -236,18 +196,31 @@ class VoiceBridgeSession:
             output_audio_transcription=genai_types.AudioTranscriptionConfig(),
         )
 
-        history = list(_conversations.get(self.conv_id, []))
+        # Rehydrate prior conversation history (text-chat lineage) so
+        # voice has full context. session.history is JSON; convert to
+        # Content objects for the Live API.
+        history: list[genai_types.Content] = []
+        for entry in self.db_session.history:
+            try:
+                history.append(genai_types.Content.model_validate(entry))
+            except Exception:
+                pass
 
         async with client.aio.live.connect(
             model=settings.gemini_voice_model, config=config
         ) as gemini:
             self.gemini = gemini
             await self.send_json({"type": "ready", "conversation_id": self.conv_id})
+            # Initial state snapshot for the client.
+            await self.send_json(
+                {"type": "session_snapshot", "snapshot": self.db_session.snapshot()}
+            )
             log.info(
-                "voice bridge ready conv=%s citizen=%s doc=%s history_turns=%d",
+                "voice bridge ready conv=%s citizen=%s doc=%s state=%s history_turns=%d",
                 self.conv_id,
                 self.citizen_id,
-                self.start_payload.document_id,
+                self.db_session.active_document_id,
+                self.db_session.state.value,
                 len(history),
             )
 
@@ -418,41 +391,63 @@ class VoiceBridgeSession:
             await self._persist_turn(role="model", text=text)
 
     async def _persist_turn(self, role: str, text: str) -> None:
+        """Append a transcript turn to session.history (in memory).
+
+        Persisted to DB on shutdown / disconnect via update_session()
+        to keep WS-hot-path overhead low.
+        """
+        if self.db_session is None:
+            return
         try:
-            content = genai_types.Content(
-                role=role,
-                parts=[genai_types.Part.from_text(text=text)],
-            )
-            current = list(_conversations.get(self.conv_id, []))
-            current.append(content)
-            _remember(self.conv_id, current)
+            entry = {
+                "role": role,
+                "parts": [{"text": text}],
+            }
+            self.db_session.history.append(entry)
         except Exception:
             log.exception("persist_turn failed for role=%s", role)
 
     async def _dispatch_tool(
         self, name: str, args: dict[str, Any], call_id: str | None
     ) -> genai_types.FunctionResponse:
+        """Dispatch via the state-gated agent_tools surface.
+
+        Emits tool_call, tool_result, frontend_event (if any), and a
+        session_snapshot frame after the dispatch so the frontend mirrors
+        the new state.
+        """
         await self.send_json(
             {"type": "tool_call", "name": name, "arguments": args}
         )
-        tool = REGISTRY.get(name)
-        if tool is None:
-            output: dict[str, Any] = {"error": f"unknown_tool:{name}"}
+
+        if self.db_session is None or self.tool_ctx is None:
+            output: dict[str, Any] = {"error": "session not initialized"}
         else:
-            try:
-                result = await tool(self.tool_ctx, **args)
-                if hasattr(result, "model_dump"):
-                    result = result.model_dump(mode="json")
-                if isinstance(result, dict) and "error" in result:
-                    output = result
-                else:
-                    output = {"output": result}
-            except Exception as e:  # noqa: BLE001
-                log.exception("voice tool %s failed", name)
-                output = {"error": str(e)}
+            result = await dispatch(self.db_session, name, args, self.tool_ctx)
+            if result.error is not None:
+                output = {"error": result.error, "output": result.output}
+            else:
+                output = {"output": result.output}
+            if result.frontend_event:
+                await self.send_json(
+                    {
+                        "type": "frontend_event",
+                        "event": result.frontend_event,
+                    }
+                )
+
         await self.send_json(
             {"type": "tool_result", "name": name, "output": output}
         )
+        # Snapshot after every state-mutating dispatch.
+        if self.db_session is not None:
+            await self.send_json(
+                {
+                    "type": "session_snapshot",
+                    "snapshot": self.db_session.snapshot(),
+                }
+            )
+
         return genai_types.FunctionResponse(
             id=call_id, name=name, response=output
         )
@@ -470,6 +465,13 @@ async def voice_ws(ws: WebSocket) -> None:
         log.exception("voice bridge crashed")
         await session.send_json({"type": "error", "detail": "Bridge error"})
     finally:
+        # Persist session state (history + state + active_doc) on shutdown
+        # so a reconnect picks up where we left off.
+        if session.db_session is not None:
+            try:
+                update_session(session.db_session)
+            except Exception:
+                log.exception("update_session failed on shutdown")
         try:
             await ws.close()
         except Exception:
