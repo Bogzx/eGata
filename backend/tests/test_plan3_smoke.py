@@ -19,7 +19,7 @@ from fastapi.testclient import TestClient
 
 from app.config import get_settings
 from app.main import app
-from app.tools import REGISTRY
+from app.tools import REGISTRY, ToolContext
 from app.twilio_bridge import (
     PHONE_TOOL_ALLOWLIST,
     mulaw_to_pcm16_16k,
@@ -224,3 +224,124 @@ def test_prompts_build() -> None:
     assert "MOD SIMPLU ACTIVAT" in p2
     p3 = build_system_prompt(variant="phone")
     assert "telefonic" in p3
+
+
+def test_prompts_include_widget_directive() -> None:
+    from app.prompts import build_system_prompt
+
+    p = build_system_prompt()
+    assert "propose_widget" in p
+    assert "thinking" in p.lower() or "gândire" in p.lower()
+
+
+# ---- text_hygiene.strip_thinking ----
+
+
+def test_strip_thinking_removes_tags() -> None:
+    from app.text_hygiene import strip_thinking
+
+    assert strip_thinking("<thinking>foo</thinking>bar") == "bar"
+    assert strip_thinking("a<scratchpad>x</scratchpad>b") == "ab"
+    assert strip_thinking("<reasoning>r</reasoning>") == ""
+    assert strip_thinking("hi<thinking>\nlong\nstuff\n</thinking>there") == "hithere"
+    assert strip_thinking("  hello  ") == "hello"
+    assert strip_thinking("a<Thinking>1</Thinking>b<thinking>2</thinking>c") == "abc"
+
+
+def test_strip_thinking_passthrough() -> None:
+    from app.text_hygiene import strip_thinking
+
+    assert strip_thinking("") == ""
+    assert strip_thinking(None) is None
+    assert strip_thinking("plain text no tags") == "plain text no tags"
+
+
+# ---- propose_widget tool ----
+
+
+def test_propose_widget_registered() -> None:
+    assert "propose_widget" in REGISTRY
+
+
+def test_propose_widget_choice_happy() -> None:
+    import asyncio
+
+    from app.tools.propose_widget import propose_widget
+
+    ctx = ToolContext(citizen_id="c1", document_id="d1")
+    result = asyncio.run(
+        propose_widget(
+            ctx,
+            type="choice",
+            question="Cum locuiești?",
+            options=["Proprietar", "Chiriaș", "Găzduit"],
+            target_field="tip_locuinta",
+        )
+    )
+    assert result.acknowledged is True
+    assert isinstance(result.widget_id, str) and len(result.widget_id) >= 16
+    assert result.type == "choice"
+    assert result.target_field == "tip_locuinta"
+
+
+def test_propose_widget_choice_needs_two_options() -> None:
+    import asyncio
+
+    from app.tools.propose_widget import propose_widget
+
+    ctx = ToolContext(citizen_id="c1", document_id="d1")
+    with pytest.raises(ValueError, match=">= 2 options"):
+        asyncio.run(
+            propose_widget(
+                ctx,
+                type="choice",
+                question="x?",
+                options=["only-one"],
+                target_field="f",
+            )
+        )
+
+
+def test_propose_widget_choice_needs_target_field() -> None:
+    import asyncio
+
+    from app.tools.propose_widget import propose_widget
+
+    ctx = ToolContext(citizen_id="c1", document_id="d1")
+    with pytest.raises(ValueError, match="target_field"):
+        asyncio.run(
+            propose_widget(
+                ctx,
+                type="choice",
+                question="x?",
+                options=["a", "b"],
+                target_field=None,
+            )
+        )
+
+
+def test_propose_widget_confirm_ok() -> None:
+    import asyncio
+
+    from app.tools.propose_widget import propose_widget
+
+    ctx = ToolContext(citizen_id="c1", document_id="d1")
+    result = asyncio.run(
+        propose_widget(ctx, type="confirm", question="Continui?")
+    )
+    assert result.acknowledged is True
+    assert result.type == "confirm"
+
+
+def test_propose_widget_rejects_unknown_type() -> None:
+    import asyncio
+
+    from app.tools.propose_widget import propose_widget
+
+    ctx = ToolContext(citizen_id="c1", document_id="d1")
+    with pytest.raises(ValueError, match="unknown widget type"):
+        asyncio.run(propose_widget(ctx, type="banana", question="x"))
+
+
+def test_phone_tool_allowlist_excludes_propose_widget() -> None:
+    assert "propose_widget" not in PHONE_TOOL_ALLOWLIST

@@ -44,6 +44,7 @@ from app.tools import (  # noqa: E402, F401
     find_redirect as _find_redirect_mod,
     generate_pdf as _generate_pdf_mod,
     lookup_procedure as _lookup_procedure_mod,
+    propose_widget as _propose_widget_mod,
     set_field as _set_field_mod,
     set_reminder as _set_reminder_mod,
 )

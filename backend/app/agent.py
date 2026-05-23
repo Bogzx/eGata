@@ -22,6 +22,7 @@ from app.models import AgentChatRequest, AgentChatResponse, ChatToolCall
 from app.procedures import get_registry
 from app.prompts import build_system_prompt
 from app.security import current_citizen_id
+from app.text_hygiene import strip_thinking
 from app.tools import REGISTRY, ToolContext
 
 log = logging.getLogger("civicai.agent")
@@ -102,6 +103,25 @@ _FUNCTION_DECLS: list[dict[str, Any]] = [
                 "deadline_days": {"type": "INTEGER"},
             },
             "required": ["kind", "title"],
+        },
+    },
+    {
+        "name": "propose_widget",
+        "description": (
+            "Cere cetățeanului un răspuns structurat via un widget interactiv în chat: "
+            "type='choice' cu options pentru selecție rapidă, type='confirm' pentru da/nu, "
+            "type='date' pentru o dată calendaristică. Pentru choice, target_field este "
+            "câmpul din formular pe care valoarea aleasă îl va completa."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "type": {"type": "STRING", "enum": ["choice", "confirm", "date"]},
+                "question": {"type": "STRING"},
+                "options": {"type": "ARRAY", "items": {"type": "STRING"}},
+                "target_field": {"type": "STRING"},
+            },
+            "required": ["type", "question"],
         },
     },
 ]
@@ -250,6 +270,7 @@ async def chat(
         # No tool calls — extract text and finish
         text_parts = [p.text for p in parts if getattr(p, "text", None)]
         message = "".join(text_parts).strip() or "Cum te pot ajuta?"
+        message = strip_thinking(message) or "Cum te pot ajuta?"
         contents.append(candidate.content)
         _conversations[conv_id] = contents
         return AgentChatResponse(
