@@ -1,0 +1,72 @@
+- generic [active] [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e7] [cursor=pointer]:
+    - img [ref=e8]
+  - alert [ref=e11]
+  - generic [ref=e12]:
+    - link "Sări la conținut" [ref=e13] [cursor=pointer]:
+      - /url: "#civic-main"
+    - heading "CivicAI — asistent digital pentru primărie" [level=1] [ref=e14]
+    - generic [ref=e15]:
+      - banner [ref=e16]:
+        - generic [ref=e17]:
+          - img [ref=e19]
+          - generic [ref=e23]:
+            - generic [ref=e24]: CivicAI
+            - generic [ref=e25]: Primărie · România
+        - navigation "Bara de instrumente" [ref=e26]:
+          - button "Deschide Documentele mele, 2 documente" [ref=e27] [cursor=pointer]:
+            - img [ref=e28]
+            - generic [ref=e30]: Documentele mele
+            - generic [ref=e31]: "2"
+          - button "Pornește asistentul vocal" [ref=e32] [cursor=pointer]:
+            - img [ref=e33]
+          - button "Profil Maria" [ref=e36] [cursor=pointer]:
+            - generic [ref=e37]: M
+            - generic [ref=e38]: Maria
+            - img [ref=e39]
+      - main [ref=e41]:
+        - region "Chat cu asistentul CivicAI" [ref=e42]:
+          - generic [ref=e43]:
+            - generic [ref=e44]: Asistent CivicAI · ROeID activă
+            - heading "Bună, Maria. Cu ce te pot ajuta astăzi?" [level=2] [ref=e46]:
+              - text: Bună, Maria.
+              - text: Cu ce te pot ajuta astăzi?
+            - paragraph [ref=e47]: Spune-mi în cuvinte simple ce ai nevoie. Eu îți spun ce acte îți trebuie — și le completez cu tine.
+            - list "Proceduri sugerate" [ref=e48]:
+              - listitem [ref=e49] [cursor=pointer]:
+                - generic [ref=e50]: 🔔
+                - generic [ref=e51]:
+                  - generic [ref=e52]: Cartea de identitate expiră în 23 de zile — programează preschimbarea
+                  - generic [ref=e53]: "Termen: 15.06.2026"
+                - img [ref=e54]
+              - listitem [ref=e56] [cursor=pointer]:
+                - generic [ref=e57]: 📋
+                - generic [ref=e58]:
+                  - generic [ref=e59]: Schimbare domiciliu
+                  - generic [ref=e60]: Înscrierea mențiunii de stabilire a domiciliului
+                - img [ref=e61]
+              - listitem [ref=e63] [cursor=pointer]:
+                - generic [ref=e64]: 📋
+                - generic [ref=e65]:
+                  - generic [ref=e66]: Copie certificat de naștere
+                  - generic [ref=e67]: Eliberare duplicat certificat de naștere.
+                - img [ref=e68]
+              - listitem [ref=e70] [cursor=pointer]:
+                - generic [ref=e71]: 📋
+                - generic [ref=e72]:
+                  - generic [ref=e73]: Certificat fiscal
+                  - generic [ref=e74]: Atestare lipsă datorii la bugetul local.
+                - img [ref=e75]
+          - form "Trimite un mesaj asistentului" [ref=e77]:
+            - generic [ref=e78]:
+              - button "Atașează fișier" [ref=e79] [cursor=pointer]:
+                - img [ref=e80]
+              - generic [ref=e82]: Scrie un mesaj pentru asistent
+              - textbox "Scrie un mesaj pentru asistent" [ref=e83]:
+                - /placeholder: Spune-mi ce ai nevoie · sau apasă microfonul
+                - text: Vreau certificat de naștere
+              - button "Pornește microfonul" [ref=e84] [cursor=pointer]:
+                - img [ref=e85]
+              - button "Trimite mesajul" [ref=e88] [cursor=pointer]:
+                - img [ref=e89]
+  - button "Resetează datele demo" [ref=e93] [cursor=pointer]: Reset demo

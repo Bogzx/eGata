@@ -210,6 +210,14 @@ export type ScenarioPlan = {
   external_steps: ResolvedExternalStep[];
 };
 
+export type LookupMatch = {
+  procedure_id: string;
+  title: string;
+  score: number;
+  description?: string;
+  acte_necesare: ResolvedActeNecesareItem[];
+};
+
 // ---- Chat-first redesign types ----
 
 export type RightPaneState =
@@ -220,7 +228,8 @@ export type RightPaneState =
   | { kind: "pdf"; url: string }
   | { kind: "delivery" }
   | { kind: "done"; refNumber: string }
-  | { kind: "plan"; scenarioId: string };
+  | { kind: "plan"; scenarioId: string }
+  | { kind: "matches" };
 
 export type WidgetSpec =
   | {

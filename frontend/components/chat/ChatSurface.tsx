@@ -89,6 +89,9 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   const applyToolResult = useSessionStore((s) => s.applyToolResult);
   const reset = useSessionStore((s) => s.reset);
   const rightPaneKind = useSessionStore((s) => s.rightPane.kind);
+  const hasMessages = useSessionStore((s) => s.messages.length > 0);
+  const hasPendingUser = useSessionStore((s) => s.pendingUser !== null);
+  const hasPendingAgent = useSessionStore((s) => s.pendingAgent !== null);
 
   const voice = useVoiceAgent();
   const voiceStartedRef = useRef(false);
@@ -263,9 +266,10 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
     return <p className="p-6 text-muted-foreground">Se încarcă...</p>;
   }
 
-  const engaged = rightPaneKind !== "welcome";
+  const hasConversation = hasMessages || hasPendingUser || hasPendingAgent;
+  const engaged = rightPaneKind !== "welcome" || hasConversation;
   const hideRightPane = voiceOnly;
-  const showRight = engaged && !hideRightPane;
+  const showRight = rightPaneKind !== "welcome" && !hideRightPane;
 
   const voiceActive =
     voice.state === "listening" ||
