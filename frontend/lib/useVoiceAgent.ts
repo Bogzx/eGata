@@ -35,6 +35,10 @@ export type ToolCallHandler = (
 export type VoiceAgentStartOpts = {
   documentId?: string;
   preferences?: VoicePreferences;
+  /** Called on every partial with the full accumulated user transcript. */
+  onUserDelta?: (text: string) => void;
+  /** Called on every partial with the full accumulated agent transcript. */
+  onAgentDelta?: (text: string) => void;
   /** Called once per finalized user turn with the full transcript. */
   onUserMessage?: (text: string) => void;
   /** Called once per finalized agent turn with text + emitted tool calls. */
@@ -254,6 +258,12 @@ export function useVoiceAgent(): VoiceAgentHook {
           onAgentAudio: (pcm) => {
             setState("speaking");
             player.feed(pcm);
+          },
+          onUserDelta: (text) => {
+            opts.onUserDelta?.(text);
+          },
+          onAgentDelta: (text) => {
+            opts.onAgentDelta?.(text);
           },
           onUserMessage: (text) => {
             LOG("onUserMessage (finalized)", text);

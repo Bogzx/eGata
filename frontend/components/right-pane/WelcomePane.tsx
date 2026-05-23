@@ -40,6 +40,7 @@ function filterScenarios(
       const m = /^(\w+)\s*==\s*(true|false)$/.exec(s.applies_if.trim());
       if (!m) return true;
       const [, key, val] = m;
+      if (!key) return true;
       const expected = val === "true";
       const actual = (attrs as Record<string, unknown>)[key];
       return actual === expected;

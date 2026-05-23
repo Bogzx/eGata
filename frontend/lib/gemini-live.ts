@@ -13,9 +13,12 @@
  *   - generationComplete / turnComplete / interrupted: end-of-turn / barge-in
  *   - setupComplete / goAway: connection lifecycle
  *
- * Buffering: Gemini emits transcripts as a stream of partials. We buffer per
- * turn and emit ONE message via onUserMessage / onAgentMessage when the turn
- * boundary fires.
+ * Buffering: Gemini emits transcripts as a stream of partials. We accumulate
+ * per turn into ``userBuf`` / ``agentBuf`` and expose them two ways:
+ *   - ``onUserDelta`` / ``onAgentDelta`` — fired on every partial with the
+ *     full accumulated buffer (the UI replaces the in-progress bubble).
+ *   - ``onUserMessage`` / ``onAgentMessage`` — fired ONCE per finalized turn
+ *     with the cleaned final text + any emitted tool calls.
  *
  * Logging: every WS lifecycle event + every parsed serverContent path is
  * console.log'd with the `[civicai:live]` prefix so you can filter in DevTools.
@@ -46,6 +49,10 @@ export type GeminiLiveOpts = {
   systemPrompt: string;
   functionDeclarations: FunctionDecl[];
   onAgentAudio: (pcm: ArrayBuffer) => void;
+  /** Fired on every partial with the full accumulated user transcript. */
+  onUserDelta?: (text: string) => void;
+  /** Fired on every partial with the full accumulated agent transcript. */
+  onAgentDelta?: (text: string) => void;
   /** Fired once per completed user turn with the full transcript. */
   onUserMessage: (text: string) => void;
   /** Fired once per completed agent turn with the full text + any tool calls. */
@@ -72,23 +79,25 @@ type ToolCallFromServer = {
 //   I've got a tricky starting point here, an ellipsis alone! ...
 //
 //   Bună ziua! Cu ce te pot ajuta?
-// A leading markdown bold-header followed by a paragraph is treated as
-// thinking and stripped. We repeat up to 3 times for back-to-back blocks.
+// A leading markdown bold-header followed by one or more paragraphs is
+// treated as thinking and stripped — but ONLY when the heading has no
+// Romanian diacritics (so real Romanian bold headings like "**Pași:**" are
+// left alone). XML thinking tags are also stripped anywhere.
 const LEADING_THINKING_BLOCK_RE =
-  /^\s*\*\*[^*\n]+\*\*[^\n]*\n(?:\s*\n)*(?:[^\n]+\n)+(?:\s*\n)*/;
-const ANY_MD_HEADING_BOLD_RE = /^\s*\*\*[^*\n]+\*\*\s*$/gm;
+  /^\s*\*\*([^*\n]+)\*\*[^\n]*\n(?:\s*\n)*(?:[^\n]+\n)+(?:\s*\n)*/;
 const XML_THINKING_RE =
   /<(?:thinking|scratchpad|reasoning)>[\s\S]*?<\/(?:thinking|scratchpad|reasoning)>/gi;
+const RO_DIACRITICS_RE = /[ăâîșțĂÂÎȘȚ]/;
 
 function scrubAgentText(text: string): string {
   if (!text) return text;
   let out = text.replace(XML_THINKING_RE, "");
   for (let i = 0; i < 3; i++) {
-    const before = out;
-    out = out.replace(LEADING_THINKING_BLOCK_RE, "");
-    if (out === before) break;
+    const m = LEADING_THINKING_BLOCK_RE.exec(out);
+    if (!m) break;
+    if (RO_DIACRITICS_RE.test(m[1] ?? "")) break;
+    out = out.slice(m[0].length);
   }
-  out = out.replace(ANY_MD_HEADING_BOLD_RE, "");
   return out.replace(/\n{3,}/g, "\n\n").trim();
 }
 
@@ -259,6 +268,7 @@ export class GeminiLiveSession {
         LOG("serverContent.interrupted — drop agent buffer + flush player");
         this.opts.onInterrupted();
         this.agentBuf = "";
+        this.opts.onAgentDelta?.("");
       }
 
       // Agent text / audio (modelTurn). Skip thought parts.
@@ -269,6 +279,7 @@ export class GeminiLiveSession {
         if (typeof p.text === "string") {
           this.setActive("agent");
           this.agentBuf += p.text;
+          this.opts.onAgentDelta?.(scrubAgentText(this.agentBuf));
         }
         const inline = p.inlineData as
           | { mimeType?: string; data?: string }
@@ -292,6 +303,7 @@ export class GeminiLiveSession {
       if (inputT?.text) {
         this.setActive("user");
         this.userBuf += inputT.text;
+        this.opts.onUserDelta?.(this.userBuf);
         LOG("inputTranscription += ", JSON.stringify(inputT.text));
       }
 
@@ -299,6 +311,7 @@ export class GeminiLiveSession {
       if (outputT?.text) {
         this.setActive("agent");
         this.agentBuf += outputT.text;
+        this.opts.onAgentDelta?.(scrubAgentText(this.agentBuf));
         LOG("outputTranscription += ", JSON.stringify(outputT.text));
       }
 
