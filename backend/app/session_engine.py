@@ -46,14 +46,10 @@ log = logging.getLogger("session_engine")
 
 _MAX_TOOL_LOOP_ITERATIONS = 5
 
-_genai_client: genai.Client | None = None
-
-
 def _client() -> genai.Client:
-    global _genai_client
-    if _genai_client is None:
-        _genai_client = genai.Client(api_key=get_settings().gemini_api_key)
-    return _genai_client
+    """Process-wide cached genai client. See app/gemini.py."""
+    from app.gemini import get_genai_client
+    return get_genai_client()
 
 
 @dataclass
@@ -254,7 +250,10 @@ async def step(
         part_count = 0
         last_finish_reason = None
         last_safety = None
-        log.warning(
+        # Per-chunk + per-part diagnostics are intentionally at DEBUG.
+        # They were originally WARNING while debugging Gemini empty-parts
+        # responses; in production this drowns genuine warnings.
+        log.debug(
             "iter start: history_len=%d contents_len=%d",
             len(session.history),
             len(contents),
@@ -263,19 +262,22 @@ async def step(
             chunk_count += 1
             candidate = chunk.candidates[0] if chunk.candidates else None
             if candidate is None:
-                log.warning("chunk: no candidates")
+                log.debug("chunk: no candidates")
                 continue
             last_finish_reason = getattr(candidate, "finish_reason", None)
             last_safety = getattr(candidate, "safety_ratings", None)
             content = candidate.content
             if content is None:
-                log.warning(
+                log.debug(
                     "chunk: candidate has no content (finish=%r)",
                     last_finish_reason,
                 )
                 continue
             parts = content.parts or []
             if not parts:
+                # No-parts chunks are unusual enough to keep at WARNING —
+                # they hint at a Gemini misconfig (e.g. thinking_budget>0
+                # filtering everything out).
                 log.warning(
                     "chunk: content has no parts (role=%r finish=%r safety=%r)",
                     getattr(content, "role", None),
@@ -287,7 +289,7 @@ async def step(
                 text = getattr(p, "text", None)
                 fc = getattr(p, "function_call", None)
                 thought_flag = getattr(p, "thought", None)
-                log.warning(
+                log.debug(
                     "iter part: text=%r fc=%r thought=%r",
                     (text[:80] + "...") if text and len(text) > 80 else text,
                     fc.name if fc else None,
@@ -302,7 +304,9 @@ async def step(
                 if fc:
                     accumulated_function_calls.append(fc)
                     accumulated_parts.append(p)
-        log.warning(
+        # Iteration summary at INFO so prod logs show turn-level shape
+        # without per-chunk spam.
+        log.info(
             "iter done: chunks=%d parts=%d text_len=%d fc_count=%d finish=%r",
             chunk_count,
             part_count,

@@ -22,7 +22,6 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from google import genai
 from google.genai import types as genai_types
 
 from app.agent_tools import REGISTRY as TOOLS_REGISTRY, ToolContext, dispatch, permitted_tools
@@ -193,7 +192,10 @@ class VoiceBridgeSession:
         )
 
         settings = get_settings()
-        client = genai.Client(api_key=settings.gemini_api_key)
+        # Reuse the process-wide cached client instead of constructing one
+        # per WS connect. See app/gemini.py.
+        from app.gemini import get_genai_client
+        client = get_genai_client()
 
         # Build the system instruction with full state-aware context.
         # We compose a static system prompt + per-session preamble; Gemini
@@ -300,14 +302,15 @@ class VoiceBridgeSession:
                     try:
                         self.inbound_audio.put_nowait(chunk)
                     except asyncio.QueueFull:
-                        try:
-                            _ = self.inbound_audio.get_nowait()
-                        except asyncio.QueueEmpty:
-                            pass
-                        try:
-                            self.inbound_audio.put_nowait(chunk)
-                        except asyncio.QueueFull:
-                            pass
+                        # Queue is full: drop the NEW frame, not the oldest.
+                        # The downstream pump (mic→Gemini Live) drains FIFO;
+                        # discarding the freshest packet preserves playback
+                        # continuity of what's already buffered. The original
+                        # logic discarded the oldest frame and inserted the
+                        # newest — equivalent to splicing audio and audible
+                        # as a click. Backpressure is fine: Gemini just sees
+                        # a brief gap.
+                        log.debug("inbound_audio queue full — dropping new frame")
                     continue
                 if msg.get("text"):
                     try:
@@ -630,6 +633,22 @@ class VoiceBridgeSession:
             }
         )
 
+    def _refresh_citizen_attrs(self) -> None:
+        """Re-read citizen.attributes so applies_if + state_recap see the
+        live row. citizen_attrs was previously cached at WS open and never
+        refreshed; a mid-call PATCH from another tab to /citizens/me/
+        attributes (e.g. toggling simple_language) was invisible to the
+        agent until the user reconnected."""
+        if self.tool_ctx is None:
+            return
+        try:
+            citizen = fetch_citizen_by_id(UUID(self.citizen_id))
+            attrs = citizen.get("attributes") or {}
+        except Exception:
+            log.exception("refresh_citizen_attrs failed")
+            return
+        self.tool_ctx.citizen_attributes = attrs
+
     async def _dispatch_tool(
         self, name: str, args: dict[str, Any], call_id: str | None
     ) -> genai_types.FunctionResponse:
@@ -646,6 +665,9 @@ class VoiceBridgeSession:
         if self.db_session is None or self.tool_ctx is None:
             output: dict[str, Any] = {"error": "session not initialized"}
         else:
+            # Refresh citizen.attributes before dispatch so applies_if-aware
+            # tools (set_field, complete_document) see the current row.
+            self._refresh_citizen_attrs()
             result = await dispatch(self.db_session, name, args, self.tool_ctx)
             if result.error is not None:
                 output = {"error": result.error, "output": result.output}

@@ -5,10 +5,8 @@ import math
 from functools import lru_cache
 from typing import Any
 
-from google import genai
 from google.genai import types as genai_types
 
-from app.config import get_settings
 from app.db import get_pg_connection
 from app.models import Procedure
 
@@ -16,30 +14,38 @@ EMBEDDING_MODEL = "gemini-embedding-001"
 EMBEDDING_DIM = 768
 
 
-@lru_cache(maxsize=1)
-def _get_client() -> Any:
-    return genai.Client(api_key=get_settings().gemini_api_key)
-
-
-# Module-level alias kept for monkeypatching in tests
+# Module-level alias kept for monkeypatching in tests — tests still set
+# `embeddings._gemini_client = mock_client` to override the real one.
 _gemini_client: Any = None
 
 
 def _client() -> Any:
+    """Process-wide cached genai client. Tests can override by assigning
+    `_gemini_client` directly; otherwise we defer to app/gemini.py."""
     global _gemini_client
-    if _gemini_client is None:
-        _gemini_client = _get_client()
-    return _gemini_client
+    if _gemini_client is not None:
+        return _gemini_client
+    from app.gemini import get_genai_client
+    return get_genai_client()
 
 
 def embed_text(text: str) -> list[float]:
+    """Embed `text` with Gemini. Cached per (normalized text) so the agent
+    re-calling lookup_procedure with the same query in a single session
+    doesn't burn a fresh API call."""
+    return list(_embed_text_cached(text.strip()))
+
+
+@lru_cache(maxsize=256)
+def _embed_text_cached(text: str) -> tuple[float, ...]:
+    """Tuple-typed for hashability so it can sit behind lru_cache."""
     client = _client()
     resp = client.models.embed_content(
         model=EMBEDDING_MODEL,
         contents=text,
         config=genai_types.EmbedContentConfig(output_dimensionality=EMBEDDING_DIM),
     )
-    return list(resp.embeddings[0].values)
+    return tuple(resp.embeddings[0].values)
 
 
 def procedure_source_text(proc: Procedure) -> str:

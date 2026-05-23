@@ -132,9 +132,17 @@ def finalize_document(
 
 
 def send_delivery_sms(phone: str, ref_number: str) -> None:
+    """Best-effort outbound SMS on document delivery.
+
+    Skipped entirely when MOCK_SMS=1 (or, for backward compatibility,
+    when MOCK_SMS is unset and MOCK_OTP=1). Production deploys MUST set
+    MOCK_OTP=0 AND either MOCK_SMS=0 or leave MOCK_SMS unset — the
+    silent SMS-off footgun used to be a single MOCK_OTP toggle which
+    confused anyone who only thought they were enabling OTP.
+    """
     settings = get_settings()
-    if settings.mock_otp:
-        # Reuse the mock-mode flag for SMS in dev to avoid Twilio costs.
+    mock_sms = settings.mock_sms if settings.mock_sms is not None else settings.mock_otp
+    if mock_sms:
         return
     if not settings.twilio_account_sid or not settings.twilio_phone_number:
         return
