@@ -85,10 +85,28 @@ def _doc_state_lines(
         f"Câmpuri completate: {fields}",
     ]
     if proc:
-        from app.procedure_state import evaluate_field_states
+        from app.procedure_state import evaluate_field_states, _is_nonempty
 
         states = evaluate_field_states(proc, fields, citizen_attrs)
         lines.append(f"Câmpuri obligatorii rămase: {states.missing}")
+        # Explicit list of set_field calls the LLM should issue right now —
+        # forces auto-fill of optional fields (email, ap_domiciliu, ...) that
+        # the LLM would otherwise skip because they're not in `missing`.
+        autofillable: list[tuple[str, Any]] = []
+        for fld in proc.fields:
+            current = fields.get(fld.name)
+            if _is_nonempty(current):
+                continue
+            attr_value = citizen_attrs.get(fld.name)
+            if attr_value not in (None, ""):
+                autofillable.append((fld.name, attr_value))
+        if autofillable:
+            lines.append(
+                "APELEAZĂ ACUM aceste set_field (auto-fill obligatoriu, "
+                "chiar dacă field-ul e required:false):"
+            )
+            for name, value in autofillable:
+                lines.append(f"  • set_field(name='{name}', value='{value}')")
         if proc.acte_necesare:
             lines.append("Acte fizice necesare:")
             for a in proc.acte_necesare:

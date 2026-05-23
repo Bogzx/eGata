@@ -30,8 +30,7 @@
     { "name": "email", "label": "Email", "source": "profile", "required": false },
     { "name": "adresa_corespondenta", "label": "Adresa de corespondență (dacă diferă)", "source": "ask", "required": false },
     { "name": "tip_modificare", "label": "Tip modificare", "source": "ask", "options": ["schimbare nume", "schimbare adresă", "alte date"], "required": true },
-    { "name": "date_actualizate", "label": "Date noi", "source": "ask", "required": true },
-    { "name": "data_cerere", "label": "Data cererii", "source": "ask", "required": true, "suggest_default": "today" }
+    { "name": "date_actualizate", "label": "Date noi", "source": "ask", "required": true }
   ],
   "template": "actualizare-date-contribuabil.tex",
   "next_steps": []

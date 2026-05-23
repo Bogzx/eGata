@@ -25,8 +25,7 @@
     { "name": "numar_arbori",   "label": "Numărul de arbori",             "source": "ask",             "required": true, "suggest_default": "1" },
     { "name": "strada_arbori",  "label": "Strada unde sunt arborii",      "source": "id_scan|profile", "required": true },
     { "name": "nr_arbori",      "label": "Număr stradă",                  "source": "id_scan|profile", "required": true },
-    { "name": "email",          "label": "Email pentru comunicare",       "source": "profile",         "required": false },
-    { "name": "data_cerere",    "label": "Data cererii",                  "source": "ask",             "required": true, "suggest_default": "today" }
+    { "name": "email",          "label": "Email pentru comunicare",       "source": "profile",         "required": false }
   ],
   "template": "taiere-arbore-curte-privata.tex",
   "next_steps": [

@@ -29,8 +29,7 @@
     { "name": "telefon", "label": "Telefon", "source": "profile", "required": true },
     { "name": "email", "label": "Email", "source": "profile", "required": false },
     { "name": "adresa_corespondenta", "label": "Adresa de corespondență (dacă diferă)", "source": "ask", "required": false },
-    { "name": "scop", "label": "Scopul cererii", "source": "ask", "required": true },
-    { "name": "data_cerere", "label": "Data cererii", "source": "ask", "required": true, "suggest_default": "today" }
+    { "name": "scop", "label": "Scopul cererii", "source": "ask", "required": true }
   ],
   "template": "situatie-debite.tex",
   "next_steps": []
