@@ -8,7 +8,7 @@ import {
 } from "@/lib/accessibilityStore";
 import { useKioskMode } from "@/lib/kioskMode";
 import { getSession } from "@/lib/session";
-import { useSessionStore } from "@/lib/sessionStore";
+import { setNavigate, useSessionStore } from "@/lib/sessionStore";
 import type { WidgetSpec } from "@/lib/types";
 import {
   VoiceAgentMicDeniedError,
@@ -47,6 +47,7 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   const submitWidget = useSessionStore((s) => s.submitWidget);
   const appendMessage = useSessionStore((s) => s.appendMessage);
   const setVoiceStatus = useSessionStore((s) => s.setVoiceStatus);
+  const setMicOn = useSessionStore((s) => s.setMicOn);
   const reset = useSessionStore((s) => s.reset);
   const sessionState = useSessionStore((s) => s.session?.state ?? null);
   const hasMessages = useSessionStore((s) => s.messages.length > 0);
@@ -61,6 +62,12 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!getSession()) router.replace("/login");
+  }, [router]);
+
+  // Wire store-driven navigation to Next.js router so route-tree state
+  // stays in sync after startProcedure / loadDocument / reset.
+  useEffect(() => {
+    setNavigate((path) => router.push(path));
   }, [router]);
 
   // Hydrate citizen once.
@@ -104,25 +111,45 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
     setVoiceStatus(voice.state);
   }, [voice.state, setVoiceStatus]);
 
+  // Mirror mic state into the store — Composer's mic button visual is
+  // driven by this, not voiceStatus, because text-only sessions now also
+  // hold the WS open (voiceStatus = "listening") without the mic on.
+  useEffect(() => {
+    setMicOn(voice.micOn);
+  }, [voice.micOn, setMicOn]);
+
+  // Helper: open WS + engage mic atomically. Used both by the explicit mic
+  // toggle and by the voice_only auto-start. If the mic is denied after the
+  // WS opens, tear the WS back down so we don't leave a dangling session.
+  async function enterVoiceMode(): Promise<void> {
+    await voice.start({
+      documentId: useSessionStore.getState().activeDocId ?? undefined,
+      preferences: { simple_language: simpleLanguage, voice_only: voiceOnly },
+    });
+    try {
+      await voice.enableMic();
+    } catch (err) {
+      // Tear down the WS so text mode (SSE) can acquire session_lock again.
+      voice.stop();
+      throw err;
+    }
+  }
+
   // Auto-start voice for voice_only users once citizen is hydrated.
   useEffect(() => {
     if (!voiceOnly || !citizen || voiceStartedRef.current) return;
     voiceStartedRef.current = true;
-    void voice
-      .start({
-        documentId: activeDocId ?? undefined,
-        preferences: { simple_language: simpleLanguage, voice_only: voiceOnly },
-      })
-      .catch((err) => {
-        if (err instanceof VoiceAgentMicDeniedError) {
-          appendMessage({
-            id: makeMsgId(),
-            role: "system",
-            text: "Microfonul nu este permis. Folosește textul.",
-          });
-        }
-      });
-  }, [voiceOnly, citizen, activeDocId, simpleLanguage, voice, appendMessage]);
+    void enterVoiceMode().catch((err) => {
+      if (err instanceof VoiceAgentMicDeniedError) {
+        appendMessage({
+          id: makeMsgId(),
+          role: "system",
+          text: "Microfonul nu este permis. Folosește textul.",
+        });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceOnly, citizen, activeDocId, simpleLanguage]);
 
   // Briefly pulse the "Document" segment of the mobile toggle when new
   // doc-side content becomes available while the user is on the Chat view.
@@ -137,10 +164,7 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   async function startVoice() {
     if (!citizen) return;
     try {
-      await voice.start({
-        documentId: useSessionStore.getState().activeDocId ?? undefined,
-        preferences: { simple_language: simpleLanguage, voice_only: voiceOnly },
-      });
+      await enterVoiceMode();
     } catch (err) {
       if (err instanceof VoiceAgentMicDeniedError) {
         appendMessage({
@@ -153,13 +177,17 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   }
 
   function stopVoice() {
+    // Full teardown: closes WS + recorder + player so the session_lock is
+    // released and SSE text turns can flow again. Voice and text stay on
+    // their own transports.
     voice.stop();
   }
 
   async function onSendText(t: string) {
-    // If a voice WS is active, push text into the live session so the agent
-    // hears it. Otherwise hit /agent/chat/stream via the store.
-    if (voice.state === "listening" || voice.state === "speaking") {
+    // Text stays on SSE (/agent/chat/stream) — no WS is opened just for
+    // typing. The only time text goes through the WS bridge is when voice
+    // is already active (otherwise SSE would deadlock on session_lock).
+    if (voice.micOn) {
       await voice.sendText(t);
       appendMessage({
         id: makeMsgId(),
@@ -172,10 +200,23 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
     await sendText(t);
   }
 
-  function onWidgetSubmit(spec: WidgetSpec, value: string) {
-    // Widget submissions go through the dedicated endpoint that resolves
-    // the pending widget server-side and calls set_field directly when a
-    // target_field is bound. No more LLM guessing.
+  async function onWidgetSubmit(spec: WidgetSpec, value: string) {
+    // P0-2 fix: when voice is live, route the widget through the WS bridge
+    // so set_field's result is injected into the active Gemini Live
+    // session's context (the HTTP /widget-result path can't reach Live's
+    // in-session history). When voice is off, the HTTP endpoint is the
+    // right path — it bypasses Gemini entirely for the trivial case.
+    if (voice.micOn) {
+      try {
+        await voice.submitWidget(spec.widgetId, value);
+        return;
+      } catch (err) {
+        console.warn(
+          "[civicai] WS widget submit failed; falling back to HTTP",
+          err,
+        );
+      }
+    }
     void submitWidget(spec, value);
   }
 
