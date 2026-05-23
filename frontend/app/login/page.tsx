@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LoginButton } from "@/components/LoginButton";
+import { ModulGhiseuToggle } from "@/components/ModulGhiseuToggle";
 import { MrzScanner } from "@/components/MrzScanner";
 import { KioskShell } from "@/components/KioskShell";
 import { useKioskMode } from "@/lib/kioskMode";
@@ -29,6 +30,7 @@ function LoginCard({ onChallenge }: { onChallenge: (c: LoginChallenge) => void }
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">{t("login.subtitle")}</p>
+        <ModulGhiseuToggle />
         <LoginButton onChallenge={onChallenge} />
       </CardContent>
     </Card>
@@ -55,22 +57,25 @@ function KioskLogin() {
     <KioskShell>
       <div className="mx-auto max-w-3xl space-y-8">
         {path === "chooser" ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Button
-              size="xl"
-              className="h-24 text-xl sm:h-32 sm:text-2xl"
-              onClick={() => setPath("roeid")}
-            >
-              {t("login.roeid_button")}
-            </Button>
-            <Button
-              size="xl"
-              variant="outline"
-              className="h-24 text-xl sm:h-32 sm:text-2xl"
-              onClick={() => setPath("mrz")}
-            >
-              {t("login.scan_id_button")}
-            </Button>
+          <div className="space-y-6">
+            <ModulGhiseuToggle />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Button
+                size="xl"
+                className="h-24 text-xl sm:h-32 sm:text-2xl"
+                onClick={() => setPath("roeid")}
+              >
+                {t("login.roeid_button")}
+              </Button>
+              <Button
+                size="xl"
+                variant="outline"
+                className="h-24 text-xl sm:h-32 sm:text-2xl"
+                onClick={() => setPath("mrz")}
+              >
+                {t("login.scan_id_button")}
+              </Button>
+            </div>
           </div>
         ) : null}
 
