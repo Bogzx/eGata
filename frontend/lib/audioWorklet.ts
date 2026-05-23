@@ -54,7 +54,7 @@ export async function startMicRecorder(
         "mic chunk #" + chunkCount,
         "bytes:",
         e.data.byteLength,
-        "(expect 6400 for 200ms @ 16kHz PCM16)",
+        "(expect 3200 for 100ms @ 16kHz PCM16)",
       );
       lastLogAt = Date.now();
     }

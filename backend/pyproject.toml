@@ -11,6 +11,9 @@ dependencies = [
   "supabase>=2.18.0,<3.0",
   "psycopg[binary,pool]==3.2.3",
   "google-genai>=2.0.0,<3.0",
+  # google-genai 2.x async streaming calls aiohttp.StreamReader.readline(max_line_length=...);
+  # that kwarg only exists in aiohttp >=3.11. Floor it explicitly.
+  "aiohttp>=3.11,<4",
   "twilio==9.3.5",
   "python-multipart==0.0.17",
   "python-jose[cryptography]==3.3.0",

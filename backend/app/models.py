@@ -64,6 +64,11 @@ class ProcedureField(BaseModel):
     options: list[str] | None = None
     suggest_default: str | None = None
     redact_in_voice: bool | None = None
+    # First-class conditional logic. When set, the field is only applicable
+    # when this expression evaluates true against the combined context of
+    # {citizen.attributes, document.fields}. Inapplicable fields are not
+    # counted as required even if `required: true`. See app.applies_if.
+    applies_if: str | None = None
 
 
 class NextStep(BaseModel):
@@ -189,6 +194,41 @@ class AgentChatResponse(BaseModel):
     conversation_id: str
     message: str
     tool_calls: list[ChatToolCall] = Field(default_factory=list)
+
+
+class WidgetResultRequest(BaseModel):
+    """Frontend submission of a previously-proposed widget answer.
+
+    The bridge resolves the pending widget by id, applies the answer
+    directly (via set_field when a target_field is bound), and pushes the
+    updated snapshot back — bypassing the LLM round-trip that used to
+    re-parse "Da" / "27.04.2026" / "proprietar" as plain text.
+    """
+    conversation_id: str
+    widget_id: str
+    # Value may be string (choice/date), bool (confirm), or numeric.
+    value: Any
+
+
+class WidgetResultEvent(BaseModel):
+    """One sub-event surfaced as a side-effect of widget resolution."""
+    kind: Literal["tool_result", "frontend_event"]
+    name: str | None = None
+    output: dict[str, Any] | None = None
+    error: str | None = None
+    event: dict[str, Any] | None = None
+
+
+class WidgetResultResponse(BaseModel):
+    conversation_id: str
+    snapshot: dict[str, Any]
+    user_message: str
+    events: list[WidgetResultEvent] = Field(default_factory=list)
+    # When true, the widget answer is a signal the agent must react to
+    # (e.g. a confirm widget in CONFIRMING_MATCH where the next move is
+    # start_procedure). The frontend follows up by sending the answer as
+    # a chat turn so the agent runs and produces a reply.
+    requires_chat_followup: bool = False
 
 
 class ReminderResponse(BaseModel):

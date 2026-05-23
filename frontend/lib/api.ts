@@ -140,25 +140,27 @@ export const api = {
     preferences?: VoicePreferences;
   }) => request<ChatResponse>("/agent/chat", { method: "POST", body: b }),
 
-  createVoiceSession: (b: {
-    document_id?: string;
-    preferences?: VoicePreferences;
+  /** Resolve a pending widget without round-tripping through Gemini.
+   *
+   * Returns `requires_chat_followup=true` when the widget had no
+   * target_field — the answer is a signal the agent must react to, so
+   * the caller is expected to follow up with /agent/chat/stream. */
+  submitWidget: (b: {
+    conversation_id: string;
+    widget_id: string;
+    value: unknown;
   }) =>
-    request<VoiceSessionResponse>("/voice/session", {
-      method: "POST",
-      body: b,
-    }),
-};
-
-export type VoiceSessionResponse = {
-  session_id: string;
-  gemini_api_key: string;
-  gemini_model: string;
-  gemini_voice: string;
-  system_prompt: string;
-  tool_jwt: string;
-  tool_base_url: string;
-  tool_names: string[];
-  citizen_context: Record<string, unknown>;
-  document_context: Record<string, unknown> | null;
+    request<{
+      conversation_id: string;
+      snapshot: import("./types").SessionSnapshot;
+      user_message: string;
+      events: Array<{
+        kind: "tool_result" | "frontend_event";
+        name?: string | null;
+        output?: Record<string, unknown> | null;
+        error?: string | null;
+        event?: Record<string, unknown> | null;
+      }>;
+      requires_chat_followup: boolean;
+    }>("/agent/widget-result", { method: "POST", body: b }),
 };

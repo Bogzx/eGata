@@ -67,6 +67,16 @@ export function MrzScanner({ onParsed }: Props) {
   }
 
   async function runParse(blob: Blob) {
+    // Tesseract runs OCR on the main thread — a 30MB kiosk-camera image
+    // can lock the UI for 30+ seconds. Cap at 5 MB; users get a clear
+    // error and can crop/retake instead of staring at a frozen page.
+    const MAX_BYTES = 5 * 1024 * 1024;
+    if (blob.size > MAX_BYTES) {
+      setError(
+        "Imaginea este prea mare (max 5 MB). Te rog redimensioneaz-o sau folosește camera.",
+      );
+      return;
+    }
     setScanning(true);
     setError(null);
     try {
