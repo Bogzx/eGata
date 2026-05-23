@@ -1,0 +1,26 @@
+{
+  "id": "sc-cumparare-apartament",
+  "title": "Cumpărare apartament",
+  "description": "Plan complet după cumpărarea unui apartament: declarare clădire pentru impozit, schimbare CI cu noua adresă, abonament parcare în cartier.",
+  "summary_for_rag": "Plan pentru cetățeanul care a cumpărat sau urmează să cumpere un apartament. Acoperă declararea clădirii pentru impozit la primărie (DITL), schimbarea cărții de identitate cu noua adresă (DEP), abonamentul de parcare riveran în cartier. Include pașii externi: notar contract vânzare-cumpărare autentificat, OCPI extras carte funciară, auditor energetic certificat de performanță.",
+  "synonyms": ["cumpărare apartament", "achiziție locuință", "am cumpărat o casă", "am cumpărat un apartament", "mutat în apartament nou"],
+  "sample_queries": [
+    "am cumpărat un apartament",
+    "ce trebuie să fac după ce iau o locuință",
+    "ce hârtii îmi trebuie pentru apartament nou",
+    "mut domiciliul în apartamentul nou"
+  ],
+  "complexitate": "complex",
+  "termen_total": "2-3 luni",
+  "applies_if": null,
+  "in_scope_steps": [
+    { "ordine": 1, "procedure_id": "declarare-cladire",        "deadline_days": 30, "note": "ITL-001 — în 30 zile de la dobândire." },
+    { "ordine": 2, "procedure_id": "schimbare-domiciliu",      "deadline_days": 15, "note": "Anexa 1 — necesită contract V-C + extras CF." },
+    { "ordine": 3, "procedure_id": "abonament-parcare-strada", "deadline_days": null, "note": "După emiterea noului CI." }
+  ],
+  "external_steps": [
+    { "ordine": 0, "institutie_id": "notariat",   "obligatoriu": true, "note": "Primul pas. Contract V-C autentificat." },
+    { "ordine": 0, "institutie_id": "ocpi-ancpi",        "obligatoriu": true, "note": "Extras carte funciară max 30 zile." },
+    { "ordine": 0, "institutie_id": "auditor-energetic", "obligatoriu": true, "note": "De obicei vânzătorul îl furnizează." }
+  ]
+}

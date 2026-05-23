@@ -10,7 +10,13 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.embeddings import embed_text, search_top_k
-from app.models import Procedure, ProcedureLookupRequest, ProcedureLookupResponse, ProcedureMatch
+from app.models import (
+    Procedure,
+    ProcedureLookupRequest,
+    ProcedureLookupResponse,
+    ProcedureMatch,
+    ResolvedProcedure,
+)
 from app.security import current_citizen_id
 
 PROCEDURES_DIR = Path(__file__).resolve().parent.parent / "procedures"
@@ -53,13 +59,28 @@ def list_procedures() -> list[Procedure]:
     return list(get_registry().values())
 
 
-@router.get("/{procedure_id}", response_model=Procedure)
-def get_procedure(procedure_id: str) -> Procedure:
+@router.get("/{procedure_id}", response_model=ResolvedProcedure)
+def get_procedure(procedure_id: str) -> ResolvedProcedure:
+    from app.scenarios import resolve_act  # lazy: avoid cyclic imports at module load
+
     reg = get_registry()
     proc = reg.get(procedure_id)
     if proc is None:
         raise HTTPException(status_code=404, detail=f"Procedure '{procedure_id}' not found")
-    return proc
+
+    return ResolvedProcedure(
+        id=proc.id,
+        title=proc.title,
+        description=proc.description,
+        scope=proc.scope,
+        category=proc.category,
+        synonyms=list(proc.synonyms),
+        sample_queries=list(proc.sample_queries),
+        acte_necesare=[resolve_act(a) for a in proc.acte_necesare],
+        fields=list(proc.fields),
+        template=proc.template,
+        next_steps=list(proc.next_steps),
+    )
 
 
 @router.post("/lookup", response_model=ProcedureLookupResponse)

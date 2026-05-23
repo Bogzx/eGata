@@ -1,0 +1,10 @@
+{
+  "id": "banca",
+  "nume_scurt": "Bancă",
+  "nume_complet": "Bancă comercială (oricare)",
+  "scope": "Extras de cont, coordonate IBAN, dovezi de plată.",
+  "url": null,
+  "phone": null,
+  "online_disponibil": true,
+  "note_ai_cannot_complete": "Extrasele de cont și dovezile bancare se obțin de la banca proprie. CivicAI nu poate emite documente bancare."
+}
