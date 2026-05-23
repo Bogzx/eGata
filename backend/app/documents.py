@@ -15,7 +15,7 @@ from app.ledger import (
     LedgerEventType,
     append_ledger,
     fetch_ledger_for_document,
-    verify_chain,
+    verify_global_chain,
 )
 from app.models import (
     CreateDocumentRequest,
@@ -296,5 +296,10 @@ def get_ledger(
         )
         for r in rows
     ]
-    verified = verify_chain(rows, genesis_hash=get_settings().ledger_genesis_hash)
+    # The /ledger response's `verified` is the *global* chain integrity. The
+    # per-document subset's first row's prev_hash necessarily references a
+    # row from a different document (or the genesis row), so verifying just
+    # the subset always fails — see app/ledger.py:verify_global_chain for
+    # the rationale + the cache.
+    verified = verify_global_chain()
     return LedgerResponse(entries=entries, verified=verified)
