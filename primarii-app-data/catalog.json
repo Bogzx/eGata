@@ -1,0 +1,874 @@
+{
+  "version": "1.0",
+  "data_extragere": "2026-05-23",
+  "primarie": "Cluj-Napoca",
+  "urls_principale": {
+    "site_oficial": "https://primariaclujnapoca.ro",
+    "registratura_cereri": "https://www.e-primariaclujnapoca.ro/registratura/cereri/",
+    "cereri_tip_index": "https://primariaclujnapoca.ro/informatii-publice/cereri-tip/",
+    "taxe_online": "https://www.e-primariaclujnapoca.ro/taxe/",
+    "plata_online": "https://www.ghiseul.ro",
+    "platforma_unica": "https://edirect.e-guvernare.ro",
+    "sesizari": "https://mycluj.e-primariaclujnapoca.ro"
+  },
+  "categorii": [
+    { "id": "evidenta-persoanelor", "nume": "Evidența Persoanelor / Acte Identitate", "raport_md": "01-evidenta-persoanelor-si-stare-civila.md" },
+    { "id": "stare-civila", "nume": "Stare Civilă", "raport_md": "01-evidenta-persoanelor-si-stare-civila.md" },
+    { "id": "taxe-impozite", "nume": "Taxe și Impozite Locale", "raport_md": "02-taxe-si-impozite.md" },
+    { "id": "urbanism-constructii", "nume": "Urbanism, Autorizări Construire, Demolări", "raport_md": "03-urbanism-si-autorizari-constructii.md" },
+    { "id": "asistenta-sociala", "nume": "Asistență Socială (alocații, indemnizații, ajutoare)", "raport_md": "04-asistenta-sociala-si-locuire.md" },
+    { "id": "locuire", "nume": "Locuire (locuință socială, ANL, necesitate)", "raport_md": "04-asistenta-sociala-si-locuire.md" },
+    { "id": "dizabilitati", "nume": "Persoane cu Dizabilități", "raport_md": "04-asistenta-sociala-si-locuire.md" },
+    { "id": "varstnici", "nume": "Persoane Vârstnice", "raport_md": "04-asistenta-sociala-si-locuire.md" },
+    { "id": "comert", "nume": "Comerț / Autorizări Funcționare", "raport_md": "05-comert-mediu-mobilitate.md" },
+    { "id": "publicitate", "nume": "Publicitate (panouri, firme, terase)", "raport_md": "05-comert-mediu-mobilitate.md" },
+    { "id": "mediu", "nume": "Mediu / Salubritate / Deșeuri", "raport_md": "05-comert-mediu-mobilitate.md" },
+    { "id": "spatii-verzi", "nume": "Spații Verzi (arbori, plantări)", "raport_md": "05-comert-mediu-mobilitate.md" },
+    { "id": "parcare", "nume": "Parcare (abonament, plată, transcrieri)", "raport_md": "05-comert-mediu-mobilitate.md" },
+    { "id": "transport-public", "nume": "Transport Public", "raport_md": "05-comert-mediu-mobilitate.md" },
+    { "id": "taxi", "nume": "Taxi (autorizare, viză)", "raport_md": "05-comert-mediu-mobilitate.md" },
+    { "id": "cimitire", "nume": "Cimitire (concesiune, transcriere, aviz lucru)", "raport_md": "05-comert-mediu-mobilitate.md" },
+    { "id": "animale", "nume": "Animale (sterilizare, adopție, căsuțe)", "raport_md": "05-comert-mediu-mobilitate.md" },
+    { "id": "registru-agricol", "nume": "Registru Agricol / Producători", "raport_md": "06-master-catalog-registratura.md" },
+    { "id": "altele", "nume": "Altele (audiențe, finanțări, informații publice)", "raport_md": "06-master-catalog-registratura.md" }
+  ],
+  "servicii": [
+    {
+      "id": "ev-ci-14ani",
+      "categorie": "evidenta-persoanelor",
+      "nume": "Eliberare carte de identitate (CEI) la împlinirea vârstei de 14 ani",
+      "descriere": "Primul act de identitate pentru cetățenii români la împlinirea vârstei de 14 ani. Prezența personală obligatorie + un părinte.",
+      "beneficiar": ["PF"],
+      "departament": "Direcția Evidența Persoanelor — str. Moților 5",
+      "acte_necesare": [
+        { "denumire": "Cerere Anexa 1 (semnată în fața funcționarului)", "emitent": "primarie" },
+        { "denumire": "Certificat de naștere", "emitent_id": "stare-civila", "format": "original" },
+        { "denumire": "CI părinte/reprezentant legal", "emitent_id": "spclep-depabd", "format": "original" },
+        { "denumire": "Document doveditor adresă domiciliu (act proprietate / extras CF max 30 zile)", "emitent_id": "ocpi-ancpi", "format": "original", "observatie": "Cu prezența proprietarului" },
+        { "denumire": "CI proprietar spațiu", "emitent_id": "spclep-depabd", "format": "original" },
+        { "denumire": "Certificat căsătorie părinți / hotărâre divorț", "emitent_id": "stare-civila", "format": "original", "obligatoriu": false }
+      ],
+      "formulare": ["Anexa 1"],
+      "taxa": "Gratuit",
+      "termen": "Programare hub.mai.gov.ro/cei/programari",
+      "url_sursa": "https://primariaclujnapoca.ro/evidenta-persoanelor/acte-de-identitate/"
+    },
+    {
+      "id": "ev-ci-expirare",
+      "categorie": "evidenta-persoanelor",
+      "nume": "Eliberare CI la expirarea termenului de valabilitate",
+      "descriere": "Înlocuire CI expirat sau în curs de expirare (max 180 zile înainte).",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cerere Anexa 1", "emitent": "primarie" },
+        { "denumire": "CI vechi", "emitent_id": "spclep-depabd" },
+        { "denumire": "Certificat naștere", "emitent_id": "stare-civila" },
+        { "denumire": "Certificat căsătorie / hotărâre divorț", "emitent_id": "stare-civila", "obligatoriu": false },
+        { "denumire": "Document proprietate / extras CF max 30 zile", "emitent_id": "ocpi-ancpi", "observatie": "Cu proprietarul prezent" },
+        { "denumire": "Chitanță plată taxă", "emitent": "extern" }
+      ],
+      "formulare": ["Anexa 1"],
+      "taxa": "38 EUR (CI simplă); gratuit (CEI prima)",
+      "termen": "Până la 30 zile (CI simplă)"
+    },
+    {
+      "id": "ev-ci-schimbare-domiciliu",
+      "categorie": "evidenta-persoanelor",
+      "nume": "Eliberare CI la schimbarea domiciliului",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Anexa 1", "emitent": "primarie" },
+        { "denumire": "CI vechi", "emitent_id": "spclep-depabd" },
+        { "denumire": "Certificate stare civilă", "emitent_id": "stare-civila" },
+        { "denumire": "Certificate naștere copii < 14 ani", "emitent_id": "stare-civila" },
+        { "denumire": "Document proprietate / extras CF max 30 zile", "emitent_id": "ocpi-ancpi" },
+        { "denumire": "Anexa 2 - declarație gazduitor (dacă nu e proprietar)", "emitent": "primarie", "obligatoriu": false, "alternative": ["declarație notarială valabilă 90 zile (notariat)", "declarație misiune diplomatică (consulat 6 luni)"] }
+      ],
+      "formulare": ["Anexa 1", "Anexa 2"]
+    },
+    {
+      "id": "ev-ci-pierdere",
+      "categorie": "evidenta-persoanelor",
+      "nume": "Eliberare CI pierdut/furat/deteriorat",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Anexa 1 + Anexa 7 (declarație pe proprie răspundere)", "emitent": "primarie" },
+        { "denumire": "Alt act foto valid (pașaport/permis)", "emitent_id": "spclep-depabd" },
+        { "denumire": "Certificate stare civilă", "emitent_id": "stare-civila" },
+        { "denumire": "Document proprietate", "emitent_id": "ocpi-ancpi" }
+      ],
+      "formulare": ["Anexa 1", "Anexa 7"],
+      "taxa": "~38 EUR"
+    },
+    {
+      "id": "ev-resedinta",
+      "categorie": "evidenta-persoanelor",
+      "nume": "Înscriere mențiune de reședință (Flotant)",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Anexa 3", "emitent": "primarie" },
+        { "denumire": "Document proprietate SAU contract închiriere înregistrat", "emitent_id": "anaf" },
+        { "denumire": "CI solicitant + CI proprietar", "emitent_id": "spclep-depabd" },
+        { "denumire": "Anexa 4/5 - declarație gazduitor", "emitent": "primarie" }
+      ],
+      "formulare": ["Anexa 3", "Anexa 4", "Anexa 5"]
+    },
+    {
+      "id": "sc-nastere",
+      "categorie": "stare-civila",
+      "nume": "Înregistrarea actului de naștere",
+      "descriere": "Înregistrarea inițială a nașterii copilului. Termene legale: născuți vii 30 zile, născuți morți 3 zile, decedați <30 zile 24 ore.",
+      "beneficiar": ["PF"],
+      "departament": "Stare Civilă — str. Moților 5, cam. 7, ghișeul 10",
+      "acte_necesare": [
+        { "denumire": "Certificat medical constatator al nașterii", "emitent_id": "spital-medic" },
+        { "denumire": "CI părinți", "emitent_id": "spclep-depabd" },
+        { "denumire": "Certificate naștere părinți (necăsătoriți)", "emitent_id": "stare-civila" },
+        { "denumire": "Certificat căsătorie (dacă e cazul)", "emitent_id": "stare-civila" },
+        { "denumire": "Hotărâre divorț (dacă e cazul)", "emitent_id": "instanta" },
+        { "denumire": "Declarație nume/domiciliu copil", "emitent": "in_fata_ofiterului" }
+      ],
+      "taxa": "Gratuit",
+      "termen": "10-15 min"
+    },
+    {
+      "id": "sc-casatorie",
+      "categorie": "stare-civila",
+      "nume": "Declarația de căsătorie",
+      "descriere": "Înregistrarea declarației + ceremonie. Programare online prin /casatorii/.",
+      "beneficiar": ["PF"],
+      "departament": "Stare Civilă — str. Moților 5, cam. 16",
+      "acte_necesare": [
+        { "denumire": "CI valid (la depunere ȘI oficiere)", "emitent_id": "spclep-depabd" },
+        { "denumire": "Certificat naștere", "emitent_id": "stare-civila" },
+        { "denumire": "Certificat medical 'apt/aptă pentru căsătorie' (valabil 30 zile)", "emitent_id": "spital-medic" },
+        { "denumire": "Convenție matrimonială (regim separat/comunitate convențională)", "emitent_id": "notariat", "obligatoriu": false },
+        { "denumire": "Hotărâre divorț / certificat deces fost soț", "emitent_id": "instanta", "obligatoriu": false },
+        { "denumire": "Documente străine cu apostilă Haga sau supralegalizare + traducere legalizată", "emitent_id": "autoritate-straina", "obligatoriu": false }
+      ],
+      "termen": "11-30 zile între depunere și oficiere",
+      "url_sursa": "https://www.e-primariaclujnapoca.ro/casatorii/"
+    },
+    {
+      "id": "sc-deces",
+      "categorie": "stare-civila",
+      "nume": "Înregistrarea decesului",
+      "descriere": "Termene: cauze naturale 3 zile; violente/sinucidere/accident 48 ore; copil <30 zile 24 ore.",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Certificat medical constatator al decesului", "emitent_id": "spital-medic" },
+        { "denumire": "CI decedat + CI declarant", "emitent_id": "spclep-depabd" },
+        { "denumire": "Certificat naștere decedat", "emitent_id": "stare-civila" },
+        { "denumire": "Certificat căsătorie decedat", "emitent_id": "stare-civila" },
+        { "denumire": "Livret militar / ordin recrutare (persoane <60 ani)", "emitent_id": "mapn" },
+        { "denumire": "Aprobare Poliție/Parchet (decese violente)", "emitent_id": "ipj-politie" }
+      ],
+      "taxa": "Gratuit"
+    },
+    {
+      "id": "sc-divort-administrativ",
+      "categorie": "stare-civila",
+      "nume": "Divorț administrativ la primărie",
+      "descriere": "Doar dacă: acord mutual + fără copii minori + fără interdicție + ultimul domiciliu Cluj. 30 zile reflecție + 5 zile lucrătoare.",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cerere comună semnată de ambii soți", "emitent": "in_fata_ofiterului" },
+        { "denumire": "Certificate naștere ambii soți", "emitent_id": "stare-civila" },
+        { "denumire": "Certificat căsătorie", "emitent_id": "stare-civila" },
+        { "denumire": "Livret familie", "emitent_id": "stare-civila", "obligatoriu": false },
+        { "denumire": "CI ambii soți", "emitent_id": "spclep-depabd" }
+      ]
+    },
+    {
+      "id": "sc-schimbare-nume",
+      "categorie": "stare-civila",
+      "nume": "Schimbarea numelui pe cale administrativă (OG 41/2003)",
+      "descriere": "2 etape: I) publicare anunț + II) dosar final. 60 zile DJEP; opoziție 30 zile.",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cazier judiciar (valabil 6 luni)", "emitent_id": "ipj-politie" },
+        { "denumire": "Cazier fiscal (valabil 30 zile)", "emitent_id": "anaf" },
+        { "denumire": "Publicare anunț Monitorul Oficial Partea III (max 1 an)", "emitent_id": "monitor-oficial" },
+        { "denumire": "CI/pașaport", "emitent_id": "spclep-depabd" },
+        { "denumire": "Certificate naștere și căsătorie (copii legalizate)", "emitent_id": "stare-civila" },
+        { "denumire": "Consimțământ soț (nume comun) — notarial sau în fața ofițerului", "emitent_id": "notariat", "obligatoriu": false },
+        { "denumire": "Consimțământ părinți (minori)", "emitent_id": "notariat", "obligatoriu": false }
+      ]
+    },
+    {
+      "id": "sc-transcriere-nastere",
+      "categorie": "stare-civila",
+      "nume": "Transcriere certificat naștere străin",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cerere transcriere", "emitent": "primarie" },
+        { "denumire": "Certificat naștere străin cu apostilă Haga / supralegalizare", "emitent_id": "autoritate-straina" },
+        { "denumire": "Traducere legalizată", "emitent_id": "notariat" },
+        { "denumire": "Pașaport / CI", "emitent_id": "spclep-depabd" },
+        { "denumire": "Certificat redobândire cetățenie (fără domiciliu RO anterior)", "emitent_id": "anc" },
+        { "denumire": "Certificate naștere/căsătorie părinți", "emitent_id": "stare-civila" },
+        { "denumire": "Declarații notariale (schimbări nume, înregistrare minor)", "emitent_id": "notariat" }
+      ],
+      "taxa": "12 RON"
+    },
+    {
+      "id": "tax-cladire-pf-dobandire",
+      "categorie": "taxe-impozite",
+      "nume": "Declarare clădire dobândită — persoană fizică (luare în evidență)",
+      "descriere": "Înregistrare clădire rezidențială/nerezidențială/mixtă dobândită prin cumpărare/moștenire/donație/construcție. Termen: 30 zile de la dobândire.",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Formular ITL-001", "emitent": "primarie" },
+        { "denumire": "Anexa la ITL-001 (rezidenți UE)", "emitent": "primarie", "obligatoriu": false },
+        { "denumire": "Act dobândire (contract V-C / certificat moștenitor / donație / hotărâre / autorizație + PV recepție)", "emitent_id": "notariat", "alternative": ["instanta", "primarie"] },
+        { "denumire": "Schiță / releveu clădire", "emitent": "arhitect_proiectant" },
+        { "denumire": "Certificat performanță energetică (la V-C)", "emitent_id": "auditor-energetic" },
+        { "denumire": "CI proprietari", "emitent_id": "spclep-depabd" },
+        { "denumire": "Împuternicire (după caz)", "emitent_id": "notariat" }
+      ],
+      "formulare": ["ITL-001"]
+    },
+    {
+      "id": "tax-cladire-pj-dobandire",
+      "categorie": "taxe-impozite",
+      "nume": "Declarare clădire — persoană juridică",
+      "beneficiar": ["PJ"],
+      "acte_necesare": [
+        { "denumire": "Formular ITL-002 + Anexa ITL-002", "emitent": "primarie" },
+        { "denumire": "DITL-008 - Declarație destinație clădire", "emitent": "primarie" },
+        { "denumire": "Acte de dobândire", "emitent_id": "notariat" },
+        { "denumire": "Raport evaluare (la 5 ani pentru nerezidențial)", "emitent_id": "anevar" },
+        { "denumire": "Certificat performanță energetică", "emitent_id": "auditor-energetic", "obligatoriu": false },
+        { "denumire": "CI reprezentant + CUI/CIF", "emitent_id": "onrc" },
+        { "denumire": "Împuternicire DITL-004", "emitent_id": "notariat", "obligatoriu": false }
+      ],
+      "formulare": ["ITL-002", "DITL-008", "DITL-004"]
+    },
+    {
+      "id": "tax-teren-pf",
+      "categorie": "taxe-impozite",
+      "nume": "Declarare teren — persoană fizică",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Formular ITL-003 + Anexa ITL-003", "emitent": "primarie" },
+        { "denumire": "Act dobândire (V-C, moștenitor, donație, partaj, hotărâre)", "emitent_id": "notariat" },
+        { "denumire": "Extras de carte funciară", "emitent_id": "ocpi-ancpi" },
+        { "denumire": "CI proprietari", "emitent_id": "spclep-depabd" }
+      ],
+      "formulare": ["ITL-003"]
+    },
+    {
+      "id": "tax-auto-pf",
+      "categorie": "taxe-impozite",
+      "nume": "Declarare auto sub 12 tone — PF",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Formular ITL-005", "emitent": "primarie" },
+        { "denumire": "Contract V-C cu nr. REMTII / contract leasing", "emitent_id": "notariat" },
+        { "denumire": "Carte identitate vehicul (CIV)", "emitent_id": "rar" },
+        { "denumire": "Certificat fiscal de la vânzător", "emitent_id": "primarii-altele", "observatie": "Dacă vânzătorul are domiciliu în altă localitate" },
+        { "denumire": "CI proprietar", "emitent_id": "spclep-depabd" }
+      ],
+      "formulare": ["ITL-005"]
+    },
+    {
+      "id": "tax-scoatere-auto",
+      "categorie": "taxe-impozite",
+      "nume": "Scoaterea din evidență mijloc transport (vânzare/casare/furt/export)",
+      "beneficiar": ["PF", "PJ"],
+      "acte_necesare": [
+        { "denumire": "Formular ITL-016", "emitent": "primarie" },
+        { "denumire": "Contract V-C (vânzare) / Certificat distrugere (casare)", "emitent_id": "remat-deee", "alternative": ["notariat"] },
+        { "denumire": "Declarație furt cu nr. dosar", "emitent_id": "ipj-politie" },
+        { "denumire": "Declarație vamală (export)", "emitent_id": "anaf" },
+        { "denumire": "CIV cu radiere", "emitent_id": "rar" }
+      ],
+      "formulare": ["ITL-016"]
+    },
+    {
+      "id": "tax-caf-pf",
+      "categorie": "taxe-impozite",
+      "nume": "Certificat de atestare fiscală — PF",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cerere ITL-010 / 491002-CERERE.CAF", "emitent": "primarie" },
+        { "denumire": "Copie CI", "emitent_id": "spclep-depabd" },
+        { "denumire": "Împuternicire (după caz)", "emitent_id": "notariat", "obligatoriu": false }
+      ],
+      "formulare": ["ITL-010", "491002"]
+    },
+    {
+      "id": "tax-restituire",
+      "categorie": "taxe-impozite",
+      "nume": "Restituire sume plătite în plus",
+      "beneficiar": ["PF", "PJ"],
+      "acte_necesare": [
+        { "denumire": "Cerere DITL-002", "emitent": "primarie" },
+        { "denumire": "Coordonate cont bancar (IBAN)", "emitent_id": "banca" },
+        { "denumire": "Dovada plății (chitanță / OP)", "emitent_id": "banca" },
+        { "denumire": "Copie CI/CUI", "emitent_id": "spclep-depabd" }
+      ],
+      "formulare": ["DITL-002"]
+    },
+    {
+      "id": "urb-cu",
+      "categorie": "urbanism-constructii",
+      "nume": "Certificat de urbanism (CU)",
+      "descriere": "OBLIGATORIU înainte de orice cerere AC/AD. Stabilește lista exactă a avizelor necesare.",
+      "beneficiar": ["PF", "PJ"],
+      "departament": "Serviciul Urbanism — str. Moților 3, cam. 58A, 65",
+      "acte_necesare": [
+        { "denumire": "Cerere tip CU (cod 431.001)", "emitent": "primarie" },
+        { "denumire": "Copie CI / certificat înregistrare fiscală PJ", "emitent_id": "spclep-depabd", "alternative": ["onrc"] },
+        { "denumire": "Extras de carte funciară (max 30 zile)", "emitent_id": "ocpi-ancpi" },
+        { "denumire": "Plan de situație sc. 1:500/1:2000 vizat OCPI", "emitent_id": "ocpi-ancpi" },
+        { "denumire": "Plan de încadrare în zonă sc. 1:5000/1:10000", "emitent_id": "ocpi-ancpi" },
+        { "denumire": "Dovada achitării taxei", "emitent": "extern" },
+        { "denumire": "Memoriu tehnic / schiță cu intenția propusă", "emitent": "arhitect_proiectant", "obligatoriu": false }
+      ],
+      "formulare": ["431.001"],
+      "taxa": "4-15 RON (informare) până la ~300 RON (CU AC)",
+      "termen": "15 zile lucrătoare",
+      "valabilitate": "12-24 luni; o prelungire max 12 luni"
+    },
+    {
+      "id": "urb-ac-locuinta",
+      "categorie": "urbanism-constructii",
+      "nume": "Autorizație de construire — locuință individuală",
+      "descriere": "AC pentru construirea unei locuințe unifamiliale. Atenție: lista exactă de avize este stabilită de CU.",
+      "beneficiar": ["PF", "PJ"],
+      "departament": "Serviciul Autorizări Construcții — str. Moților 3, cam. 59, 61, 63",
+      "acte_necesare": [
+        { "denumire": "Cerere AC formular F.8 + Anexa F.9", "emitent": "primarie" },
+        { "denumire": "Certificat de urbanism (max 3 luni)", "emitent": "primarie" },
+        { "denumire": "Extras CF actualizat (max 30 zile)", "emitent_id": "ocpi-ancpi" },
+        { "denumire": "Acorduri notariale / contracte închiriere", "emitent_id": "notariat", "obligatoriu": false },
+        { "denumire": "Documentație tehnică DTAC + DTOE (Anexa 1 Legea 50/1991)", "emitent_id": "oar" },
+        { "denumire": "Dovada cotă OAR 0,5%", "emitent_id": "oar" },
+        { "denumire": "Referate verificatori cerințe A1-A4, B1, C, D, E, F, Is", "emitent_id": "verificator-proiect" },
+        { "denumire": "Studiu geotehnic", "emitent_id": "geotehnician" },
+        { "denumire": "Studiu performanță energetică (dacă CU o cere)", "emitent_id": "auditor-energetic", "obligatoriu": false },
+        { "denumire": "Expertiză tehnică (dacă e cazul)", "emitent_id": "expert-tehnic", "obligatoriu": false },
+        { "denumire": "Contract de salubritate", "emitent_id": "supercom", "alternative": ["brantner"] },
+        { "denumire": "Aviz salubritate", "emitent_id": "brantner", "alternative": ["supercom"] },
+        { "denumire": "Aviz alimentare apă-canalizare", "emitent_id": "furnizori-utilitati" },
+        { "denumire": "Aviz alimentare gaze", "emitent_id": "furnizori-utilitati" },
+        { "denumire": "Aviz alimentare energie electrică", "emitent_id": "furnizori-utilitati" },
+        { "denumire": "Aviz telecomunicații", "emitent_id": "furnizori-utilitati" },
+        { "denumire": "Aviz securitate la incendiu (PSI / scenariu incendiu)", "emitent_id": "isu" },
+        { "denumire": "Aviz/acord de mediu", "emitent_id": "apm" },
+        { "denumire": "Aviz sanitar", "emitent_id": "dsp" },
+        { "denumire": "Aviz DJC (zonă protejată / monument)", "emitent_id": "djc", "obligatoriu": false },
+        { "denumire": "Aviz Apele Române (lucrări la cursuri de apă)", "emitent_id": "ape-romane", "obligatoriu": false },
+        { "denumire": "Aviz Comisia Estetică Urbană / Arhitect Șef", "emitent": "primarie" },
+        { "denumire": "Acord vecini (impact pe limita proprietate)", "emitent_id": "notariat", "obligatoriu": false }
+      ],
+      "formulare": ["F.8", "F.9", "432.002"],
+      "taxa": "0,5% (locuințe) / 1% (comercial) din valoarea autorizată + cotă OAR 0,5% + ISC 0,1%+0,7% + Casa Constructorilor 0,5%",
+      "termen": "30 zile",
+      "valabilitate": "24 luni inițiere lucrări; prelungire max 12 luni",
+      "url_sursa": "https://primariaclujnapoca.ro/autorizari-constructii/acte-necesare-eliberarii-autorizatiilor-de-construire/"
+    },
+    {
+      "id": "urb-ac-bloc",
+      "categorie": "urbanism-constructii",
+      "nume": "AC — bloc locuințe colective / imobil mixt",
+      "beneficiar": ["PJ"],
+      "acte_necesare_suplimentar_la_locuinta": [
+        { "denumire": "PUZ aprobat prin HCL", "emitent": "primarie", "observatie": "Obligatoriu de regulă" },
+        { "denumire": "Aviz CTATU", "emitent": "primarie" },
+        { "denumire": "Studiu de însorire", "emitent": "arhitect_proiectant" },
+        { "denumire": "Studiu de circulații/trafic", "emitent": "arhitect_proiectant" },
+        { "denumire": "Plan parcaje cu calcul RLU Cluj", "emitent": "arhitect_proiectant" },
+        { "denumire": "Aviz ISC (obligatoriu cat. importanță A/B)", "emitent_id": "isc" }
+      ]
+    },
+    {
+      "id": "urb-ad",
+      "categorie": "urbanism-constructii",
+      "nume": "Autorizație de desființare (AD)",
+      "beneficiar": ["PF", "PJ"],
+      "acte_necesare": [
+        { "denumire": "Cerere AC/AD (F.8 cu mențiune Desființare) + Anexa F.9", "emitent": "primarie" },
+        { "denumire": "CU 'obținere AD'", "emitent": "primarie" },
+        { "denumire": "Extras CF", "emitent_id": "ocpi-ancpi" },
+        { "denumire": "Proiect tehnic de desființare", "emitent": "arhitect_proiectant" },
+        { "denumire": "Expertiză tehnică (obligatorie clădiri mari)", "emitent_id": "expert-tehnic" },
+        { "denumire": "Aviz salubritate evacuare deșeuri", "emitent_id": "supercom" },
+        { "denumire": "Plan management deșeuri", "emitent": "arhitect_proiectant" },
+        { "denumire": "Acord vecini (calcan/gard comun)", "emitent_id": "notariat", "obligatoriu": false },
+        { "denumire": "Avize deconectare utilități (apă/gaz/electricitate/telefon)", "emitent_id": "furnizori-utilitati" },
+        { "denumire": "Aviz APM gestionare deșeuri", "emitent_id": "apm" }
+      ],
+      "taxa": "0,1% din valoarea construcției",
+      "termen": "30 zile",
+      "valabilitate": "24 luni"
+    },
+    {
+      "id": "urb-atestare-edificare",
+      "categorie": "urbanism-constructii",
+      "nume": "Certificat de atestare a edificării/extinderii construcției",
+      "descriere": "Necesar pentru înscrierea construcției în Cartea Funciară.",
+      "beneficiar": ["PF", "PJ"],
+      "acte_necesare": [
+        { "denumire": "Cerere 432.008", "emitent": "primarie" },
+        { "denumire": "AC copie", "emitent": "primarie" },
+        { "denumire": "PV recepție la terminarea lucrărilor (cu ISC + reprezentant primărie)", "emitent_id": "isc" },
+        { "denumire": "Comunicare începere lucrări (înregistrată)", "emitent": "primarie" },
+        { "denumire": "Comunicare încheiere lucrări", "emitent": "primarie" },
+        { "denumire": "Declarație valoare reală + regularizare taxă", "emitent": "primarie" },
+        { "denumire": "Plan releveu vizat OCPI", "emitent_id": "ocpi-ancpi" },
+        { "denumire": "Referat diriginte șantier", "emitent_id": "diriginte-santier" },
+        { "denumire": "Cartea tehnică a construcției", "emitent": "arhitect_proiectant" }
+      ],
+      "formulare": ["432.008"]
+    },
+    {
+      "id": "soc-alocatie-stat-copii",
+      "categorie": "asistenta-sociala",
+      "nume": "Alocația de stat pentru copii",
+      "descriere": "Beneficiu lunar plătit prin AJPIS, dosar la DASM. Termen depunere: 1 an de la naștere.",
+      "beneficiar": ["PF"],
+      "departament": "DASM — Str. Venus fn",
+      "acte_necesare": [
+        { "denumire": "Cerere tip semnată de ambii părinți", "emitent": "primarie" },
+        { "denumire": "Certificat naștere copil", "emitent_id": "stare-civila" },
+        { "denumire": "Certificat căsătorie / livret familie", "emitent_id": "stare-civila" },
+        { "denumire": "CI părinți", "emitent_id": "spclep-depabd" },
+        { "denumire": "Extras de cont bancar pe numele titularului", "emitent_id": "banca", "obligatoriu": false },
+        { "denumire": "Adeverință de elev (copii școlari)", "emitent_id": "scoala-univ", "obligatoriu": false },
+        { "denumire": "Declarația celuilalt părinte (necăsătoriți)", "emitent": "primarie", "obligatoriu": false },
+        { "denumire": "Anchetă socială (tatăl solicitant + părinți necăsătoriți)", "emitent": "primarie", "obligatoriu": false }
+      ],
+      "cuantum": "~874 lei/lună (0-2 ani sau handicap până 18 ani); redus 2-18 ani",
+      "url_sursa": "https://primariaclujnapoca.ro/social/alocatii-pentru-sustinerea-familie/"
+    },
+    {
+      "id": "soc-icc",
+      "categorie": "asistenta-sociala",
+      "nume": "Indemnizația lunară pentru creșterea copilului (ICC)",
+      "descriere": "OUG 111/2010. Înlocuiește venitul părintelui aflat în concediu CCC până la 2 ani (3 ani copil cu handicap).",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cerere tip ICC semnată de ambii părinți", "emitent": "primarie" },
+        { "denumire": "Certificat naștere copil", "emitent_id": "stare-civila" },
+        { "denumire": "Certificat căsătorie / livret familie", "emitent_id": "stare-civila" },
+        { "denumire": "CI ambii părinți", "emitent_id": "spclep-depabd" },
+        { "denumire": "Adeverință angajator cu venituri 12 luni (ADEVERINTA-TIP) + decizie suspendare CIM", "emitent_id": "angajator" },
+        { "denumire": "Cerere concediu CCC cu nr. înregistrare", "emitent_id": "angajator" },
+        { "denumire": "Adeverință contribuții / istoric venituri", "emitent_id": "anaf" },
+        { "denumire": "Extras de cont", "emitent_id": "banca", "obligatoriu": false },
+        { "denumire": "Pentru PFA: Declarație PFA + dovezi ANAF", "emitent_id": "anaf", "obligatoriu": false }
+      ],
+      "cuantum": "1.230 lei - 85% din media veniturilor (max 8.500 lei/lună)",
+      "termen_depunere": "Max 30 zile înainte de expirarea concediului maternitate / 60 zile de la naștere"
+    },
+    {
+      "id": "soc-stimulent-insertie",
+      "categorie": "asistenta-sociala",
+      "nume": "Stimulent de inserție",
+      "descriere": "OUG 111/2010. Pentru părintele care revine la lucru înainte de încheierea CCC.",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cerere stimulent inserție", "emitent": "primarie" },
+        { "denumire": "Adeverință angajator (data reluării + venituri)", "emitent_id": "angajator" },
+        { "denumire": "Decizia angajator reluare activitate", "emitent_id": "angajator" },
+        { "denumire": "Pentru schimbare angajator: decizie încetare CIM + REVISAL", "emitent_id": "itm" }
+      ],
+      "cuantum": "1.500 lei/lună (revenire înainte de 6 luni) / 650 lei/lună (după 6 luni)",
+      "termen_depunere": "Max 30 zile lucrătoare de la reluarea activității"
+    },
+    {
+      "id": "soc-vmi",
+      "categorie": "asistenta-sociala",
+      "nume": "Venitul Minim de Incluziune (VMI)",
+      "descriere": "Legea 196/2016. Pentru persoane/familii cu venituri sub plafonul de 879 lei/membru.",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Formular cerere VMI + declarație pe propria răspundere", "emitent": "primarie" },
+        { "denumire": "CI solicitant + toți membrii familiei", "emitent_id": "spclep-depabd" },
+        { "denumire": "Certificate naștere copii", "emitent_id": "stare-civila" },
+        { "denumire": "Certificat căsătorie/divorț/deces", "emitent_id": "stare-civila" },
+        { "denumire": "Adeverințe venit (toate sursele: salariu, pensie, șomaj, alocații, dividende, chirii)", "emitent_id": "angajator", "alternative": ["casa-pensii", "ajofm", "anaf"] },
+        { "denumire": "Dovadă școlarizare copii 3-16 ani (frecvență min 50%)", "emitent_id": "scoala-univ" },
+        { "denumire": "Certificat fiscal Primărie", "emitent_id": "ditl" },
+        { "denumire": "Certificat ANAF alte venituri", "emitent_id": "anaf" },
+        { "denumire": "Hotărâre pensie alimentară (dacă e cazul)", "emitent_id": "instanta", "obligatoriu": false }
+      ],
+      "cuantum": "Diferența între plafon (346 lei/membru sau 504 lei singur >65 ani) și venitul calculat"
+    },
+    {
+      "id": "soc-ajutor-incalzire",
+      "categorie": "asistenta-sociala",
+      "nume": "Ajutor pentru încălzirea locuinței",
+      "descriere": "Legea 226/2021. Sezon 1 noiembrie – 31 martie. Plafoane: 1.386 lei/membru sau 2.053 lei singur.",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cerere-Declarație CERERE-2025.pdf", "emitent": "primarie" },
+        { "denumire": "CI toți membrii", "emitent_id": "spclep-depabd" },
+        { "denumire": "Certificate naștere copii minori", "emitent_id": "stare-civila" },
+        { "denumire": "Adeverință asociație proprietari (persoane + cod proprietate)", "emitent_id": "asociatia-proprietari" },
+        { "denumire": "Adeverință venit angajator (luna anterioară)", "emitent_id": "angajator" },
+        { "denumire": "Cupon pensie", "emitent_id": "casa-pensii" },
+        { "denumire": "Cupon șomaj", "emitent_id": "ajofm" },
+        { "denumire": "Cupon indemnizație handicap", "emitent_id": "ajpis" },
+        { "denumire": "Certificat fiscal Primărie", "emitent_id": "ditl" },
+        { "denumire": "Certificat ANAF alte venituri", "emitent_id": "anaf" },
+        { "denumire": "Talon vehicul (dacă deține)", "emitent_id": "drpciv" },
+        { "denumire": "Ultima factură furnizor (cod client + cod loc consum)", "emitent_id": "furnizori-utilitati" },
+        { "denumire": "Pentru chiriași: contract închiriere înregistrat", "emitent_id": "anaf" }
+      ]
+    },
+    {
+      "id": "loc-sociala",
+      "categorie": "locuire",
+      "nume": "Locuință socială",
+      "descriere": "HCL 583/2021. Lista anuală HCL.",
+      "beneficiar": ["PF"],
+      "acte_necesare_permanente": [
+        { "denumire": "Cerere tip Anexa 3 (CERERE-LOCUINTA-SOCIALA)", "emitent": "primarie" },
+        { "denumire": "Acte stare civilă (naștere/căsătorie/divorț/deces)", "emitent_id": "stare-civila" },
+        { "denumire": "CI/pașaport solicitant + familie", "emitent_id": "spclep-depabd" },
+        { "denumire": "Documente vechime în muncă", "emitent_id": "itm", "alternative": ["casa-pensii", "angajator"] },
+        { "denumire": "Certificat încadrare grad handicap", "emitent_id": "dgaspc", "obligatoriu": false },
+        { "denumire": "Adeverință AJPIS beneficii speciale", "emitent_id": "ajpis", "obligatoriu": false },
+        { "denumire": "Atestat ieșire sistem protecție (tineri 18+)", "emitent_id": "dgaspc", "obligatoriu": false },
+        { "denumire": "Documente evacuare/eviciune", "emitent_id": "executor-judecatoresc", "obligatoriu": false }
+      ],
+      "acte_necesare_anuale": [
+        { "denumire": "Contract închiriere actual cu nr. înregistrare ANAF", "emitent_id": "anaf" },
+        { "denumire": "Adeverință tolerat în spațiu", "emitent_id": "asociatia-proprietari" },
+        { "denumire": "Adeverințe venit 12 luni toți membrii", "emitent_id": "angajator", "alternative": ["anaf"] },
+        { "denumire": "Declarații proprietăți (lipsă) toți membrii", "emitent": "primarie" }
+      ],
+      "formulare": ["451.008"]
+    },
+    {
+      "id": "loc-anl",
+      "categorie": "locuire",
+      "nume": "Locuință ANL",
+      "descriere": "HCL 46/2026. ≤35 ani, fără locuință proprie, activitate în Cluj.",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cerere atribuire ANL", "emitent": "primarie" },
+        { "denumire": "CI solicitant + familie", "emitent_id": "spclep-depabd" },
+        { "denumire": "Certificate naștere copii + certificat căsătorie/divorț", "emitent_id": "stare-civila" },
+        { "denumire": "Declarații notariale neproprietate (solicitant + soț/soție + copii majori)", "emitent_id": "notariat" },
+        { "denumire": "Adeverință angajator loc muncă în Cluj", "emitent_id": "angajator" },
+        { "denumire": "Adeverințe venit 6 luni", "emitent_id": "angajator", "alternative": ["anaf"] },
+        { "denumire": "Cupoane alocații copii", "emitent_id": "ajpis" },
+        { "denumire": "Contract închiriere ≥1 an (dacă e cazul)", "emitent_id": "anaf" },
+        { "denumire": "Diplomă studii", "emitent_id": "scoala-univ" },
+        { "denumire": "Certificat medical (puncte sănătate)", "emitent_id": "spital-medic", "obligatoriu": false }
+      ],
+      "formulare": ["451.006"]
+    },
+    {
+      "id": "diz-indemnizatie",
+      "categorie": "dizabilitati",
+      "nume": "Indemnizația pentru persoană cu handicap GRAV (alternativă AP)",
+      "descriere": "Legea 448/2006. Alternativă la asistent personal.",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cerere tip indemnizație + declarație", "emitent": "primarie" },
+        { "denumire": "Certificat încadrare grad handicap GRAV + Anexa", "emitent_id": "dgaspc" },
+        { "denumire": "CI", "emitent_id": "spclep-depabd" },
+        { "denumire": "Adeverință că nu beneficiază indemnizație la altă primărie", "emitent_id": "primarii-altele" },
+        { "denumire": "Cupon pensie", "emitent_id": "casa-pensii", "obligatoriu": false },
+        { "denumire": "CI reprezentant legal", "emitent_id": "spclep-depabd", "obligatoriu": false },
+        { "denumire": "Hotărâre tutelă/curatelă", "emitent_id": "instanta", "obligatoriu": false },
+        { "denumire": "Extras de cont", "emitent_id": "banca" }
+      ],
+      "formulare": ["802.013"]
+    },
+    {
+      "id": "diz-asistent-personal",
+      "categorie": "dizabilitati",
+      "nume": "Angajare asistent personal pentru persoană cu handicap GRAV",
+      "beneficiar": ["PF"],
+      "acte_necesare_asistat": [
+        { "denumire": "Cerere instrumentare dosar AP", "emitent": "primarie" },
+        { "denumire": "Certificat handicap GRAV + Anexă", "emitent_id": "dgaspc" },
+        { "denumire": "CI", "emitent_id": "spclep-depabd" },
+        { "denumire": "Anchetă socială DASM", "emitent": "primarie" }
+      ],
+      "acte_necesare_candidat_ap": [
+        { "denumire": "Cerere angajare AP", "emitent": "primarie" },
+        { "denumire": "CV model HG 1021/2004", "emitent": "extern" },
+        { "denumire": "CI candidat", "emitent_id": "spclep-depabd" },
+        { "denumire": "Diplomă studii (min 8 clase)", "emitent_id": "scoala-univ" },
+        { "denumire": "Cazier judiciar", "emitent_id": "ipj-politie" },
+        { "denumire": "Adeverință medicală 'apt pentru muncă' (medicina muncii)", "emitent_id": "spital-medic" },
+        { "denumire": "Aviz psihologic", "emitent": "psiholog_autorizat" },
+        { "denumire": "Certificat naștere/căsătorie", "emitent_id": "stare-civila" },
+        { "denumire": "Carnet muncă / extras REVISAL", "emitent_id": "itm" }
+      ]
+    },
+    {
+      "id": "diz-card-parcare",
+      "categorie": "dizabilitati",
+      "nume": "Card-legitimație de parcare pentru persoane cu handicap",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cerere card parcare", "emitent": "primarie" },
+        { "denumire": "Certificat încadrare grad handicap", "emitent_id": "dgaspc" },
+        { "denumire": "CI", "emitent_id": "spclep-depabd" },
+        { "denumire": "CI reprezentant legal (copii)", "emitent_id": "spclep-depabd", "obligatoriu": false },
+        { "denumire": "Fotografie tip buletin", "emitent": "solicitant" }
+      ],
+      "formulare": ["802.012"],
+      "taxa": "Gratuit"
+    },
+    {
+      "id": "com-acord-funct-amanunt",
+      "categorie": "comert",
+      "nume": "Acord funcționare — Comerț cu amănuntul / en detail / prestări servicii",
+      "descriere": "OG 99/2000, Legea 650/2002, HCL 467/2009. Disponibil pe eDirect/PCUe.",
+      "beneficiar": ["PJ"],
+      "acte_necesare": [
+        { "denumire": "Cerere acord funcționare comerț amănuntul", "emitent": "primarie" },
+        { "denumire": "Certificat constatator cu activitățile autorizate", "emitent_id": "onrc" },
+        { "denumire": "Certificat înregistrare societate (CUI)", "emitent_id": "onrc" },
+        { "denumire": "Plan încadrare în zonă / plan situație", "emitent": "extern" },
+        { "denumire": "Acord coproprietari / vecini", "emitent_id": "notariat", "obligatoriu": false },
+        { "denumire": "Dovadă deținere spațiu (proprietate/închiriere/comodat)", "emitent_id": "notariat", "alternative": ["ocpi-ancpi"] },
+        { "denumire": "Aviz DSP", "emitent_id": "dsp" },
+        { "denumire": "Aviz mediu APM", "emitent_id": "apm", "obligatoriu": false },
+        { "denumire": "Aviz ISU", "emitent_id": "isu", "obligatoriu": false }
+      ]
+    },
+    {
+      "id": "com-acord-alim-publica",
+      "categorie": "comert",
+      "nume": "Acord funcționare — Alimentație publică",
+      "descriere": "Restaurante, baruri, cofetării, fast-food, terase, cluburi.",
+      "beneficiar": ["PJ"],
+      "acte_necesare": [
+        { "denumire": "Cerere acord funcționare alimentație publică", "emitent": "primarie" },
+        { "denumire": "Certificat constatator extins ONRC", "emitent_id": "onrc" },
+        { "denumire": "Certificat înregistrare societate (CUI)", "emitent_id": "onrc" },
+        { "denumire": "Aviz DSP", "emitent_id": "dsp" },
+        { "denumire": "Aviz ISU (PSI)", "emitent_id": "isu" },
+        { "denumire": "Aviz APM", "emitent_id": "apm" },
+        { "denumire": "Certificat clasificare structuri cazare", "emitent_id": "min-turism", "obligatoriu": false },
+        { "denumire": "Plan situație / autorizație construcție", "emitent": "primarie" },
+        { "denumire": "Acord coproprietari / asociație locatari", "emitent_id": "notariat", "obligatoriu": false }
+      ]
+    },
+    {
+      "id": "com-terasa-sezoniera",
+      "categorie": "comert",
+      "nume": "Amplasare terasă sezonieră",
+      "beneficiar": ["PJ"],
+      "acte_necesare": [
+        { "denumire": "Cerere amplasare terasă sezonieră", "emitent": "primarie" },
+        { "denumire": "Plan situație + fotografii + simulare grafică", "emitent": "extern" },
+        { "denumire": "Certificat ONRC", "emitent_id": "onrc" },
+        { "denumire": "Aviz Comisia Estetică (ZPR1/ZPR2)", "emitent": "primarie", "obligatoriu": false },
+        { "denumire": "Acord coproprietari", "emitent_id": "notariat", "obligatoriu": false }
+      ],
+      "formulare": ["452.006"],
+      "valabilitate": "15 aprilie – 15 octombrie sau anuală"
+    },
+    {
+      "id": "pub-ac-panou",
+      "categorie": "publicitate",
+      "nume": "Autorizație construire pentru panou publicitar cu fundație",
+      "descriere": "Legea 50/1991. Caracter provizoriu max 5 ani.",
+      "beneficiar": ["PF", "PJ"],
+      "acte_necesare": [
+        { "denumire": "Cerere CU + Cerere AC", "emitent": "primarie" },
+        { "denumire": "DTAC elaborat de arhitect cu drept semnătură", "emitent_id": "oar" },
+        { "denumire": "Plan situație + planșe fațadă (firme)", "emitent": "arhitect_proiectant" },
+        { "denumire": "Contract închiriere + acord proprietar", "emitent_id": "notariat" },
+        { "denumire": "Aviz Comisia Estetică Urbană", "emitent": "primarie" },
+        { "denumire": "Aviz DJC (zone construite protejate)", "emitent_id": "djc", "obligatoriu": false },
+        { "denumire": "Expertiză tehnică rezistență (panouri pe clădiri)", "emitent_id": "expert-tehnic" },
+        { "denumire": "Aviz Poliția Rutieră IPJ (ecrane publicitare sol)", "emitent_id": "ipj-politie", "obligatoriu": false }
+      ]
+    },
+    {
+      "id": "pub-temporara",
+      "categorie": "publicitate",
+      "nume": "Aviz publicitate temporară (fără fundație, max 30 zile)",
+      "beneficiar": ["PF", "PJ"],
+      "acte_necesare": [
+        { "denumire": "Cerere aviz publicitate temporară", "emitent": "primarie" },
+        { "denumire": "Suport foto cu simulare", "emitent": "extern" },
+        { "denumire": "Acord proprietar", "emitent_id": "notariat", "obligatoriu": false },
+        { "denumire": "Documentație tehnică arhitect (proiecte speciale)", "emitent_id": "oar", "obligatoriu": false }
+      ],
+      "formulare": ["422.003"]
+    },
+    {
+      "id": "med-aviz-doborare",
+      "categorie": "spatii-verzi",
+      "nume": "Aviz doborâre arbori din curți private",
+      "descriere": "Legea 24/2007.",
+      "beneficiar": ["PF", "PJ"],
+      "acte_necesare": [
+        { "denumire": "Cerere aviz doborâre", "emitent": "primarie" },
+        { "denumire": "Extras CF (max 30 zile)", "emitent_id": "ocpi-ancpi" },
+        { "denumire": "Plan amplasament + fotografii arbore + identificare specie", "emitent": "solicitant" },
+        { "denumire": "Motivație (uscat/periculos/lucrări)", "emitent": "solicitant" },
+        { "denumire": "CI proprietar", "emitent_id": "spclep-depabd" },
+        { "denumire": "Acord coproprietari", "emitent_id": "notariat", "obligatoriu": false }
+      ],
+      "formulare": ["460.005b"],
+      "taxa": "Nu se aplică"
+    },
+    {
+      "id": "med-contract-salubritate",
+      "categorie": "mediu",
+      "nume": "Contract de salubrizare",
+      "descriere": "Obligatoriu cu operatorul. Sancțiuni: PF 5.000-15.000 lei; PJ 20.000-40.000 lei.",
+      "beneficiar": ["PF", "PJ"],
+      "acte_necesare": [
+        { "denumire": "Copie CI / Buletin proprietar", "emitent_id": "spclep-depabd" },
+        { "denumire": "Act proprietate (contract V-C sau extras CF max 3 luni)", "emitent_id": "ocpi-ancpi" }
+      ],
+      "operator": "SUPERCOM (sector I) | Brantner (sector II)"
+    },
+    {
+      "id": "par-abonament-cartier-pf",
+      "categorie": "parcare",
+      "nume": "Abonament parcare cartier — riveran PF",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cerere abonament parcare PF", "emitent": "primarie" },
+        { "denumire": "CI cu domiciliu/reședință", "emitent_id": "spclep-depabd" },
+        { "denumire": "Certificat înmatriculare auto (talon)", "emitent_id": "drpciv" },
+        { "denumire": "ITP valabil", "emitent_id": "rar" },
+        { "denumire": "Certificat căsătorie (bun comun soți)", "emitent_id": "stare-civila", "obligatoriu": false },
+        { "denumire": "Certificat încadrare grad handicap", "emitent_id": "dgaspc", "obligatoriu": false },
+        { "denumire": "Adeverință angajator + talon (auto de serviciu)", "emitent_id": "angajator", "obligatoriu": false }
+      ],
+      "formulare": ["700.001"],
+      "taxa": "94 lei/an (parcări cartier); 75 lei/an (construite de cetățeni)"
+    },
+    {
+      "id": "par-transcriere",
+      "categorie": "parcare",
+      "nume": "Transcriere abonament parcare/garaj (deces/divorț titular)",
+      "beneficiar": ["PF", "PJ"],
+      "acte_necesare": [
+        { "denumire": "Cerere transcriere", "emitent": "primarie" },
+        { "denumire": "Certificat deces / sentință divorț", "emitent_id": "stare-civila", "alternative": ["instanta"] },
+        { "denumire": "Certificat moștenitor", "emitent_id": "notariat" },
+        { "denumire": "Declarație autentificată (transcriere voluntară)", "emitent_id": "notariat", "obligatoriu": false },
+        { "denumire": "CI + talon autoturism nou titular + ITP", "emitent_id": "spclep-depabd" }
+      ],
+      "formulare": ["700.008", "700.009"]
+    },
+    {
+      "id": "tax-aut-prima",
+      "categorie": "taxi",
+      "nume": "Autorizație transport regim taxi — prima autorizare PFA",
+      "descriere": "HCL 737/2019 Anexa 2.",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cerere tipizată", "emitent": "primarie" },
+        { "denumire": "Certificat înregistrare transportator", "emitent_id": "onrc" },
+        { "denumire": "Certificat constatator extins ONRC", "emitent_id": "onrc" },
+        { "denumire": "Atestat profesional taximetrist", "emitent_id": "arr" },
+        { "denumire": "Cazier judiciar taximetrist", "emitent_id": "ipj-politie" },
+        { "denumire": "Aviz medico-psihologic", "emitent": "cabinet_acreditat" },
+        { "denumire": "Cazier fiscal transportator", "emitent_id": "anaf" },
+        { "denumire": "Declarații pe propria răspundere (activitate, spațiu, autovehicul)", "emitent": "primarie" },
+        { "denumire": "Certificat atestare fiscală buget local", "emitent_id": "ditl" }
+      ],
+      "formulare": ["447.002"],
+      "valabilitate": "nedeterminată, vizare 5 ani"
+    },
+    {
+      "id": "tax-aut-prelungire",
+      "categorie": "taxi",
+      "nume": "Prelungire autorizație taxi (5 ani)",
+      "beneficiar": ["PF", "PJ"],
+      "acte_necesare": [
+        { "denumire": "Cerere prelungire", "emitent": "primarie" },
+        { "denumire": "Certificat de agreare RAR valabil", "emitent_id": "rar" },
+        { "denumire": "Contract dispecerizare", "emitent_id": "ctp-cluj", "alternative": ["onrc"] },
+        { "denumire": "Asigurare persoane+bunuri + RCA", "emitent": "asigurator" },
+        { "denumire": "Atestat profesional conducător", "emitent_id": "arr" },
+        { "denumire": "Cazier fiscal", "emitent_id": "anaf" }
+      ],
+      "formulare": ["447.017"],
+      "perioada_depunere": "10.09 – 31.10 anual"
+    },
+    {
+      "id": "cim-concesionare",
+      "categorie": "cimitire",
+      "nume": "Concesionare loc înhumare (loc de veci)",
+      "descriere": "HCL 300/2014. 20 ani, 4,5 mp, 1 loc/familie.",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cerere atribuire", "emitent": "primarie" },
+        { "denumire": "Adeverință înhumare", "emitent_id": "stare-civila" },
+        { "denumire": "Certificat deces", "emitent_id": "stare-civila" },
+        { "denumire": "Plată anticipată taxă concesiune", "emitent": "extern" },
+        { "denumire": "CI + dovadă domiciliu Cluj-Napoca", "emitent_id": "spclep-depabd" }
+      ]
+    },
+    {
+      "id": "cim-transcriere",
+      "categorie": "cimitire",
+      "nume": "Transcriere drept concesiune loc de veci",
+      "descriere": "Doar în perioada celor 20 ani. Termen: 6 luni de la actul translativ.",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cerere pentru transcriere loc de veci", "emitent": "primarie" },
+        { "denumire": "Certificat moștenitor/legatar", "emitent_id": "notariat", "alternative": ["instanta"] },
+        { "denumire": "Actul translativ (donație autentificată / hotărâre judecătorească)", "emitent_id": "notariat" },
+        { "denumire": "Certificat deces titular anterior", "emitent_id": "stare-civila" },
+        { "denumire": "CI noul titular", "emitent_id": "spclep-depabd" }
+      ]
+    },
+    {
+      "id": "cim-aviz-lucru",
+      "categorie": "cimitire",
+      "nume": "Aviz lucru în cimitir (monument funerar)",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cerere aviz lucru cimitir", "emitent": "primarie" },
+        { "denumire": "Detalii parcelă/loc/tip lucrare + firmă constructor (avizată anual)", "emitent": "primarie" },
+        { "denumire": "Copie chitanță taxă concesiune", "emitent": "primarie" },
+        { "denumire": "Aviz DJC (monumente istorice)", "emitent_id": "djc", "obligatoriu": false }
+      ]
+    },
+    {
+      "id": "ani-sterilizare",
+      "categorie": "animale",
+      "nume": "Sterilizare gratuită câini/pisici CU stăpân",
+      "descriere": "HCL 681/2024. Gratuit pentru proprietari cu domiciliu Cluj-Napoca.",
+      "beneficiar": ["PF"],
+      "acte_necesare": [
+        { "denumire": "Cerere sterilizare", "emitent": "primarie" },
+        { "denumire": "Copie carnet sănătate animal (microcip + vaccinare antirabică)", "emitent_id": "cabinete-vet" },
+        { "denumire": "CI proprietar (dovadă domiciliu Cluj-Napoca)", "emitent_id": "spclep-depabd" }
+      ],
+      "taxa": "Gratuit (Primăria decontează)",
+      "cabinete_partenere": "Croma Impex, Happy Pets, Veterinarius, GeoVet"
+    },
+    {
+      "id": "alt-informatii-publice",
+      "categorie": "altele",
+      "nume": "Cerere informații publice (Legea 544/2001)",
+      "descriere": "Solicitare de informații de interes public de la primărie.",
+      "beneficiar": ["PF", "PJ"],
+      "acte_necesare": [
+        { "denumire": "Cerere informații publice", "emitent": "primarie" },
+        { "denumire": "CI solicitant", "emitent_id": "spclep-depabd" }
+      ],
+      "formulare": ["101.001"]
+    }
+  ],
+  "documente_universale": [
+    {
+      "id": "consimtamant-oug-41-2016",
+      "nume": "Consimțământ solicitare acte (OUG 41/2016)",
+      "descriere": "Document universal — atașabil la majoritatea cererilor. Permite Primăriei să solicite automat documente de la alte instituții.",
+      "url_pdf": "https://files.primariaclujnapoca.ro/2023/07/04/Consimtamant-solicitare-acte.pdf"
+    }
+  ]
+}
