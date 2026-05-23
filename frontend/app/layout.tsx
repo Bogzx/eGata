@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Onest, JetBrains_Mono } from "next/font/google";
 import { AccessGate } from "@/components/AccessGate";
 import { DemoResetButton } from "@/components/DemoResetButton";
+import { MockProvider } from "@/components/MockProvider";
 import "./globals.css";
 
 const onest = Onest({
@@ -36,8 +37,10 @@ export default function RootLayout({
       className={`${onest.variable} ${jetbrainsMono.variable}`}
     >
       <body className="min-h-screen bg-background text-foreground antialiased">
-        <AccessGate>{children}</AccessGate>
-        <DemoResetButton />
+        <MockProvider>
+          <AccessGate>{children}</AccessGate>
+          <DemoResetButton />
+        </MockProvider>
       </body>
     </html>
   );
