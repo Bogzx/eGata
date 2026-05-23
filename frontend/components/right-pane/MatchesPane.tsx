@@ -61,11 +61,45 @@ export function MatchesPane() {
                     <span
                       className="mt-1 inline-block rounded px-2 py-0.5 text-xs font-medium"
                       style={{
-                        background: "rgba(47, 160, 132, 0.14)",
+                        background: "rgba(255, 165, 0, 0.18)",
                         color: "var(--c-dark)",
                       }}
+                      title="Acest document trebuie obținut de la o altă instituție — eGata nu îl poate genera."
                     >
-                      ↗ {a.institutie_nume}
+                      📥 De la altă instituție: {a.institutie_nume}
+                    </span>
+                  ) : a.emitent === "primarie" ? (
+                    <span
+                      className="mt-1 inline-block rounded px-2 py-0.5 text-xs font-medium"
+                      style={{
+                        background: "rgba(47, 160, 132, 0.18)",
+                        color: "var(--c-dark)",
+                      }}
+                      title="Document emis de Primăria Cluj-Napoca — completat în această aplicație."
+                    >
+                      🏛️ Emis de Primăria Cluj-Napoca
+                    </span>
+                  ) : a.emitent === "user" ? (
+                    <span
+                      className="mt-1 inline-block rounded px-2 py-0.5 text-xs font-medium"
+                      style={{
+                        background: "rgba(120, 120, 120, 0.18)",
+                        color: "var(--c-dark)",
+                      }}
+                      title="Document pe care îl ai deja (CI, acte personale)."
+                    >
+                      👤 Ai tu (acte personale)
+                    </span>
+                  ) : a.emitent === "extern" ? (
+                    <span
+                      className="mt-1 inline-block rounded px-2 py-0.5 text-xs font-medium"
+                      style={{
+                        background: "rgba(255, 165, 0, 0.18)",
+                        color: "var(--c-dark)",
+                      }}
+                      title="Document obținut din afara aplicației (chitanță, document terț)."
+                    >
+                      📥 Din afara aplicației
                     </span>
                   ) : null}
                   {a.observatie ? (

@@ -1,7 +1,7 @@
 {
   "id": "placuta-numar-postal",
   "title": "Eliberare plăcuță număr poștal",
-  "description": "Cerere pentru eliberarea plăcuței cu numărul poștal al unui imobil — Serviciul Siguranța Circulației, Primăria Cluj-Napoca (cod 446.011).",
+  "description": "Cerere pentru eliberarea PLĂCUȚEI METALICE care se montează pe fațada casei (NU codul poștal de tip 400123). Conține numărul stradal al imobilului. Serviciul Siguranța Circulației, Primăria Cluj-Napoca (cod 446.011). Implicit: plăcuța se face pentru ADRESA DE DOMICILIU. Nu întreba localitatea (mereu Cluj-Napoca). Adresa pentru plăcuță este implicit aceeași cu domiciliul — confirmă scurt, apoi întreabă DOAR numărul casei.",
   "scope": "primarie",
   "category": "siguranta-circulatiei",
   "synonyms": ["numar postal", "placuta casa", "numar casa", "adresa fizica casa", "numar imobil"],
@@ -13,19 +13,19 @@
   ],
   "acte_necesare": [
     { "denumire": "Cerere eliberare plăcuță (cod 446.011)", "emitent": "primarie" },
-    { "denumire": "Act doveditor adresa", "emitent": "user", "observatie": "Certificat de nomenclatură stradală / Extras CF / Carte identitate", "alternative": ["extras CF (OCPI)", "certificat nomenclatură stradală (primărie)", "CI"] }
+    { "denumire": "Carte de identitate (cea mai simplă opțiune)", "emitent_id": "spclep-mai", "observatie": "Alegere recomandată — deja scanată la onboarding. Una dintre cele 3 variante." },
+    { "denumire": "Extras carte funciară", "emitent_id": "ocpi-ancpi", "format": "original", "obligatoriu": false, "observatie": "Alternativă — doar dacă nu folosești CI. Cost ~25 RON la OCPI." },
+    { "denumire": "Certificat de nomenclatură stradală", "emitent": "primarie", "obligatoriu": false, "observatie": "Alternativă — necesar pentru adrese noi. Îl poți obține în această aplicație: procedura „certificat-nomenclatura-stradala\" (cod 431.003, Serviciul Urbanism)." }
   ],
   "fields": [
     { "name": "nume_complet",     "label": "Nume complet / Denumire SC",  "source": "profile",         "required": true },
-    { "name": "localitate",       "label": "Localitate domiciliu",         "source": "id_scan|profile", "required": true, "suggest_default": "Cluj-Napoca" },
     { "name": "strada_domiciliu", "label": "Strada domiciliu",             "source": "id_scan|profile", "required": true },
     { "name": "nr_domiciliu",     "label": "Număr domiciliu",              "source": "id_scan|profile", "required": true },
     { "name": "ap_domiciliu",     "label": "Apartament domiciliu",         "source": "id_scan|profile", "required": false },
     { "name": "telefon",          "label": "Telefon",                       "source": "profile",         "required": true },
-    { "name": "strada_placuta",   "label": "Strada pentru plăcuță",         "source": "ask",             "required": true, "observatie": "Implicit aceeași cu domiciliul" },
-    { "name": "nr_placuta",       "label": "Număr pentru plăcuță",          "source": "ask",             "required": true },
-    { "name": "email",            "label": "Email pentru comunicare",       "source": "profile",         "required": false },
-    { "name": "data_cerere",      "label": "Data cererii",                  "source": "ask",             "required": true, "suggest_default": "today" }
+    { "name": "strada_placuta",   "label": "Strada imobilului",             "source": "ask",             "required": true, "observatie": "Strada unde va fi montată plăcuța (implicit aceeași cu domiciliul)" },
+    { "name": "nr_placuta",       "label": "Numărul casei (va apărea pe plăcuță)", "source": "ask",      "required": true, "observatie": "Numărul poștal care va fi gravat pe plăcuță" },
+    { "name": "email",            "label": "Email pentru comunicare",       "source": "profile",         "required": false }
   ],
   "template": "placuta-numar-postal.tex",
   "next_steps": []

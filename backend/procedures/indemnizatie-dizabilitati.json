@@ -28,8 +28,7 @@
     { "name": "email", "label": "Email", "source": "profile", "required": false },
     { "name": "grad_handicap", "label": "Grad handicap", "source": "ask", "options": ["grav cu asistent", "grav", "accentuat", "mediu"], "required": true },
     { "name": "modalitate_plata", "label": "Modalitate plată", "source": "ask", "options": ["virament bancar", "mandat poștal", "casierie"], "required": true },
-    { "name": "iban", "label": "IBAN (dacă virament)", "source": "ask", "required": false },
-    { "name": "data_cerere", "label": "Data cererii", "source": "ask", "required": true, "suggest_default": "today" }
+    { "name": "iban", "label": "IBAN (dacă virament)", "source": "ask", "required": false }
   ],
   "template": "indemnizatie-dizabilitati.tex",
   "next_steps": [

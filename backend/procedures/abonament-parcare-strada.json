@@ -29,8 +29,7 @@
     { "name": "email", "label": "Email", "source": "profile", "required": false },
     { "name": "nr_inmatriculare", "label": "Număr înmatriculare auto", "source": "ask", "required": true },
     { "name": "marca_model", "label": "Marca și modelul", "source": "ask", "required": true },
-    { "name": "zona_solicitata", "label": "Zona / strada solicitată", "source": "ask", "required": true },
-    { "name": "data_cerere", "label": "Data cererii", "source": "ask", "required": true, "suggest_default": "today" }
+    { "name": "zona_solicitata", "label": "Zona / strada solicitată", "source": "ask", "required": true }
   ],
   "template": "abonament-parcare-strada.tex",
   "next_steps": []
