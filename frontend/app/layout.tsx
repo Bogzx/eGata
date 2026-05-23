@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AccessGate } from "@/components/AccessGate";
 import { DemoResetButton } from "@/components/DemoResetButton";
 import "./globals.css";
 
@@ -16,7 +17,7 @@ export default function RootLayout({
   return (
     <html lang="ro" suppressHydrationWarning>
       <body className="min-h-screen bg-background font-sans text-foreground antialiased">
-        {children}
+        <AccessGate>{children}</AccessGate>
         <DemoResetButton />
       </body>
     </html>
