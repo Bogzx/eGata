@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DemoResetButton } from "@/components/DemoResetButton";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="ro" suppressHydrationWarning>
       <body className="min-h-screen bg-background font-sans text-foreground antialiased">
         {children}
+        <DemoResetButton />
       </body>
     </html>
   );
