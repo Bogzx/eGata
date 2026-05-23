@@ -649,15 +649,8 @@ insert into citizens (id, cnp, nume, prenume, data_nasterii, email, phone, attri
    'accessibility', jsonb_build_object('voice_only', true, 'simple_language', true, 'large_text', true)
  ));
 
--- Existing documents (1 finalized, 1 draft) for Maria
+-- Existing documents (1 draft) for Maria
 insert into documents (id, citizen_id, procedure_id, status, fields, pdf_url, delivery, ref_number, created_at, delivered_at) values
-('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
- '11111111-1111-1111-1111-111111111111',
- 'adeverinta-venit', 'finalized',
- jsonb_build_object('nume_complet', 'Maria Ionescu', 'cnp', '2851014123456', 'banca', 'BCR'),
- 'https://example.supabase.co/storage/v1/object/public/pdfs/seed-adeverinta.pdf',
- 'send', 'CV-AAAA',
- now() - interval '2 hours', now() - interval '2 hours'),
 ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
  '11111111-1111-1111-1111-111111111111',
  'schimbare-domiciliu', 'draft',
@@ -1764,15 +1757,11 @@ git commit -m "feat(plan-2): /citizens/me profile endpoint"
 
 ---
 
-## Task 7: Procedure JSON files (1 deep + 6 stubs)
+## Task 7: Procedure JSON files (1 deep + 2 stubs)
 
 **Files:**
 - Create: `backend/procedures/schimbare-domiciliu.json`
-- Create: `backend/procedures/adeverinta-venit.json`
 - Create: `backend/procedures/certificat-fiscal.json`
-- Create: `backend/procedures/certificat-nastere-copie.json`
-- Create: `backend/procedures/inregistrare-casatorie.json`
-- Create: `backend/procedures/ajutor-social.json`
 - Create: `backend/procedures/preschimbare-ci.json`
 - Create: `backend/tests/test_procedure_files.py`
 
@@ -1790,11 +1779,7 @@ import pytest
 PROC_DIR = Path("procedures")
 EXPECTED_IDS = {
     "schimbare-domiciliu",
-    "adeverinta-venit",
     "certificat-fiscal",
-    "certificat-nastere-copie",
-    "inregistrare-casatorie",
-    "ajutor-social",
     "preschimbare-ci",
 }
 
@@ -1875,29 +1860,6 @@ Expected: FAIL — files missing.
 }
 ```
 
-`backend/procedures/adeverinta-venit.json`:
-```json
-{
-  "id": "adeverinta-venit",
-  "title": "Adeverință de venit",
-  "description": "Eliberarea unei adeverințe de venit pentru bancă sau alt scop.",
-  "scope": "primarie",
-  "category": "fiscalitate-locala",
-  "synonyms": ["adeverinta banca", "venit", "dovada venit"],
-  "sample_queries": [
-    "am nevoie de o adeverință de venit pentru bancă",
-    "îmi trebuie o dovadă de venit"
-  ],
-  "fields": [
-    { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
-    { "name": "cnp",          "label": "CNP",          "source": "profile", "required": true, "redact_in_voice": true },
-    { "name": "scop",         "label": "Scopul adeverinței", "source": "ask", "required": true, "suggest_default": "Credit bancar" }
-  ],
-  "template": "adeverinta-venit.tex",
-  "next_steps": []
-}
-```
-
 `backend/procedures/certificat-fiscal.json`:
 ```json
 {
@@ -1917,77 +1879,6 @@ Expected: FAIL — files missing.
     { "name": "scop",         "label": "Scopul",       "source": "ask",     "required": true }
   ],
   "template": "certificat-fiscal.tex",
-  "next_steps": []
-}
-```
-
-`backend/procedures/certificat-nastere-copie.json`:
-```json
-{
-  "id": "certificat-nastere-copie",
-  "title": "Copie certificat de naștere",
-  "description": "Eliberare duplicat certificat de naștere.",
-  "scope": "primarie",
-  "category": "stare-civila",
-  "synonyms": ["duplicat naștere", "copie certificat nastere"],
-  "sample_queries": [
-    "vreau o copie a certificatului de naștere",
-    "mi-am pierdut certificatul de naștere"
-  ],
-  "fields": [
-    { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
-    { "name": "cnp",          "label": "CNP",          "source": "profile", "required": true, "redact_in_voice": true },
-    { "name": "motiv",        "label": "Motivul",      "source": "ask",     "required": true }
-  ],
-  "template": "certificat-nastere-copie.tex",
-  "next_steps": []
-}
-```
-
-`backend/procedures/inregistrare-casatorie.json`:
-```json
-{
-  "id": "inregistrare-casatorie",
-  "title": "Înregistrare căsătorie",
-  "description": "Depunerea declarației pentru oficierea căsătoriei civile.",
-  "scope": "primarie",
-  "category": "stare-civila",
-  "synonyms": ["casatorie", "act casatorie", "oficiere casatorie"],
-  "sample_queries": [
-    "vreau să mă căsătoresc",
-    "cum depun actele pentru căsătorie"
-  ],
-  "fields": [
-    { "name": "nume_complet_solicitant", "label": "Nume complet solicitant", "source": "profile", "required": true },
-    { "name": "cnp_solicitant",          "label": "CNP solicitant",          "source": "profile", "required": true, "redact_in_voice": true },
-    { "name": "nume_partener",           "label": "Nume partener",           "source": "ask",     "required": true },
-    { "name": "data_propusa",            "label": "Data propusă",            "source": "ask",     "required": true }
-  ],
-  "template": "inregistrare-casatorie.tex",
-  "next_steps": []
-}
-```
-
-`backend/procedures/ajutor-social.json`:
-```json
-{
-  "id": "ajutor-social",
-  "title": "Ajutor social",
-  "description": "Cerere pentru acordarea ajutorului social conform legii.",
-  "scope": "primarie",
-  "category": "asistenta-sociala",
-  "synonyms": ["venit minim", "ajutor primarie", "asistenta sociala"],
-  "sample_queries": [
-    "am nevoie de ajutor social",
-    "vreau să cer ajutor de la primărie"
-  ],
-  "fields": [
-    { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
-    { "name": "cnp",          "label": "CNP",          "source": "profile", "required": true, "redact_in_voice": true },
-    { "name": "componenta_familie", "label": "Componența familiei", "source": "ask", "required": true },
-    { "name": "venit_familie", "label": "Venitul familiei", "source": "ask", "required": true }
-  ],
-  "template": "ajutor-social.tex",
   "next_steps": []
 }
 ```
@@ -2021,13 +1912,13 @@ Expected: FAIL — files missing.
 ```bash
 cd backend && pytest tests/test_procedure_files.py -v
 ```
-Expected: 9 PASSED (1 existence + 7 shape + 1 deep).
+Expected: 5 PASSED (1 existence + 3 shape + 1 deep).
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add backend/procedures
-git commit -m "feat(plan-2): 7 procedure JSON files (schimbare-domiciliu deep + 6 stubs)"
+git commit -m "feat(plan-2): 3 procedure JSON files (schimbare-domiciliu deep + 2 stubs)"
 ```
 
 ---
@@ -2051,12 +1942,10 @@ from app.main import app
 from app.procedures import get_registry
 
 
-def test_registry_loads_seven_procedures() -> None:
+def test_registry_loads_three_procedures() -> None:
     reg = get_registry()
     assert set(reg.keys()) == {
-        "schimbare-domiciliu", "adeverinta-venit", "certificat-fiscal",
-        "certificat-nastere-copie", "inregistrare-casatorie", "ajutor-social",
-        "preschimbare-ci",
+        "schimbare-domiciliu", "certificat-fiscal", "preschimbare-ci",
     }
 
 
@@ -2074,7 +1963,7 @@ def test_get_procedures_lists_all() -> None:
     assert resp.status_code == 200
     ids = {p["id"] for p in resp.json()}
     assert "schimbare-domiciliu" in ids
-    assert len(ids) == 7
+    assert len(ids) == 3
 
 
 def test_get_procedure_by_id() -> None:
@@ -2421,7 +2310,6 @@ def test_lookup_returns_top3_matches(mock_search: MagicMock, mock_embed: MagicMo
     mock_search.return_value = [
         {"procedure_id": "schimbare-domiciliu", "score": 0.91},
         {"procedure_id": "preschimbare-ci",    "score": 0.42},
-        {"procedure_id": "adeverinta-venit",   "score": 0.20},
     ]
     client = TestClient(app)
 
@@ -2433,7 +2321,7 @@ def test_lookup_returns_top3_matches(mock_search: MagicMock, mock_embed: MagicMo
 
     assert resp.status_code == 200
     body = resp.json()
-    assert len(body["matches"]) == 3
+    assert len(body["matches"]) == 2
     assert body["matches"][0]["procedure_id"] == "schimbare-domiciliu"
     assert body["matches"][0]["title"] == "Schimbare domiciliu"
     assert body["redirect_candidate"] is None
@@ -2446,7 +2334,7 @@ def test_lookup_below_threshold_suggests_redirect(
 ) -> None:
     mock_embed.return_value = [0.1] * 1536
     mock_search.return_value = [
-        {"procedure_id": "ajutor-social", "score": 0.35},
+        {"procedure_id": "certificat-fiscal", "score": 0.35},
     ]
     client = TestClient(app)
 
@@ -2949,16 +2837,12 @@ git commit -m "feat(plan-2): documents CRUD with ledger milestones (doc_created,
 
 ---
 
-## Task 12: LaTeX templates (base + schimbare-domiciliu deep + 6 stubs)
+## Task 12: LaTeX templates (base + schimbare-domiciliu deep + 2 stubs)
 
 **Files:**
 - Create: `backend/templates/base.tex`
 - Create: `backend/templates/schimbare-domiciliu.tex`
-- Create: `backend/templates/adeverinta-venit.tex`
 - Create: `backend/templates/certificat-fiscal.tex`
-- Create: `backend/templates/certificat-nastere-copie.tex`
-- Create: `backend/templates/inregistrare-casatorie.tex`
-- Create: `backend/templates/ajutor-social.tex`
 - Create: `backend/templates/preschimbare-ci.tex`
 - Create: `backend/tests/test_templates.py`
 
@@ -2974,9 +2858,7 @@ import pytest
 
 TEMPLATES_DIR = Path("templates")
 EXPECTED = {
-    "schimbare-domiciliu.tex", "adeverinta-venit.tex", "certificat-fiscal.tex",
-    "certificat-nastere-copie.tex", "inregistrare-casatorie.tex",
-    "ajutor-social.tex", "preschimbare-ci.tex",
+    "schimbare-domiciliu.tex", "certificat-fiscal.tex", "preschimbare-ci.tex",
 }
 
 
@@ -3076,20 +2958,6 @@ prezint documentele justificative la solicitare.
 \end{document}
 ```
 
-`backend/templates/adeverinta-venit.tex`:
-```latex
-\documentclass[11pt]{article}
-\input{base.tex}
-\begin{document}
-\civictitle{Cerere adeverință de venit}
-Către Primăria Municipiului Cluj-Napoca.\\[0.3cm]
-\textbf{Nume:} {{nume_complet}}\\
-\textbf{CNP:} {{cnp}}\\[0.2cm]
-Solicit eliberarea unei adeverințe de venit în scopul: {{scop}}.
-\signatureblock
-\end{document}
-```
-
 `backend/templates/certificat-fiscal.tex`:
 ```latex
 \documentclass[11pt]{article}
@@ -3100,50 +2968,6 @@ Către Primăria Municipiului Cluj-Napoca.\\[0.3cm]
 \textbf{Nume:} {{nume_complet}}\\
 \textbf{CNP:} {{cnp}}\\[0.2cm]
 Solicit eliberarea unui certificat de atestare fiscală în scopul: {{scop}}.
-\signatureblock
-\end{document}
-```
-
-`backend/templates/certificat-nastere-copie.tex`:
-```latex
-\documentclass[11pt]{article}
-\input{base.tex}
-\begin{document}
-\civictitle{Cerere copie certificat de naștere}
-Către Primăria Municipiului Cluj-Napoca.\\[0.3cm]
-\textbf{Nume:} {{nume_complet}}\\
-\textbf{CNP:} {{cnp}}\\[0.2cm]
-Solicit eliberarea unui duplicat al certificatului de naștere. Motivul: {{motiv}}.
-\signatureblock
-\end{document}
-```
-
-`backend/templates/inregistrare-casatorie.tex`:
-```latex
-\documentclass[11pt]{article}
-\input{base.tex}
-\begin{document}
-\civictitle{Declarație înregistrare căsătorie}
-Către Primăria Municipiului Cluj-Napoca.\\[0.3cm]
-\textbf{Solicitant:} {{nume_complet_solicitant}}\\
-\textbf{CNP solicitant:} {{cnp_solicitant}}\\
-\textbf{Partener:} {{nume_partener}}\\
-\textbf{Data propusă pentru oficiere:} {{data_propusa}}
-\signatureblock
-\end{document}
-```
-
-`backend/templates/ajutor-social.tex`:
-```latex
-\documentclass[11pt]{article}
-\input{base.tex}
-\begin{document}
-\civictitle{Cerere ajutor social}
-Către Primăria Municipiului Cluj-Napoca.\\[0.3cm]
-\textbf{Nume:} {{nume_complet}}\\
-\textbf{CNP:} {{cnp}}\\
-\textbf{Componența familiei:} {{componenta_familie}}\\
-\textbf{Venitul familiei:} {{venit_familie}} lei
 \signatureblock
 \end{document}
 ```
@@ -3167,13 +2991,13 @@ Către Primăria Municipiului Cluj-Napoca.\\[0.3cm]
 ```bash
 cd backend && pytest tests/test_templates.py -v
 ```
-Expected: 10 PASSED.
+Expected: 6 PASSED.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add backend/templates
-git commit -m "feat(plan-2): LaTeX base + 7 procedure templates"
+git commit -m "feat(plan-2): LaTeX base + 3 procedure templates"
 ```
 
 ---
@@ -3925,29 +3749,9 @@ KEYWORD_TO_PROCEDURE: list[tuple[tuple[str, ...], str, str]] = [
         "Înțeleg că vrei să-ți schimbi domiciliul. Continuăm?",
     ),
     (
-        ("adeverință venit", "adeverinta venit", "dovada venit", "venit pentru banc"),
-        "adeverinta-venit",
-        "Am înțeles, vrei o adeverință de venit. Pentru ce scop o folosești?",
-    ),
-    (
         ("certificat fiscal", "atestare fiscală", "lipsa datorii"),
         "certificat-fiscal",
         "Vrei un certificat fiscal. Pentru ce ai nevoie de el?",
-    ),
-    (
-        ("certificat de naștere", "duplicat naștere", "copie certificat nastere"),
-        "certificat-nastere-copie",
-        "Vrei o copie a certificatului de naștere. Pot să te ajut cu cererea.",
-    ),
-    (
-        ("căsătorie", "casatorie", "vreau să mă căsătoresc"),
-        "inregistrare-casatorie",
-        "Felicitări! Te ajut cu declarația pentru oficierea căsătoriei.",
-    ),
-    (
-        ("ajutor social", "venit minim"),
-        "ajutor-social",
-        "Te ajut să faci cererea pentru ajutor social.",
     ),
     (
         ("buletin", "carte de identitate", "ci nouă", "expiră buletinul"),
