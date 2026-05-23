@@ -9,6 +9,11 @@
     "am nevoie de certificat fiscal",
     "vreau să-mi iau un certificat de atestare fiscală"
   ],
+  "acte_necesare": [
+    { "denumire": "CI", "emitent": "user", "format": "original" },
+    { "denumire": "Cerere CAF (Cod 491.002)", "emitent": "primarie" },
+    { "denumire": "Împuternicire notarială", "emitent_id": "notariat", "obligatoriu": false, "observatie": "Doar dacă cererea se face prin reprezentant" }
+  ],
   "fields": [
     { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
     { "name": "cnp",          "label": "CNP",          "source": "profile", "required": true, "redact_in_voice": true },

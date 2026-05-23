@@ -9,6 +9,11 @@
     "am nevoie de o adeverință de venit pentru bancă",
     "îmi trebuie o dovadă de venit"
   ],
+  "acte_necesare": [
+    { "denumire": "CI", "emitent": "user", "format": "original" },
+    { "denumire": "Cerere tipizată", "emitent": "primarie" },
+    { "denumire": "Adeverință venit ANAF (Formular 230/300)", "emitent_id": "anaf", "obligatoriu": false, "observatie": "Doar dacă banca cere date fiscale oficiale", "alternative": ["adeverință de la angajator"] }
+  ],
   "fields": [
     { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
     { "name": "cnp",          "label": "CNP",          "source": "profile", "required": true, "redact_in_voice": true },
