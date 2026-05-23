@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   useAccessibilityPrefs,
@@ -10,10 +10,8 @@ import { useKioskMode } from "@/lib/kioskMode";
 import { getSession } from "@/lib/session";
 import { setNavigate, useSessionStore } from "@/lib/sessionStore";
 import type { WidgetSpec } from "@/lib/types";
-import {
-  VoiceAgentMicDeniedError,
-  useVoiceAgentBridge as useVoiceAgent,
-} from "@/lib/useVoiceAgentBridge";
+import { VoiceAgentMicDeniedError } from "@/lib/useVoiceAgentBridge";
+import { useVoiceContext } from "@/lib/voiceContext";
 import { AnimatedBackground } from "./AnimatedBackground";
 import { ChatStream } from "./ChatStream";
 import { Composer } from "./Composer";
@@ -51,8 +49,15 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   const sessionState = useSessionStore((s) => s.session?.state ?? null);
   const hasMessages = useSessionStore((s) => s.messages.length > 0);
 
-  const voice = useVoiceAgent();
+  const voice = useVoiceContext();
   const voiceStartedRef = useRef(false);
+  // Tracks the user's INTENT to be in voice mode. The flicker before this
+  // existed because voiceActive used `voice.state === "connecting"`, but
+  // state transitions to "listening" the moment the WS ready frame arrives
+  // — that's earlier than enableMic() resolves, so for a few frames
+  // micOn=false AND state="listening" (neither "connecting" nor mic-on),
+  // making the mic icon blink off. `engaging` covers the gap.
+  const [engaging, setEngaging] = useState(false);
 
   // Auth gate.
   useEffect(() => {
@@ -118,16 +123,27 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   // toggle and by the voice_only auto-start. If the mic is denied after the
   // WS opens, tear the WS back down so we don't leave a dangling session.
   async function enterVoiceMode(): Promise<void> {
-    await voice.start({
-      documentId: useSessionStore.getState().activeDocId ?? undefined,
-      preferences: { simple_language: simpleLanguage, voice_only: voiceOnly },
-    });
+    setEngaging(true);
     try {
-      await voice.enableMic();
-    } catch (err) {
-      // Tear down the WS so text mode (SSE) can acquire session_lock again.
-      voice.stop();
-      throw err;
+      // If the WS is already up (e.g. user previously had voice on and the
+      // VoiceProvider kept it alive across navigation), skip start() —
+      // calling start twice would race two WS connections on the same
+      // conv_id and deadlock on session_lock.
+      if (!voice.wsReady) {
+        await voice.start({
+          documentId: useSessionStore.getState().activeDocId ?? undefined,
+          preferences: { simple_language: simpleLanguage, voice_only: voiceOnly },
+        });
+      }
+      try {
+        await voice.enableMic();
+      } catch (err) {
+        // Tear down the WS so text mode (SSE) can acquire session_lock again.
+        voice.stop();
+        throw err;
+      }
+    } finally {
+      setEngaging(false);
     }
   }
 
@@ -225,7 +241,9 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   // Mic-only signal: the visual "voice on" indicator follows the
   // microphone state, not the WS lifecycle. Text-only sessions also open
   // the WS now (for unified context) but should not show the mic as on.
-  const voiceActive = voice.micOn || voice.state === "connecting";
+  // `engaging` covers the gap between WS-ready and enableMic resolving so
+  // the icon doesn't blink off mid-engage.
+  const voiceActive = engaging || voice.micOn || voice.state === "connecting";
 
   function toggleVoice() {
     if (voice.micOn) stopVoice();

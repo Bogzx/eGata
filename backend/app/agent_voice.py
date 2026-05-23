@@ -17,6 +17,7 @@ import asyncio
 import json
 import logging
 import secrets
+import time
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
@@ -80,6 +81,12 @@ class VoiceBridgeSession:
     user_buf: str = ""
     agent_buf: str = ""
     last_role: str | None = None
+    # Counters for periodic audio-flow log — without this every frame would
+    # log and drown the rest of the diagnostics. Flush every ~3s.
+    audio_in_chunks: int = 0
+    audio_in_bytes: int = 0
+    audio_out_bytes: int = 0
+    last_audio_log: float = 0.0
 
     async def send_json(self, obj: dict[str, Any]) -> None:
         try:
@@ -126,11 +133,12 @@ class VoiceBridgeSession:
         return sub
 
     async def run(self) -> None:
+        log.info("voice_ws: awaiting start frame")
         try:
             self.start_payload = await self.wait_for_start()
             self.citizen_id = self._resolve_citizen(self.start_payload.token)
         except Exception as e:  # noqa: BLE001
-            log.warning("start frame rejected: %s", e)
+            log.warning("voice_ws: start frame rejected: %s", e)
             await self.send_json({"type": "error", "detail": f"auth: {e}"})
             await self.ws.close(code=4401)
             return
@@ -138,6 +146,14 @@ class VoiceBridgeSession:
         self.conv_id = (
             self.start_payload.conversation_id
             or f"conv_{secrets.token_urlsafe(8)}"
+        )
+        log.info(
+            "voice_ws: auth ok citizen=%s conv=%s doc=%s simple=%s voice_only=%s",
+            self.citizen_id,
+            self.conv_id,
+            self.start_payload.document_id,
+            self.start_payload.simple_language,
+            self.start_payload.voice_only,
         )
 
         # Hold the per-session lock for the lifetime of the voice call.
@@ -245,12 +261,36 @@ class VoiceBridgeSession:
         # Rehydrate prior conversation history (text-chat lineage) so
         # voice has full context. session.history is JSON; convert to
         # Content objects for the Live API.
+        #
+        # Filter to user-role turns only. Gemini Live's send_client_content
+        # rejects mixed-role replay with a 1007 "invalid argument" close,
+        # which kills the new session on the FIRST receive() — that's the
+        # symptom in the b81oxv9gs.txt log (second voice WS, responses=0).
+        # User-only seeding is enough for the model to re-derive context;
+        # the model's prior replies are reconstructable from the user's
+        # questions on the new turn.
         history: list[genai_types.Content] = []
+        skipped_roles: list[str] = []
         for entry in self.db_session.history:
+            role = entry.get("role")
+            if role != "user":
+                skipped_roles.append(str(role))
+                continue
             try:
                 history.append(genai_types.Content.model_validate(entry))
             except Exception:
-                pass
+                log.exception(
+                    "voice_ws: history entry rehydrate failed conv=%s entry=%r",
+                    self.conv_id,
+                    entry,
+                )
+        if skipped_roles:
+            log.info(
+                "voice_ws: history filtered conv=%s kept_user=%d skipped_roles=%s",
+                self.conv_id,
+                len(history),
+                skipped_roles,
+            )
 
         async with client.aio.live.connect(
             model=settings.gemini_voice_model, config=config
@@ -274,32 +314,116 @@ class VoiceBridgeSession:
             # session has context. turn_complete=False so the model does not
             # respond yet — it just absorbs the prior turns.
             if history:
+                log.info(
+                    "voice_ws: seeding gemini with history conv=%s turns=%d",
+                    self.conv_id,
+                    len(history),
+                )
                 try:
                     await gemini.send_client_content(
                         turns=history,
                         turn_complete=False,
                     )
+                    log.info("voice_ws: history seed sent conv=%s", self.conv_id)
                 except Exception:
-                    log.exception("history seed failed — continuing without")
+                    log.exception(
+                        "voice_ws: history seed failed conv=%s — continuing without",
+                        self.conv_id,
+                    )
 
-            await asyncio.gather(
-                self._pump_mic_to_gemini(gemini),
-                self._pump_gemini_to_client(gemini),
-                self._pump_client_to_bridge(),
+            # Run all three pumps with a watchdog that cancels them the
+            # moment stop_event fires. Without this, `session.receive()`
+            # blocks waiting for Gemini events with no way to poll
+            # stop_event — and when the client disconnects mid-call, the
+            # gemini pump kept running for up to a minute (the byf5bkodh.txt
+            # log showed 51 seconds), holding session_lock the whole time.
+            # That made the NEXT voice attempt with the same conv_id hang
+            # forever — exactly the "does not connect" symptom.
+            pump_tasks = [
+                asyncio.create_task(
+                    self._pump_mic_to_gemini(gemini),
+                    name="voice_ws.mic_pump",
+                ),
+                asyncio.create_task(
+                    self._pump_gemini_to_client(gemini),
+                    name="voice_ws.gemini_pump",
+                ),
+                asyncio.create_task(
+                    self._pump_client_to_bridge(),
+                    name="voice_ws.client_pump",
+                ),
+            ]
+
+            async def _watchdog() -> None:
+                await self.stop_event.wait()
+                log.info(
+                    "voice_ws: watchdog firing conv=%s — cancelling pumps",
+                    self.conv_id,
+                )
+                for t in pump_tasks:
+                    if not t.done():
+                        t.cancel()
+
+            watchdog_task = asyncio.create_task(
+                _watchdog(), name="voice_ws.watchdog"
             )
+            try:
+                # return_exceptions=True so a CancelledError from one pump
+                # doesn't short-circuit the gather and leave others orphan.
+                await asyncio.gather(*pump_tasks, return_exceptions=True)
+            finally:
+                # Watchdog is either already done (it set stop_event) or
+                # waiting; cancel it either way so this task tree drains.
+                if not watchdog_task.done():
+                    watchdog_task.cancel()
+                    try:
+                        await watchdog_task
+                    except (asyncio.CancelledError, Exception):
+                        pass
+
+    def _maybe_log_audio_counters(self) -> None:
+        """Emit a single line summarising audio flow every ~3 seconds.
+
+        Without this we either log per-chunk (drowns the rest of the diags)
+        or never (then we can't tell if the mic is even capturing).
+        """
+        now = time.perf_counter()
+        if now - self.last_audio_log < 3.0:
+            return
+        if not (self.audio_in_chunks or self.audio_out_bytes):
+            return
+        log.info(
+            "voice_ws: audio conv=%s in_chunks=%d in_bytes=%d out_bytes=%d",
+            self.conv_id,
+            self.audio_in_chunks,
+            self.audio_in_bytes,
+            self.audio_out_bytes,
+        )
+        self.audio_in_chunks = 0
+        self.audio_in_bytes = 0
+        self.audio_out_bytes = 0
+        self.last_audio_log = now
 
     async def _pump_client_to_bridge(self) -> None:
         try:
             while not self.stop_event.is_set():
                 msg = await self.ws.receive()
                 if msg.get("type") == "websocket.disconnect":
+                    log.info("voice_ws: client disconnect conv=%s", self.conv_id)
                     self.stop_event.set()
                     break
                 if msg.get("bytes") is not None:
                     chunk = msg["bytes"]
+                    self.audio_in_chunks += 1
+                    self.audio_in_bytes += len(chunk)
+                    self._maybe_log_audio_counters()
                     try:
                         self.inbound_audio.put_nowait(chunk)
                     except asyncio.QueueFull:
+                        log.warning(
+                            "voice_ws: audio queue full conv=%s, dropping oldest",
+                            self.conv_id,
+                        )
                         try:
                             _ = self.inbound_audio.get_nowait()
                         except asyncio.QueueEmpty:
@@ -313,12 +437,21 @@ class VoiceBridgeSession:
                     try:
                         payload = json.loads(msg["text"])
                     except Exception:
-                        log.warning("bad json text frame: %r", msg["text"][:200])
+                        log.warning(
+                            "voice_ws: bad json text frame conv=%s: %r",
+                            self.conv_id,
+                            msg["text"][:200],
+                        )
                         continue
                     ptype = payload.get("type")
                     if ptype == "text" and self.gemini is not None:
                         text = (payload.get("text") or "").strip()
                         if text:
+                            log.info(
+                                "voice_ws: text frame conv=%s text=%r",
+                                self.conv_id,
+                                text[:120],
+                            )
                             try:
                                 await self.gemini.send_client_content(
                                     turns=[
@@ -332,18 +465,38 @@ class VoiceBridgeSession:
                                     turn_complete=True,
                                 )
                             except Exception:
-                                log.exception("send_client_content failed")
+                                log.exception(
+                                    "voice_ws: send_client_content (text) failed conv=%s",
+                                    self.conv_id,
+                                )
                     elif ptype == "widget_submission" and self.gemini is not None:
                         widget_id = payload.get("widget_id")
                         value = payload.get("value")
                         if not isinstance(widget_id, str) or not widget_id:
-                            log.warning("widget_submission missing widget_id")
+                            log.warning(
+                                "voice_ws: widget_submission missing widget_id conv=%s",
+                                self.conv_id,
+                            )
                             continue
+                        log.info(
+                            "voice_ws: widget_submission conv=%s widget=%s value=%r",
+                            self.conv_id,
+                            widget_id,
+                            value,
+                        )
                         await self._handle_widget_submission(widget_id, value)
                     elif ptype == "interrupt":
                         # v1 no-op; reserved for explicit barge-in UX.
+                        log.debug("voice_ws: interrupt frame conv=%s", self.conv_id)
                         pass
+                    else:
+                        log.debug(
+                            "voice_ws: unhandled frame conv=%s type=%r",
+                            self.conv_id,
+                            ptype,
+                        )
         except WebSocketDisconnect:
+            log.info("voice_ws: client WebSocketDisconnect conv=%s", self.conv_id)
             self.stop_event.set()
         finally:
             try:
@@ -363,81 +516,210 @@ class VoiceBridgeSession:
                     )
                 )
             except Exception:
-                log.exception("send_realtime_input failed")
+                log.exception(
+                    "voice_ws: send_realtime_input failed conv=%s",
+                    self.conv_id,
+                )
                 self.stop_event.set()
                 break
+        log.info("voice_ws: mic pump stopped conv=%s", self.conv_id)
 
     async def _pump_gemini_to_client(self, session: Any) -> None:
+        # Counters for diagnosing the voice loop. The b81oxv9gs.txt run
+        # showed turns=1 + stop_event=False — confirming Gemini Live's
+        # `session.receive()` yields events for ONE turn then ends naturally.
+        # Without an outer while loop, voice wedges after the first
+        # agent_done: audio keeps flowing in but nothing reads the responses,
+        # and the session_lock stays held — which then blocks every future
+        # chat turn on the same conv_id.
+        response_count = 0
+        turn_complete_count = 0
+        interrupted_count = 0
+        no_useful_count = 0
+        iter_count = 0
+        log.info(
+            "voice_ws: gemini receive loop START conv=%s",
+            self.conv_id,
+        )
         try:
-            async for response in session.receive():
-                if self.stop_event.is_set():
-                    break
-
-                data = getattr(response, "data", None)
-                if data:
-                    await self.send_bytes(data)
-
-                sc = getattr(response, "server_content", None)
-                if sc is not None:
-                    in_tx = getattr(sc, "input_transcription", None)
-                    if in_tx is not None and getattr(in_tx, "text", None):
-                        if self.last_role == "agent":
-                            await self._flush_role("agent")
-                        self.last_role = "user"
-                        self.user_buf += in_tx.text
-                        await self.send_json(
-                            {"type": "user_delta", "text": self.user_buf}
+            while not self.stop_event.is_set():
+                iter_count += 1
+                iter_start_responses = response_count
+                log.debug(
+                    "voice_ws: entering receive() iter=%d conv=%s",
+                    iter_count,
+                    self.conv_id,
+                )
+                async for response in session.receive():
+                    response_count += 1
+                    if self.stop_event.is_set():
+                        log.info(
+                            "voice_ws: gemini loop break conv=%s reason=stop_event responses=%d",
+                            self.conv_id,
+                            response_count,
                         )
+                        break
 
-                    out_tx = getattr(sc, "output_transcription", None)
-                    if out_tx is not None and getattr(out_tx, "text", None):
-                        if self.last_role == "user":
-                            await self._flush_role("user")
-                        self.last_role = "agent"
-                        self.agent_buf += out_tx.text
-                        await self.send_json(
-                            {"type": "agent_delta", "text": self.agent_buf}
-                        )
+                    data = getattr(response, "data", None)
+                    sc = getattr(response, "server_content", None)
+                    tc = getattr(response, "tool_call", None)
+                    log.debug(
+                        "voice_ws: response conv=%s iter=%d #%d data_bytes=%d sc=%s tc=%s",
+                        self.conv_id,
+                        iter_count,
+                        response_count,
+                        len(data) if data else 0,
+                        bool(sc),
+                        bool(tc and getattr(tc, "function_calls", None)),
+                    )
+                    if not data and not sc and not (tc and getattr(tc, "function_calls", None)):
+                        no_useful_count += 1
+                    if data:
+                        self.audio_out_bytes += len(data)
+                        self._maybe_log_audio_counters()
+                        await self.send_bytes(data)
 
-                    if getattr(sc, "interrupted", False):
-                        await self.send_json({"type": "interrupted"})
-
-                    if getattr(sc, "turn_complete", False):
-                        if self.last_role == "user":
-                            await self._flush_role("user")
-                        elif self.last_role == "agent":
-                            await self._flush_role("agent")
-                        self.last_role = None
-
-                tc = getattr(response, "tool_call", None)
-                if tc is not None and getattr(tc, "function_calls", None):
-                    responses: list[genai_types.FunctionResponse] = []
-                    for fc in tc.function_calls:
-                        responses.append(
-                            await self._dispatch_tool(
-                                name=fc.name,
-                                args=dict(fc.args) if fc.args else {},
-                                call_id=getattr(fc, "id", None),
+                    if sc is not None:
+                        in_tx = getattr(sc, "input_transcription", None)
+                        if in_tx is not None and getattr(in_tx, "text", None):
+                            if self.last_role == "agent":
+                                await self._flush_role("agent")
+                            self.last_role = "user"
+                            self.user_buf += in_tx.text
+                            await self.send_json(
+                                {"type": "user_delta", "text": self.user_buf}
                             )
-                        )
-                    try:
-                        await session.send_tool_response(function_responses=responses)
-                    except Exception:
-                        log.exception("send_tool_response failed")
+
+                        out_tx = getattr(sc, "output_transcription", None)
+                        if out_tx is not None and getattr(out_tx, "text", None):
+                            if self.last_role == "user":
+                                await self._flush_role("user")
+                            self.last_role = "agent"
+                            self.agent_buf += out_tx.text
+                            await self.send_json(
+                                {"type": "agent_delta", "text": self.agent_buf}
+                            )
+
+                        if getattr(sc, "interrupted", False):
+                            interrupted_count += 1
+                            log.info(
+                                "voice_ws: server_content interrupted conv=%s count=%d responses=%d",
+                                self.conv_id,
+                                interrupted_count,
+                                response_count,
+                            )
+                            await self.send_json({"type": "interrupted"})
+
+                        if getattr(sc, "turn_complete", False):
+                            turn_complete_count += 1
+                            log.info(
+                                "voice_ws: turn_complete conv=%s count=%d responses=%d last_role=%s",
+                                self.conv_id,
+                                turn_complete_count,
+                                response_count,
+                                self.last_role,
+                            )
+                            if self.last_role == "user":
+                                await self._flush_role("user")
+                            elif self.last_role == "agent":
+                                await self._flush_role("agent")
+                            self.last_role = None
+
+                    if tc is not None and getattr(tc, "function_calls", None):
+                        responses: list[genai_types.FunctionResponse] = []
+                        for fc in tc.function_calls:
+                            responses.append(
+                                await self._dispatch_tool(
+                                    name=fc.name,
+                                    args=dict(fc.args) if fc.args else {},
+                                    call_id=getattr(fc, "id", None),
+                                )
+                            )
+                        try:
+                            await session.send_tool_response(function_responses=responses)
+                        except Exception:
+                            log.exception(
+                                "voice_ws: send_tool_response failed conv=%s",
+                                self.conv_id,
+                            )
+                # Inner async-for ended (one turn complete in SDK terms).
+                # Loop back into session.receive() for the next turn unless
+                # we're shutting down.
+                log.debug(
+                    "voice_ws: receive() iter=%d done conv=%s iter_events=%d total=%d",
+                    iter_count,
+                    self.conv_id,
+                    response_count - iter_start_responses,
+                    response_count,
+                )
         except Exception:
-            log.exception("gemini receive failed")
+            log.exception(
+                "voice_ws: gemini receive failed conv=%s after responses=%d turns=%d",
+                self.conv_id,
+                response_count,
+                turn_complete_count,
+            )
             await self.send_json({"type": "error", "detail": "Gemini stream failed"})
             self.stop_event.set()
+        finally:
+            log.info(
+                "voice_ws: gemini receive loop EXITED conv=%s iters=%d responses=%d turns=%d interrupted=%d empty=%d stop_event=%s",
+                self.conv_id,
+                iter_count,
+                response_count,
+                turn_complete_count,
+                interrupted_count,
+                no_useful_count,
+                self.stop_event.is_set(),
+            )
+            # If the iterator ended on its own (not from stop_event), signal
+            # the other pumps to wind down. Then close the WS to unblock
+            # _pump_client_to_bridge's `await self.ws.receive()` — without
+            # this it sits forever, the gather() never returns, the
+            # session_lock never releases, and every subsequent chat turn on
+            # the same conv_id deadlocks at `async with session_lock(...)`.
+            # That was the "chat also broken" symptom in b81oxv9gs.txt.
+            tearing_down = not self.stop_event.is_set()
+            if tearing_down:
+                log.warning(
+                    "voice_ws: gemini loop ended without stop_event conv=%s — tearing down bridge",
+                    self.conv_id,
+                )
+                self.stop_event.set()
+                try:
+                    await self.send_json(
+                        {"type": "error", "detail": "Gemini stream ended unexpectedly"}
+                    )
+                except Exception:
+                    pass
+            try:
+                # Closing the WS here is what releases _pump_client_to_bridge
+                # from its blocking ws.receive() call so gather() can return.
+                await self.ws.close(code=1011 if tearing_down else 1000)
+            except Exception:
+                # Already closed (client disconnect arrived first) or in a
+                # closing state — both fine.
+                pass
 
     async def _flush_role(self, role: str) -> None:
         if role == "user" and self.user_buf:
             text = self.user_buf
             self.user_buf = ""
+            log.info(
+                "voice_ws: user_done conv=%s text=%r",
+                self.conv_id,
+                text[:200],
+            )
             await self.send_json({"type": "user_done", "text": text})
             await self._persist_turn(role="user", text=text)
         elif role == "agent" and self.agent_buf:
             text = self.agent_buf
             self.agent_buf = ""
+            log.info(
+                "voice_ws: agent_done conv=%s text=%r",
+                self.conv_id,
+                text[:200],
+            )
             await self.send_json(
                 {"type": "agent_done", "text": text, "tool_calls": []}
             )
@@ -665,16 +947,31 @@ class VoiceBridgeSession:
 
 @router.websocket("/voice/ws")
 async def voice_ws(ws: WebSocket) -> None:
+    client = f"{ws.client.host}:{ws.client.port}" if ws.client else "-"
+    log.info("voice_ws: accept from=%s", client)
     await ws.accept()
     session = VoiceBridgeSession(ws=ws)
+    started = time.perf_counter()
     try:
         await session.run()
     except WebSocketDisconnect:
-        log.info("client disconnected mid-session")
+        log.info(
+            "voice_ws: disconnected mid-session conv=%s",
+            session.conv_id or "-",
+        )
     except Exception:
-        log.exception("voice bridge crashed")
+        log.exception(
+            "voice_ws: bridge crashed conv=%s",
+            session.conv_id or "-",
+        )
         await session.send_json({"type": "error", "detail": "Bridge error"})
     finally:
+        log.info(
+            "voice_ws: close conv=%s duration_s=%.1f from=%s",
+            session.conv_id or "-",
+            time.perf_counter() - started,
+            client,
+        )
         # Persistence happens inside _run_locked (under session_lock); the
         # finally here only closes the socket.
         try:
