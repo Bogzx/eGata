@@ -196,17 +196,33 @@ def insert_session(
     citizen_id: str | UUID,
     session_id: str | None = None,
 ) -> Session:
+    """Insert a session row. Race-safe via ON CONFLICT DO NOTHING.
+
+    If `session_id` is already taken (e.g. two concurrent transports —
+    text SSE + voice WS — both racing to create the same conversation),
+    the INSERT silently does nothing and we SELECT the existing row.
+    The caller sees either the row this call created or the row the
+    competing call already had; both are correct.
+    """
     sid = session_id or new_session_id()
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
             f"insert into sessions (id, citizen_id) values (%s, %s) "
+            f"on conflict (id) do nothing "
             f"returning {_SELECT_COLS};",
             (sid, str(citizen_id)),
         )
         row = cur.fetchone()
+        if row is None:
+            # Conflict — someone else inserted the same id just before us.
+            cur.execute(
+                f"select {_SELECT_COLS} from sessions where id = %s;",
+                (sid,),
+            )
+            row = cur.fetchone()
         conn.commit()
     if row is None:
-        raise RuntimeError("session insert returned no row")
+        raise RuntimeError("session insert returned no row even after conflict select")
     return _row_to_session(dict(row))
 
 
@@ -223,7 +239,12 @@ def fetch_session(session_id: str) -> Session | None:
 def fetch_or_create_session(
     citizen_id: str | UUID, session_id: str | None = None
 ) -> Session:
-    """If `session_id` is given AND exists, return it. Otherwise insert one."""
+    """If `session_id` is given AND exists, return it. Otherwise insert.
+
+    Race-safe: `insert_session` uses ON CONFLICT DO NOTHING so two
+    concurrent first-touch callers (text SSE + voice WS opening the
+    same conversation at once) won't blow up with a UniqueViolation.
+    """
     if session_id:
         existing = fetch_session(session_id)
         if existing is not None:
