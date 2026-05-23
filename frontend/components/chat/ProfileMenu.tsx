@@ -18,7 +18,17 @@ export function ProfileMenu() {
   useEffect(() => {
     function onDoc(e: MouseEvent) {
       if (!ref.current) return;
-      if (!ref.current.contains(e.target as Node)) close();
+      const target = e.target as Node;
+      if (ref.current.contains(target)) return;
+      // The profile chip handles its own toggle. Skipping here prevents the
+      // mousedown→close + click→reopen race that left the menu stuck open.
+      if (
+        target instanceof Element &&
+        target.closest("[data-profile-toggle]")
+      ) {
+        return;
+      }
+      close();
     }
     if (open) document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);

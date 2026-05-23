@@ -69,7 +69,7 @@ export function Composer({ onSendText, onStartVoice, onStopVoice }: Props) {
         <textarea
           id={fieldId}
           className="composer-input"
-          placeholder="Spune-mi ce ai nevoie · sau apasă microfonul"
+          placeholder="Spune-mi ce ai nevoie"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           rows={1}

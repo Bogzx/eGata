@@ -141,6 +141,7 @@ export function TopBar({ voiceOn = false, onToggleVoice }: Props) {
           onClick={toggleProfile}
           aria-haspopup="menu"
           aria-label={`Profil ${profileLabel}`}
+          data-profile-toggle
         >
           <span className="avatar" aria-hidden="true">
             {initial}
