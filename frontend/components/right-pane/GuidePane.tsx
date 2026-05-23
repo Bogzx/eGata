@@ -43,15 +43,27 @@ export function GuidePane() {
           <h3 className="mb-2 text-sm font-medium">
             Acte pe care să le ai la îndemână
           </h3>
-          <ul className="list-disc space-y-1 pl-5 text-sm">
+          <ul className="list-disc space-y-2 pl-5 text-sm">
             {procedure.acte_necesare.map((a, i) => (
               <li key={i}>
                 {a.denumire}
                 {a.obligatoriu === false ? (
                   <span className="text-muted-foreground"> (opțional)</span>
                 ) : null}
+                {a.institutie_nume ? (
+                  <span className="ml-1 rounded bg-muted px-1 py-0.5 text-xs">
+                    ↗ {a.institutie_nume}
+                  </span>
+                ) : null}
                 {a.observatie ? (
-                  <span className="text-muted-foreground"> — {a.observatie}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {a.observatie}
+                  </span>
+                ) : null}
+                {a.note_ai_cannot_complete ? (
+                  <span className="block text-xs italic text-muted-foreground">
+                    {a.note_ai_cannot_complete}
+                  </span>
                 ) : null}
               </li>
             ))}

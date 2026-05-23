@@ -16,6 +16,7 @@ from app.demo import router as demo_router
 from app.documents import router as documents_router
 from app.health import router as health_router
 from app.procedures import router as procedures_router
+from app.scenarios import router as scenarios_router
 from app.reminders import router as reminders_router
 from app.tool_dispatch import router as tool_dispatch_router
 from app.twilio_bridge import router as twilio_router
@@ -72,6 +73,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(citizens_router)
 app.include_router(procedures_router)
+app.include_router(scenarios_router)
 app.include_router(documents_router)
 app.include_router(agent_router)
 app.include_router(reminders_router)

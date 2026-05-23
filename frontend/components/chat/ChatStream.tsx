@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useSessionStore } from "@/lib/sessionStore";
-import type { Message, WidgetSpec } from "@/lib/types";
+import type { Message, PendingMessage, WidgetSpec } from "@/lib/types";
 import { WIDGET_REGISTRY } from "./widgets";
 
 const THINKING_RE =
@@ -12,11 +12,11 @@ function cleanText(t: string): string {
   return t.replace(THINKING_RE, "").trim();
 }
 
-function bubbleClass(m: Message): string {
-  if (m.role === "user") {
+function bubbleClass(role: Message["role"] | PendingMessage["role"]): string {
+  if (role === "user") {
     return "ml-12 rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground";
   }
-  if (m.role === "system") {
+  if (role === "system") {
     return "rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive";
   }
   return "rounded-lg bg-muted px-4 py-2 text-sm";
@@ -44,13 +44,26 @@ function renderWidget(w: WidgetSpec, onSubmit: (v: string) => void) {
   return <Comp spec={w} onSubmit={onSubmit} />;
 }
 
+function StreamingCaret() {
+  return (
+    <span
+      aria-hidden="true"
+      className="ml-0.5 inline-block w-[1ch] animate-pulse"
+    >
+      |
+    </span>
+  );
+}
+
 export function ChatStream({ onWidgetSubmit }: Props) {
   const messages = useSessionStore((s) => s.messages);
+  const pendingUser = useSessionStore((s) => s.pendingUser);
+  const pendingAgent = useSessionStore((s) => s.pendingAgent);
   const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages]);
+  }, [messages, pendingUser?.text, pendingAgent?.text]);
 
   return (
     <ol
@@ -59,7 +72,7 @@ export function ChatStream({ onWidgetSubmit }: Props) {
       aria-label="Conversație"
     >
       {messages.map((m) => (
-        <li key={m.id} className={bubbleClass(m)}>
+        <li key={m.id} className={bubbleClass(m.role)}>
           <p className="whitespace-pre-wrap">{cleanText(m.text)}</p>
           {m.role === "agent" && m.widgets
             ? m.widgets.map((w) => (
@@ -70,6 +83,30 @@ export function ChatStream({ onWidgetSubmit }: Props) {
             : null}
         </li>
       ))}
+      {pendingUser && pendingUser.text.trim() ? (
+        <li
+          key={`pending-user-${pendingUser.id}`}
+          className={bubbleClass("user")}
+          aria-label="Mesajul tău se transcrie"
+        >
+          <p className="whitespace-pre-wrap">
+            {cleanText(pendingUser.text)}
+            <StreamingCaret />
+          </p>
+        </li>
+      ) : null}
+      {pendingAgent && pendingAgent.text.trim() ? (
+        <li
+          key={`pending-agent-${pendingAgent.id}`}
+          className={bubbleClass("agent")}
+          aria-label="Asistentul răspunde"
+        >
+          <p className="whitespace-pre-wrap">
+            {cleanText(pendingAgent.text)}
+            <StreamingCaret />
+          </p>
+        </li>
+      ) : null}
       <div ref={endRef} aria-hidden />
     </ol>
   );

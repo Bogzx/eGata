@@ -345,3 +345,68 @@ def test_propose_widget_rejects_unknown_type() -> None:
 
 def test_phone_tool_allowlist_excludes_propose_widget() -> None:
     assert "propose_widget" not in PHONE_TOOL_ALLOWLIST
+
+
+# ---- lookup_procedure scenario_plan extension (Multi-procedure RAG) ----
+
+
+def test_lookup_returns_scenario_plan_when_top_is_scenario(monkeypatch):
+    """When the top-1 RAG hit is a scenario above threshold, scenario_plan is populated."""
+    import asyncio
+
+    from app.tools import lookup_procedure as lp_module
+    from app.tools.lookup_procedure import LookupResult, lookup_procedure
+
+    fake_rows = [
+        {"id": "sc-cumparare-apartament", "kind": "scenario", "score": 0.78},
+        {"id": "declarare-cladire", "kind": "procedure", "score": 0.62},
+    ]
+    monkeypatch.setattr(lp_module, "embed_text", lambda _t: [0.0] * 768)
+    monkeypatch.setattr(lp_module, "search_top_k_rag", lambda _e, k=5: fake_rows)
+
+    result: LookupResult = asyncio.run(
+        lookup_procedure(ctx=None, query="am cumpărat un apartament")
+    )
+
+    assert result.scenario_plan is not None
+    assert result.scenario_plan.scenario_id == "sc-cumparare-apartament"
+    assert len(result.scenario_plan.in_scope_steps) == 3
+
+
+def test_lookup_returns_no_scenario_when_top_is_procedure(monkeypatch):
+    """Procedure wins even if a scenario is in the top-K but lower-ranked."""
+    import asyncio
+
+    from app.tools import lookup_procedure as lp_module
+    from app.tools.lookup_procedure import lookup_procedure
+
+    fake_rows = [
+        {"id": "schimbare-domiciliu", "kind": "procedure", "score": 0.81},
+        {"id": "sc-cumparare-apartament", "kind": "scenario", "score": 0.66},
+    ]
+    monkeypatch.setattr(lp_module, "embed_text", lambda _t: [0.0] * 768)
+    monkeypatch.setattr(lp_module, "search_top_k_rag", lambda _e, k=5: fake_rows)
+
+    result = asyncio.run(lookup_procedure(ctx=None, query="vreau să-mi schimb domiciliul"))
+
+    assert result.scenario_plan is None
+    assert len(result.matches) >= 1
+    assert result.matches[0].procedure_id == "schimbare-domiciliu"
+
+
+def test_lookup_below_threshold_no_scenario_plan(monkeypatch):
+    """Sub-threshold hits return no scenario_plan."""
+    import asyncio
+
+    from app.tools import lookup_procedure as lp_module
+    from app.tools.lookup_procedure import lookup_procedure
+
+    fake_rows = [
+        {"id": "schimbare-domiciliu", "kind": "procedure", "score": 0.30},
+    ]
+    monkeypatch.setattr(lp_module, "embed_text", lambda _t: [0.0] * 768)
+    monkeypatch.setattr(lp_module, "search_top_k_rag", lambda _e, k=5: fake_rows)
+
+    result = asyncio.run(lookup_procedure(ctx=None, query="ceva ciudat"))
+
+    assert result.scenario_plan is None

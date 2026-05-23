@@ -1,0 +1,23 @@
+{
+  "id": "sc-autorizatie-construire",
+  "title": "Autorizație de construire casă",
+  "description": "Plan complet pentru autorizarea construirii unei case: certificat de urbanism, aviz de principiu, autorizație de construire.",
+  "summary_for_rag": "Cetățeanul vrea să construiască o casă. La primărie: certificat de urbanism (obligatoriu primul pas), aviz de principiu pentru construcție, apoi autorizația de construire propriu-zisă. Pașii externi includ proiectantul autorizat pentru proiectul tehnic, OCPI pentru cadastru și extrase, eventual avize ANAF/ISC.",
+  "synonyms": ["autorizație construire", "vreau să construiesc casă", "autorizație de construcție", "ridicare casă"],
+  "sample_queries": [
+    "vreau să-mi construiesc o casă",
+    "autorizație de construire",
+    "ce acte îmi trebuie ca să construiesc",
+    "vreau să ridic o casă pe un teren"
+  ],
+  "complexitate": "foarte complex",
+  "termen_total": "3-6 luni",
+  "applies_if": null,
+  "in_scope_steps": [
+    { "ordine": 1, "procedure_id": "cerere-certificat-urbanism",  "deadline_days": null, "note": "Primul pas obligatoriu. Termen primărie: 30 zile." },
+    { "ordine": 2, "procedure_id": "aviz-principiu-constructii",  "deadline_days": null, "note": "După obținerea CU. Termen primărie: 15 zile." }
+  ],
+  "external_steps": [
+    { "ordine": 0, "institutie_id": "ocpi-ancpi", "obligatoriu": true, "note": "Plan de situație + extras CF pentru terenul pe care construiești." }
+  ]
+}
