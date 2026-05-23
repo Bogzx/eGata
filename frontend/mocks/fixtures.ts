@@ -137,22 +137,6 @@ export const schimbareDomiciliu: Procedure = {
 export const knownProcedures: Procedure[] = [
   schimbareDomiciliu,
   {
-    id: "adeverinta-venit",
-    title: "Adeverință de venit",
-    description: "Adeverință de venit pentru bancă sau alte instituții.",
-    scope: "primarie",
-    category: "evidenta-persoanelor",
-    synonyms: ["adeverinta venit", "venit pentru banca", "dovada venit"],
-    sample_queries: ["am nevoie de adeverință de venit"],
-    fields: [
-      { name: "nume_complet", label: "Nume complet", source: "profile", required: true },
-      { name: "cnp", label: "CNP", source: "profile", required: true, redact_in_voice: true },
-      { name: "banca", label: "Banca/Instituția", source: "ask", required: true },
-    ],
-    template: "adeverinta-venit.tex",
-    next_steps: [],
-  },
-  {
     id: "preschimbare-ci",
     title: "Preschimbare carte de identitate",
     description: "Eliberare carte de identitate nouă.",
@@ -166,22 +150,6 @@ export const knownProcedures: Procedure[] = [
       { name: "motivul", label: "Motivul preschimbării", source: "ask", required: true },
     ],
     template: "preschimbare-ci.tex",
-    next_steps: [],
-  },
-  {
-    id: "certificat-nastere-copie",
-    title: "Copie certificat de naștere",
-    description: "Eliberare duplicat certificat de naștere.",
-    scope: "primarie",
-    category: "stare-civila",
-    synonyms: ["copie nastere", "duplicat nastere", "certificat nastere copie"],
-    sample_queries: ["vreau o copie a certificatului de naștere"],
-    fields: [
-      { name: "nume_complet", label: "Nume complet", source: "profile", required: true },
-      { name: "cnp", label: "CNP", source: "profile", required: true },
-      { name: "scopul", label: "Scopul", source: "ask", required: false },
-    ],
-    template: "certificat-nastere-copie.tex",
     next_steps: [],
   },
   {
@@ -200,41 +168,6 @@ export const knownProcedures: Procedure[] = [
     template: "certificat-fiscal.tex",
     next_steps: [],
   },
-  {
-    id: "inregistrare-casatorie",
-    title: "Înregistrare căsătorie",
-    description: "Declarație de căsătorie la oficiul stării civile.",
-    scope: "primarie",
-    category: "stare-civila",
-    synonyms: ["căsătorie", "casatorie", "vreau să mă căsătoresc"],
-    sample_queries: ["vrem să ne căsătorim"],
-    fields: [
-      { name: "nume_complet", label: "Nume complet", source: "profile", required: true },
-      { name: "cnp", label: "CNP", source: "profile", required: true },
-      { name: "partener_nume", label: "Nume partener", source: "ask", required: true },
-      { name: "partener_cnp", label: "CNP partener", source: "ask", required: true },
-      { name: "data_dorita", label: "Data dorită", source: "ask", required: true },
-    ],
-    template: "inregistrare-casatorie.tex",
-    next_steps: [],
-  },
-  {
-    id: "ajutor-social",
-    title: "Ajutor social",
-    description: "Cerere pentru ajutor social (venit minim garantat).",
-    scope: "primarie",
-    category: "asistenta-sociala",
-    synonyms: ["ajutor social", "venit minim", "vmg"],
-    sample_queries: ["am nevoie de ajutor social"],
-    fields: [
-      { name: "nume_complet", label: "Nume complet", source: "profile", required: true },
-      { name: "cnp", label: "CNP", source: "profile", required: true },
-      { name: "venit_lunar", label: "Venit lunar (lei)", source: "ask", required: true },
-      { name: "componenta_familie", label: "Componența familiei", source: "ask", required: true },
-    ],
-    template: "ajutor-social.tex",
-    next_steps: [],
-  },
 ];
 
 const now = new Date().toISOString();
@@ -251,19 +184,6 @@ export const draftDoc: Document = {
     adresa_curenta: "Str. Avram Iancu 5, Cluj-Napoca",
   },
   created_at: now,
-};
-
-export const deliveredDoc: Document = {
-  id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-  citizen_id: maria.id,
-  procedure_id: "adeverinta-venit",
-  status: "finalized",
-  fields: { nume_complet: "Maria Ionescu", cnp: "2851014123456", banca: "BCR" },
-  delivery: "send",
-  ref_number: "CV-AAAA",
-  pdf_url: "https://example.supabase.co/storage/v1/object/public/pdfs/seed-adeverinta.pdf",
-  created_at: now,
-  delivered_at: now,
 };
 
 export const ledgerFor = (docId: string): LedgerResponse => ({
@@ -319,7 +239,7 @@ export const seededReminders: Reminder[] = [
   {
     id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
     citizen_id: maria.id,
-    trigger_doc_id: deliveredDoc.id,
+    trigger_doc_id: draftDoc.id,
     kind: "external_redirect",
     redirect_target: "DRPCIV",
     title:
