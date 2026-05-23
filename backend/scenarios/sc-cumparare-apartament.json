@@ -19,7 +19,7 @@
     { "ordine": 3, "procedure_id": "abonament-parcare-strada", "deadline_days": null, "note": "După emiterea noului CI." }
   ],
   "external_steps": [
-    { "ordine": 0, "institutie_id": "notariat-public",   "obligatoriu": true, "note": "Primul pas. Contract V-C autentificat." },
+    { "ordine": 0, "institutie_id": "notariat",   "obligatoriu": true, "note": "Primul pas. Contract V-C autentificat." },
     { "ordine": 0, "institutie_id": "ocpi-ancpi",        "obligatoriu": true, "note": "Extras carte funciară max 30 zile." },
     { "ordine": 0, "institutie_id": "auditor-energetic", "obligatoriu": true, "note": "De obicei vânzătorul îl furnizează." }
   ]

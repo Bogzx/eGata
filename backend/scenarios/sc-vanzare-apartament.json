@@ -19,7 +19,7 @@
   "external_steps": [
     { "ordine": 0, "institutie_id": "ocpi-ancpi",        "obligatoriu": true, "note": "Extras carte funciară actualizat (max 30 zile)." },
     { "ordine": 0, "institutie_id": "auditor-energetic", "obligatoriu": true, "note": "Certificat de performanță energetică (vânzătorul furnizează)." },
-    { "ordine": 0, "institutie_id": "notariat-public",   "obligatoriu": true, "note": "Autentificarea contractului V-C." },
+    { "ordine": 0, "institutie_id": "notariat",   "obligatoriu": true, "note": "Autentificarea contractului V-C." },
     { "ordine": 0, "institutie_id": "anaf",              "obligatoriu": false, "note": "Declarare venit din vânzare imobil (dacă deținut sub 3 ani)." }
   ]
 }

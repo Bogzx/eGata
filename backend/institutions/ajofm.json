@@ -1,0 +1,10 @@
+{
+  "id": "ajofm",
+  "nume_scurt": "AJOFM",
+  "nume_complet": "Agenția Județeană pentru Ocuparea Forței de Muncă",
+  "scope": "Evidența șomerilor, indemnizație de șomaj, programe de formare.",
+  "url": "https://www.anofm.ro",
+  "phone": null,
+  "online_disponibil": false,
+  "note_ai_cannot_complete": "Adeverința de șomer se eliberează de AJOFM. CivicAI nu poate emite documente AJOFM."
+}
