@@ -92,7 +92,7 @@ export function MatchesPane() {
             className="civic-btn civic-btn-primary"
             onClick={() => void startProcedure(top.procedure_id)}
           >
-            Începe „{top.title}"
+            Începe „{top.title}&rdquo;
           </button>
         </div>
 
