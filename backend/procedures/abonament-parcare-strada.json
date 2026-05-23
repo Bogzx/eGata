@@ -22,9 +22,15 @@
     { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
     { "name": "cnp", "label": "CNP", "source": "profile", "required": true, "redact_in_voice": true },
     { "name": "adresa_domiciliu", "label": "Adresa de domiciliu", "source": "profile", "required": true },
+    { "name": "numar", "label": "Numărul (la adresa de domiciliu)", "source": "ask", "required": true },
+    { "name": "bloc", "label": "Blocul", "source": "ask", "required": false },
+    { "name": "apartament", "label": "Apartamentul", "source": "ask", "required": false },
+    { "name": "telefon", "label": "Telefon", "source": "profile", "required": true },
+    { "name": "email", "label": "Email", "source": "profile", "required": false },
     { "name": "nr_inmatriculare", "label": "Număr înmatriculare auto", "source": "ask", "required": true },
     { "name": "marca_model", "label": "Marca și modelul", "source": "ask", "required": true },
-    { "name": "zona_solicitata", "label": "Zona / strada solicitată", "source": "ask", "required": true }
+    { "name": "zona_solicitata", "label": "Zona / strada solicitată", "source": "ask", "required": true },
+    { "name": "data_cerere", "label": "Data cererii", "source": "ask", "required": true, "suggest_default": "today" }
   ],
   "template": "abonament-parcare-strada.tex",
   "next_steps": []

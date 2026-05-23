@@ -78,6 +78,8 @@
   body {
     height: 100%;
     margin: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
   }
   body {
     background: var(--c-bg);
@@ -484,8 +486,11 @@ html.dyslexic .doc-detail-h {
   transition: padding-bottom 0.55s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .civic-left.idle {
-  justify-content: space-between;
-  padding: 0 0 32vh;
+  /* Welcome flexes (justify-content: center inside) and the composer sits
+     at the natural bottom — gives a visually centered greeting without the
+     "void below the composer" feel the 32vh padding used to create. */
+  justify-content: flex-start;
+  padding-bottom: 0;
 }
 
 .civic-right {
@@ -647,6 +652,7 @@ html.dyslexic .doc-detail-h {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 18px 20px 8px;
   display: flex;
   flex-direction: column;
@@ -1013,6 +1019,7 @@ html.dyslexic .doc-detail-h {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 18px 24px;
   background: linear-gradient(180deg, var(--c-bg) 0%, transparent 40px), var(--c-card-solid);
 }
@@ -1239,6 +1246,7 @@ html.dyslexic .doc-detail-h {
   list-style: none;
   margin: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   flex: 1;
 }
 .drawer-body > li {
@@ -1420,6 +1428,7 @@ html.dyslexic .doc-detail-h {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 24px 28px 28px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1692,9 +1701,6 @@ html.dyslexic .doc-detail-h {
   .suggest-grid {
     grid-template-columns: 1fr;
     max-width: 100%;
-  }
-  .civic-left.idle {
-    padding-bottom: 18vh;
   }
 
   /* ---- DocPaper (mobile) ---- */

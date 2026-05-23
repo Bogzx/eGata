@@ -18,7 +18,19 @@
   "fields": [
     { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
     { "name": "cnp", "label": "CNP", "source": "profile", "required": true, "redact_in_voice": true },
-    { "name": "scop", "label": "Scopul cererii", "source": "ask", "required": true }
+    { "name": "ci_seria", "label": "Seria CI", "source": "id_scan|profile", "required": true },
+    { "name": "ci_numar", "label": "Număr CI", "source": "id_scan|profile", "required": true },
+    { "name": "localitate", "label": "Localitatea de domiciliu", "source": "ask", "required": true },
+    { "name": "strada", "label": "Strada", "source": "ask", "required": true },
+    { "name": "numar", "label": "Numărul", "source": "ask", "required": true },
+    { "name": "bloc", "label": "Blocul", "source": "ask", "required": false },
+    { "name": "apartament", "label": "Apartamentul", "source": "ask", "required": false },
+    { "name": "judet", "label": "Județul / Sectorul", "source": "ask", "required": true },
+    { "name": "telefon", "label": "Telefon", "source": "profile", "required": true },
+    { "name": "email", "label": "Email", "source": "profile", "required": false },
+    { "name": "adresa_corespondenta", "label": "Adresa de corespondență (dacă diferă)", "source": "ask", "required": false },
+    { "name": "scop", "label": "Scopul cererii", "source": "ask", "required": true },
+    { "name": "data_cerere", "label": "Data cererii", "source": "ask", "required": true, "suggest_default": "today" }
   ],
   "template": "situatie-debite.tex",
   "next_steps": []

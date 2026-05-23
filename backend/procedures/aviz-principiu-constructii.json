@@ -20,9 +20,12 @@
   "fields": [
     { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
     { "name": "cnp", "label": "CNP", "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "telefon", "label": "Telefon", "source": "profile", "required": true },
+    { "name": "email", "label": "Email", "source": "profile", "required": false },
     { "name": "adresa_imobil", "label": "Adresa imobil", "source": "ask", "required": true },
     { "name": "tip_lucrare", "label": "Tip lucrare", "source": "ask", "required": true },
-    { "name": "afectare_arbori", "label": "Arbori/plantări afectate", "source": "ask", "required": false }
+    { "name": "afectare_arbori", "label": "Arbori/plantări afectate", "source": "ask", "required": false },
+    { "name": "data_cerere", "label": "Data cererii", "source": "ask", "required": true, "suggest_default": "today" }
   ],
   "template": "aviz-principiu-constructii.tex",
   "next_steps": []
