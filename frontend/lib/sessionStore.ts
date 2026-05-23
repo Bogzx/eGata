@@ -200,6 +200,20 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   async handleFrontendEvent(event) {
     switch (event.type) {
       case "document_opened": {
+        // Carry the in-flight conversation forward when the AGENT opens a
+        // brand-new doc via start_procedure (vs. the user explicitly clicking
+        // a procedure card, which goes through startProcedure() and already
+        // carries state). Without this, loadDocument reads LS_CONV_KEY /
+        // LS_MSG_KEY for a freshly-created docId, finds nothing, and resets
+        // the in-memory store — so the next chat turn ships with conv=null
+        // and the backend spawns a brand-new session, losing the entire
+        // prior conversation. Persist current state to the new doc's LS keys
+        // before loadDocument reads them.
+        const { conversationId, messages, activeDocId } = get();
+        if (activeDocId !== event.document_id) {
+          if (conversationId) saveConvId(event.document_id, conversationId);
+          if (messages.length > 0) saveMessages(event.document_id, messages);
+        }
         try {
           await get().loadDocument(event.document_id);
         } catch (err) {
