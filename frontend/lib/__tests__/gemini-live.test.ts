@@ -45,14 +45,23 @@ Salut! Cu ce te pot ajuta legat de procedurile primăriei?`;
     expect(scrubAgentText("   ")).toBe("");
   });
 
-  it("removes stray bold-header lines anywhere in the response", () => {
+  it("PRESERVES Romanian bold headings — diacritics signal a real header", () => {
+    const input = `**Pași:**
+
+Mai întâi spune-mi adresa nouă.`;
+    const out = scrubAgentText(input);
+    expect(out).toContain("**Pași:**");
+    expect(out).toContain("Mai întâi");
+  });
+
+  it("PRESERVES a stray bold line mid-message (no longer blanket-stripped)", () => {
     const input = `Salut!
 
-**Identifying procedure**
+**Continuăm**
 
 Cum locuiești?`;
     const out = scrubAgentText(input);
-    expect(out).not.toContain("**Identifying");
+    expect(out).toContain("**Continuăm**");
     expect(out).toContain("Salut!");
     expect(out).toContain("Cum locuiești?");
   });

@@ -6,10 +6,10 @@ True only when every dependency is reachable / configured.
 from __future__ import annotations
 
 import logging
-import os
 
 from fastapi import APIRouter
 
+from app.config import get_settings
 from app.db import get_pg_connection
 
 log = logging.getLogger(__name__)
@@ -29,9 +29,12 @@ def _check_supabase() -> bool:
 
 @router.get("/healthz")
 def healthz() -> dict[str, object]:
+    # Read from Settings (which honors .env via pydantic-settings) rather than
+    # raw os.environ so the check doesn't lie when only .env is set.
+    settings = get_settings()
     checks = {
         "supabase": _check_supabase(),
-        "gemini_key": bool(os.environ.get("GEMINI_API_KEY")),
-        "twilio_token": bool(os.environ.get("TWILIO_AUTH_TOKEN")),
+        "gemini_key": bool(settings.gemini_api_key),
+        "twilio_token": bool(settings.twilio_auth_token),
     }
     return {"ok": all(checks.values()), "checks": checks}

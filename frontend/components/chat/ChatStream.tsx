@@ -34,11 +34,22 @@ function renderWidget(w: WidgetSpec, onSubmit: (v: string) => void) {
   return <Comp spec={w} onSubmit={onSubmit} />;
 }
 
-function MsgUser({ text }: { text: string }) {
+function StreamingCaret() {
+  return (
+    <span aria-hidden="true" className="ml-0.5 inline-block w-[1ch] animate-pulse">
+      |
+    </span>
+  );
+}
+
+function MsgUser({ text, streaming }: { text: string; streaming?: boolean }) {
   return (
     <div className="msg msg-user">
       <span className="sr-only">Tu:</span>
-      <div className="bubble bubble-user">{text}</div>
+      <div className="bubble bubble-user">
+        {text}
+        {streaming ? <StreamingCaret /> : null}
+      </div>
     </div>
   );
 }
@@ -46,10 +57,12 @@ function MsgUser({ text }: { text: string }) {
 function MsgAgent({
   text,
   widgets,
+  streaming,
   onWidgetSubmit,
 }: {
   text: string;
   widgets?: WidgetSpec[];
+  streaming?: boolean;
   onWidgetSubmit: (w: WidgetSpec, v: string) => void;
 }) {
   return (
@@ -73,7 +86,10 @@ function MsgAgent({
           CivicAI
         </div>
         <span className="sr-only">CivicAI:</span>
-        <div>{text}</div>
+        <div>
+          {text}
+          {streaming ? <StreamingCaret /> : null}
+        </div>
         {widgets && widgets.length > 0 ? (
           <div className="widget">
             {widgets.map((w) => (
@@ -99,11 +115,16 @@ function MsgSystem({ text }: { text: string }) {
 export function ChatStream({ onWidgetSubmit }: Props) {
   const messages = useSessionStore((s) => s.messages);
   const sending = useSessionStore((s) => s.sending);
+  const pendingUser = useSessionStore((s) => s.pendingUser);
+  const pendingAgent = useSessionStore((s) => s.pendingAgent);
   const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, sending]);
+  }, [messages, sending, pendingUser?.text, pendingAgent?.text]);
+
+  const showTyping =
+    sending && !(pendingAgent && pendingAgent.text.trim().length > 0);
 
   return (
     <ol
@@ -128,7 +149,30 @@ export function ChatStream({ onWidgetSubmit }: Props) {
           )}
         </li>
       ))}
-      {sending ? (
+
+      {pendingUser && pendingUser.text.trim() ? (
+        <li
+          key={`pending-user-${pendingUser.id}`}
+          aria-label="Mesajul tău se transcrie"
+        >
+          <MsgUser text={cleanText(pendingUser.text)} streaming />
+        </li>
+      ) : null}
+
+      {pendingAgent && pendingAgent.text.trim() ? (
+        <li
+          key={`pending-agent-${pendingAgent.id}`}
+          aria-label="Asistentul răspunde"
+        >
+          <MsgAgent
+            text={cleanText(pendingAgent.text)}
+            streaming
+            onWidgetSubmit={onWidgetSubmit}
+          />
+        </li>
+      ) : null}
+
+      {showTyping ? (
         <li aria-label="Asistentul scrie">
           <div className="msg msg-agent">
             <div className="agent-avatar" aria-hidden="true">
@@ -153,6 +197,7 @@ export function ChatStream({ onWidgetSubmit }: Props) {
           </div>
         </li>
       ) : null}
+
       <div ref={endRef} aria-hidden />
     </ol>
   );
