@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { Check, Pencil } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import { useSessionStore } from "@/lib/sessionStore";
+import { DocPane } from "./DocPane";
 
 export function ReviewPane() {
   const procedure = useSessionStore((s) => s.procedure);
@@ -42,77 +42,137 @@ export function ReviewPane() {
     }
   }
 
+  const refNumber =
+    document.ref_number ?? document.id.slice(0, 8).toUpperCase();
+
   return (
-    <article className="mx-auto max-w-2xl space-y-5 p-6">
-      <header>
-        <p className="text-xs uppercase tracking-wider text-muted-foreground">
-          Verifică datele
-        </p>
-        <h2 className="mt-1 text-2xl font-semibold">{procedure.title}</h2>
-      </header>
-
-      <ul className="space-y-2">
-        {procedure.fields.map((f) => {
-          const v = document.fields[f.name];
-          const filled = v !== undefined && v !== null && String(v).length > 0;
-          const isEditing = editing === f.name;
-          return (
-            <li
-              key={f.name}
-              className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-lg border bg-card p-3 text-sm"
+    <DocPane
+      eyebrow="Verifică datele"
+      title={procedure.title}
+      refNumber={refNumber}
+      actions={
+        <>
+          <button
+            type="button"
+            className="civic-btn civic-btn-ghost"
+            onClick={() =>
+              transition({ kind: "filling", activeField: undefined })
+            }
+          >
+            Înapoi la editare
+          </button>
+          <button
+            type="button"
+            className="civic-btn civic-btn-primary"
+            onClick={() => void generatePdf()}
+            disabled={generating}
+          >
+            {generating ? "Se generează…" : "Generează PDF"}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
             >
-              <div>
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                  {f.label}
-                </p>
-                {isEditing ? (
-                  <Input
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void commitEdit(f.name);
-                    }}
-                    autoFocus
-                  />
-                ) : (
-                  <p className={filled ? "" : "text-muted-foreground"}>
-                    {filled ? String(v) : "—"}
-                  </p>
-                )}
-              </div>
-              {isEditing ? (
-                <Button
-                  size="icon"
-                  onClick={() => void commitEdit(f.name)}
-                  aria-label="Salvează"
-                >
-                  <Check size={14} />
-                </Button>
-              ) : (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => {
-                    setEditing(f.name);
-                    setDraft(filled ? String(v) : "");
-                  }}
-                  aria-label={`Editează ${f.label}`}
-                >
-                  <Pencil size={14} />
-                </Button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+              <path d="M5 12h14M13 5l7 7-7 7" />
+            </svg>
+          </button>
+        </>
+      }
+    >
+      <div className="doc-paper">
+        <div className="doc-header">
+          <div className="doc-stamp">
+            PRIMĂRIA
+            <br />
+            CLUJ-NAPOCA
+          </div>
+          <div className="doc-paper-meta">
+            <div>
+              Cerere nr. <strong>{refNumber}</strong>
+            </div>
+            <div>
+              Data:{" "}
+              {new Date(document.created_at).toLocaleDateString("ro-RO")}
+            </div>
+          </div>
+        </div>
+        <div className="doc-title">{procedure.title}</div>
 
-      <Button
-        onClick={() => void generatePdf()}
-        disabled={generating}
-        size="lg"
-      >
-        {generating ? "Se generează..." : "Generează PDF"}
-      </Button>
-    </article>
+        <table className="doc-fields">
+          <tbody>
+            {procedure.fields.map((f) => {
+              const v = document.fields[f.name];
+              const filled =
+                v !== undefined && v !== null && String(v).length > 0;
+              const isEditing = editing === f.name;
+              return (
+                <tr key={f.name}>
+                  <td className="doc-label">
+                    {f.label}
+                    {f.required ? <span aria-hidden> *</span> : null}
+                  </td>
+                  <td className="doc-value">
+                    {isEditing ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={draft}
+                          onChange={(e) => setDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void commitEdit(f.name);
+                            if (e.key === "Escape") {
+                              setEditing(null);
+                              setDraft("");
+                            }
+                          }}
+                          autoFocus
+                          className="h-7"
+                        />
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          onClick={() => void commitEdit(f.name)}
+                          aria-label="Salvează"
+                        >
+                          <Check size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="flex items-center justify-between gap-2">
+                        <span>
+                          {filled ? (
+                            String(v)
+                          ) : (
+                            <span className="doc-empty">…</span>
+                          )}
+                          {(f.source === "roeid" || f.source === "citizen") &&
+                          filled ? (
+                            <span className="doc-auto">✓ auto</span>
+                          ) : null}
+                        </span>
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          onClick={() => {
+                            setEditing(f.name);
+                            setDraft(filled ? String(v) : "");
+                          }}
+                          aria-label={`Editează ${f.label}`}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </DocPane>
   );
 }

@@ -1,14 +1,63 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore } from "@/lib/sessionStore";
-import type { Document, Procedure, Reminder } from "@/lib/types";
+import type {
+  Document,
+  LedgerEntry,
+  Procedure,
+  Reminder,
+} from "@/lib/types";
+import { DocPaper, type DocPaperField } from "@/components/right-pane/DocPaper";
+
+const ICON_BY_CATEGORY: Record<string, string> = {
+  acte: "🪪",
+  domiciliu: "🏠",
+  fiscal: "🧾",
+  venit: "📄",
+  copii: "👶",
+  vehicul: "🚗",
+  sanatate: "🩺",
+  nastere: "📜",
+};
+
+function iconFor(category: string): string {
+  for (const [k, v] of Object.entries(ICON_BY_CATEGORY)) {
+    if (category.includes(k)) return v;
+  }
+  return "📋";
+}
+
+function statusKind(d: Document): "ok" | "wip" {
+  return d.status === "finalized" ? "ok" : "wip";
+}
+
+function statusLabel(d: Document): string {
+  return d.status === "finalized" ? "Trimisă" : "În lucru";
+}
+
+function formatDate(s: string): string {
+  try {
+    return new Date(s).toLocaleDateString("ro-RO");
+  } catch {
+    return s;
+  }
+}
+
+function shortHash(s: string): string {
+  if (!s) return "";
+  return s.slice(0, 4) + "…" + s.slice(-4);
+}
+
+const EVENT_LABELS: Record<LedgerEntry["event_type"], string> = {
+  doc_created: "Document creat",
+  completed_draft: "Schiță finalizată",
+  pdf_generated: "PDF generat",
+  delivered: "Trimis la primărie",
+  redirected: "Redirecționat",
+  reminder_created: "Amintire setată",
+};
 
 export function DocumentsDrawer() {
   const open = useSessionStore((s) => s.drawerOpen);
@@ -18,6 +67,15 @@ export function DocumentsDrawer() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+
+  // Detail panel state
+  const [viewingDoc, setViewingDoc] = useState<Document | null>(null);
+  const [viewingDocOpen, setViewingDocOpen] = useState(false);
+  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
+  const closeTimer = useRef<number | null>(null);
+
+  const drawerCloseBtnRef = useRef<HTMLButtonElement | null>(null);
+  const detailCloseBtnRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -32,140 +90,422 @@ export function DocumentsDrawer() {
     });
   }, [open]);
 
+  function openDocDetail(d: Document) {
+    if (closeTimer.current) {
+      window.clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+    setViewingDoc(d);
+    setLedger([]);
+    void api
+      .getDocumentLedger(d.id)
+      .then((r) => setLedger(r.entries))
+      .catch(() => setLedger([]));
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        setViewingDocOpen(true);
+        window.setTimeout(
+          () => detailCloseBtnRef.current?.focus(),
+          380,
+        );
+      }),
+    );
+  }
+
+  function closeDocDetail() {
+    setViewingDocOpen(false);
+    closeTimer.current = window.setTimeout(() => {
+      setViewingDoc(null);
+      setLedger([]);
+    }, 380);
+  }
+
+  useEffect(() => {
+    if (!open) {
+      setViewingDocOpen(false);
+      setViewingDoc(null);
+      setLedger([]);
+    } else {
+      window.setTimeout(() => drawerCloseBtnRef.current?.focus(), 50);
+    }
+  }, [open]);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
+      if (e.key !== "Escape") return;
+      if (viewingDoc) {
+        closeDocDetail();
+        return;
+      }
+      if (open) close();
     }
     if (open) document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, close]);
+  }, [open, close, viewingDoc]);
+
+  // Make the chat shell behind us inert while the drawer is open.
+  useEffect(() => {
+    const shell = document.querySelector<HTMLElement>(".civic-shell");
+    if (!shell) return;
+    if (open) shell.setAttribute("inert", "");
+    else shell.removeAttribute("inert");
+    return () => shell.removeAttribute("inert");
+  }, [open]);
+
+  if (!open) return null;
 
   const titleOf = (id: string) =>
     procedures.find((p) => p.id === id)?.title ?? id;
+  const categoryOf = (id: string) =>
+    procedures.find((p) => p.id === id)?.category ?? "";
   const pending = reminders.filter((r) => r.status === "pending");
 
   return (
-    <AnimatePresence>
-      {open ? (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-40 bg-black/30"
+    <div
+      className="drawer-back"
+      onClick={close}
+      role="presentation"
+    >
+      {viewingDoc ? (
+        <DocDetail
+          doc={viewingDoc}
+          procedure={procedures.find((p) => p.id === viewingDoc.procedure_id)}
+          isOpen={viewingDocOpen}
+          ledger={ledger}
+          closeBtnRef={detailCloseBtnRef}
+          onClose={closeDocDetail}
+          onUse={() => {
+            void loadDocument(viewingDoc.id);
+            close();
+          }}
+        />
+      ) : null}
+
+      <section
+        className="drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="drawer-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="drawer-head">
+          <h2 id="drawer-title">Documentele mele</h2>
+          <button
+            ref={drawerCloseBtnRef}
+            type="button"
+            className="icon-btn"
             onClick={close}
-            aria-hidden
-          />
-          <motion.aside
-            initial={{ x: -380 }}
-            animate={{ x: 0 }}
-            exit={{ x: -380 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="fixed inset-y-0 left-0 z-50 flex w-[380px] max-w-[90vw] flex-col border-r bg-background shadow-xl"
-            role="dialog"
-            aria-label="Documentele mele"
+            aria-label="Închide Documentele mele"
           >
-            <header className="flex items-center justify-between border-b px-4 py-3">
-              <h2 className="text-lg font-semibold">Documentele mele</h2>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={close}
-                aria-label="Închide"
-              >
-                <X size={18} />
-              </Button>
-            </header>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </header>
 
-            <div className="flex-1 overflow-y-auto p-3">
-              {pending.length > 0 ? (
-                <section className="mb-4">
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Pentru tine acum
-                  </p>
-                  <ul className="space-y-2">
-                    {pending.map((r) => (
-                      <li key={r.id}>
-                        <Card>
-                          <CardContent className="space-y-2 p-3">
-                            <p className="text-sm font-medium">{r.title}</p>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                onClick={async () => {
-                                  const out = await api.startReminder(r.id);
-                                  await loadDocument(out.document_id);
-                                }}
-                              >
-                                Începe
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={async () => {
-                                  await api.dismissReminder(r.id);
-                                  setReminders((rs) =>
-                                    rs.filter((x) => x.id !== r.id),
-                                  );
-                                }}
-                              >
-                                Renunță
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
-              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Documentele mele
-              </p>
-              {documents.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Niciun document încă.
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {documents.map((d) => (
-                    <li key={d.id}>
+        <ul className="drawer-body" role="list">
+          {pending.length > 0 ? (
+            <>
+              <li>
+                <p className="drawer-section-label">Pentru tine acum</p>
+              </li>
+              {pending.map((r) => (
+                <li key={`reminder-${r.id}`}>
+                  <div
+                    className={`reminder-card ${
+                      r.due_date && new Date(r.due_date) < new Date()
+                        ? "kind-warning"
+                        : ""
+                    }`}
+                  >
+                    <p className="reminder-title">{r.title}</p>
+                    {r.due_date ? (
+                      <p className="text-xs text-muted-foreground">
+                        Termen: {formatDate(r.due_date)}
+                      </p>
+                    ) : null}
+                    <div className="reminder-actions">
                       <button
                         type="button"
-                        onClick={() => void loadDocument(d.id)}
-                        className="w-full rounded-lg border bg-card p-3 text-left text-sm transition hover:bg-accent/40 focus:outline-none focus:ring-2"
+                        className="civic-btn civic-btn-primary"
+                        onClick={async () => {
+                          const out = await api.startReminder(r.id);
+                          await loadDocument(out.document_id);
+                          close();
+                        }}
                       >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">
-                              {titleOf(d.procedure_id)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(d.created_at).toLocaleDateString("ro-RO")}
-                            </p>
-                            {d.ref_number ? (
-                              <p className="font-mono text-xs text-muted-foreground">
-                                {d.ref_number}
-                              </p>
-                            ) : null}
-                          </div>
-                          {d.status === "finalized" ? (
-                            <Badge>Trimisă</Badge>
-                          ) : (
-                            <Badge variant="secondary">În lucru</Badge>
-                          )}
-                        </div>
+                        Începe
                       </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                      <button
+                        type="button"
+                        className="civic-btn civic-btn-ghost"
+                        onClick={async () => {
+                          await api.dismissReminder(r.id);
+                          setReminders((rs) =>
+                            rs.filter((x) => x.id !== r.id),
+                          );
+                        }}
+                      >
+                        Renunță
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </>
+          ) : null}
+
+          <li>
+            <p className="drawer-section-label">Documentele mele</p>
+          </li>
+
+          {documents.length === 0 ? (
+            <li>
+              <p className="text-sm text-muted-foreground p-3">
+                Niciun document încă.
+              </p>
+            </li>
+          ) : (
+            documents.map((d) => {
+              const isActive = viewingDoc?.id === d.id && viewingDocOpen;
+              const title = titleOf(d.procedure_id);
+              const cat = categoryOf(d.procedure_id);
+              const refNum =
+                d.ref_number ?? d.id.slice(0, 8).toUpperCase();
+              return (
+                <li key={d.id}>
+                  <button
+                    type="button"
+                    className={"doc-row " + (isActive ? "is-active" : "")}
+                    aria-pressed={isActive}
+                    aria-label={`${title}, număr ${refNum}, ${statusLabel(d)}. ${isActive ? "Închide" : "Deschide"} previzualizarea.`}
+                    onClick={() =>
+                      isActive ? closeDocDetail() : openDocDetail(d)
+                    }
+                  >
+                    <span className="doc-icon" aria-hidden="true">
+                      {iconFor(cat)}
+                    </span>
+                    <span className="doc-meta">
+                      <span className="doc-name">{title}</span>
+                      <span className="doc-num">{refNum}</span>
+                    </span>
+                    <span
+                      className={`doc-status k-${statusKind(d)}`}
+                      aria-hidden="true"
+                    >
+                      {statusLabel(d)}
+                    </span>
+                    <svg
+                      className="doc-row-arrow"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </button>
+                </li>
+              );
+            })
+          )}
+        </ul>
+      </section>
+    </div>
+  );
+}
+
+type DocDetailProps = {
+  doc: Document;
+  procedure: Procedure | undefined;
+  isOpen: boolean;
+  ledger: LedgerEntry[];
+  closeBtnRef: React.MutableRefObject<HTMLButtonElement | null>;
+  onClose: () => void;
+  onUse: () => void;
+};
+
+function DocDetail({
+  doc,
+  procedure,
+  isOpen,
+  ledger,
+  closeBtnRef,
+  onClose,
+  onUse,
+}: DocDetailProps) {
+  const refNum = doc.ref_number ?? doc.id.slice(0, 8).toUpperCase();
+  const title = procedure?.title ?? "Document";
+  const status = statusLabel(doc);
+  const kind = statusKind(doc);
+
+  const fields: DocPaperField[] = procedure
+    ? procedure.fields.map((f) => {
+        const v = doc.fields[f.name];
+        return {
+          label: f.label,
+          value: v !== undefined && v !== null ? String(v) : "",
+          auto: f.source === "roeid" || f.source === "citizen",
+        };
+      })
+    : [];
+
+  const fallbackHistory: LedgerEntry[] =
+    ledger.length > 0
+      ? ledger
+      : [
+          {
+            id: 0,
+            event_type: "doc_created",
+            payload_hash: "",
+            prev_hash: "",
+            row_hash: doc.id,
+            created_at: doc.created_at,
+          },
+        ];
+
+  return (
+    <section
+      className={"doc-detail " + (isOpen ? "is-open" : "")}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <header className="doc-detail-head">
+        <button
+          ref={closeBtnRef}
+          type="button"
+          className="icon-btn"
+          onClick={onClose}
+          aria-label="Închide previzualizarea documentului"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <div className="doc-detail-titles">
+          <div className="doc-detail-eyebrow">{refNum}</div>
+          <h2 className="doc-detail-h">{title}</h2>
+        </div>
+        <div
+          className={`doc-status k-${kind}`}
+          aria-label={`Stare: ${status}`}
+        >
+          {status}
+        </div>
+      </header>
+
+      <div className="doc-detail-body">
+        <div className="doc-detail-meta">
+          <div>
+            <div className="dm-label">Emis</div>
+            <div className="dm-value">{formatDate(doc.created_at)}</div>
+          </div>
+          <div>
+            <div className="dm-label">
+              {doc.status === "finalized" ? "Trimis" : "Stare"}
             </div>
-          </motion.aside>
-        </>
-      ) : null}
-    </AnimatePresence>
+            <div className="dm-value">
+              {doc.delivered_at ? formatDate(doc.delivered_at) : status}
+            </div>
+          </div>
+          <div>
+            <div className="dm-label">Verificat</div>
+            <div className="dm-value">
+              <span className="check" aria-hidden="true">
+                ✓
+              </span>
+              ROeID
+            </div>
+          </div>
+        </div>
+
+        <DocPaper
+          detail
+          stamp={"PRIMĂRIA\nCLUJ-NAPOCA"}
+          refNumber={refNum}
+          date={formatDate(doc.created_at)}
+          title={title}
+          fields={fields}
+          final={doc.status === "finalized"}
+        />
+
+        <div className="doc-detail-history">
+          <div className="dh-title">Istoric · audit ledger</div>
+          <ol className="dh-list">
+            {fallbackHistory.map((e, i) => (
+              <li key={e.id ?? i}>
+                <span
+                  className={
+                    "dh-dot " +
+                    (i === fallbackHistory.length - 1
+                      ? "dh-dot-current"
+                      : "")
+                  }
+                />
+                <div>
+                  <div className="dh-event">
+                    {EVENT_LABELS[e.event_type] ?? e.event_type}
+                  </div>
+                  <div className="dh-meta">
+                    {formatDate(e.created_at)}
+                    {e.row_hash ? (
+                      <>
+                        {" · hash "}
+                        <code>{shortHash(e.row_hash)}</code>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+
+      <div className="doc-detail-actions">
+        <button
+          type="button"
+          className="civic-btn civic-btn-secondary"
+          onClick={onUse}
+        >
+          Deschide în chat
+        </button>
+        {doc.pdf_url ? (
+          <a
+            className="civic-btn civic-btn-secondary"
+            href={doc.pdf_url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Descarcă PDF
+          </a>
+        ) : null}
+      </div>
+    </section>
   );
 }
