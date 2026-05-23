@@ -41,8 +41,14 @@ export type StreamChatHandlers = {
   onDelta?: (text: string) => void;
   /** Fired BEFORE the tool runs server-side. */
   onToolCall?: (call: StreamChatToolCall) => void;
-  /** Fired AFTER the tool runs server-side with its raw output. */
-  onToolResult?: (name: string, output: unknown) => void;
+  /** Fired AFTER the tool runs server-side. `error` is set when the tool
+   * raised or refused; `output` contains the tool's payload (may still be
+   * useful for partial-success cases like an illegal-transition warning). */
+  onToolResult?: (
+    name: string,
+    output: unknown,
+    error: string | null,
+  ) => void;
   /** SP4: full session-state snapshot pushed by the server after every mutation. */
   onSessionSnapshot?: (snapshot: import("./types").SessionSnapshot) => void;
   /** SP4: structured frontend event from a tool (document_opened, widget_proposed, etc.). */
@@ -170,8 +176,12 @@ function dispatchFrame(frame: ParsedFrame, h: StreamChatHandlers): void {
       return;
     }
     case "tool_result": {
-      const p = payload as { name?: string; output?: unknown };
-      if (p.name) h.onToolResult?.(p.name, p.output);
+      const p = payload as {
+        name?: string;
+        output?: unknown;
+        error?: string | null;
+      };
+      if (p.name) h.onToolResult?.(p.name, p.output, p.error ?? null);
       return;
     }
     case "session_snapshot": {

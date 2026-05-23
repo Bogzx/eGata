@@ -43,6 +43,7 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   const loadDocument = useSessionStore((s) => s.loadDocument);
   const openScenarioPlan = useSessionStore((s) => s.openScenarioPlan);
   const sendText = useSessionStore((s) => s.sendText);
+  const submitWidget = useSessionStore((s) => s.submitWidget);
   const appendMessage = useSessionStore((s) => s.appendMessage);
   const setVoiceStatus = useSessionStore((s) => s.setVoiceStatus);
   const reset = useSessionStore((s) => s.reset);
@@ -157,8 +158,11 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
     await sendText(t);
   }
 
-  function onWidgetSubmit(_spec: WidgetSpec, value: string) {
-    void onSendText(value);
+  function onWidgetSubmit(spec: WidgetSpec, value: string) {
+    // Widget submissions go through the dedicated endpoint that resolves
+    // the pending widget server-side and calls set_field directly when a
+    // target_field is bound. No more LLM guessing.
+    void submitWidget(spec, value);
   }
 
   if (!citizen) {

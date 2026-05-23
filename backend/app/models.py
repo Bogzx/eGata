@@ -196,6 +196,36 @@ class AgentChatResponse(BaseModel):
     tool_calls: list[ChatToolCall] = Field(default_factory=list)
 
 
+class WidgetResultRequest(BaseModel):
+    """Frontend submission of a previously-proposed widget answer.
+
+    The bridge resolves the pending widget by id, applies the answer
+    directly (via set_field when a target_field is bound), and pushes the
+    updated snapshot back — bypassing the LLM round-trip that used to
+    re-parse "Da" / "27.04.2026" / "proprietar" as plain text.
+    """
+    conversation_id: str
+    widget_id: str
+    # Value may be string (choice/date), bool (confirm), or numeric.
+    value: Any
+
+
+class WidgetResultEvent(BaseModel):
+    """One sub-event surfaced as a side-effect of widget resolution."""
+    kind: Literal["tool_result", "frontend_event"]
+    name: str | None = None
+    output: dict[str, Any] | None = None
+    error: str | None = None
+    event: dict[str, Any] | None = None
+
+
+class WidgetResultResponse(BaseModel):
+    conversation_id: str
+    snapshot: dict[str, Any]
+    user_message: str
+    events: list[WidgetResultEvent] = Field(default_factory=list)
+
+
 class ReminderResponse(BaseModel):
     id: UUID
     citizen_id: UUID

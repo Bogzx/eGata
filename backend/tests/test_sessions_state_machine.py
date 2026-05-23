@@ -38,6 +38,20 @@ def test_scenario_continuation_from_delivered():
     assert s.state is SessionState.CONFIRMING_MATCH
 
 
+def test_scenario_chain_skips_confirm_from_delivered():
+    """start_procedure on a scenario step 2 jumps DELIVERED → FILLING."""
+    s = Session(id="sess_x", citizen_id="abc", state=SessionState.DELIVERED)
+    transition(s, SessionState.FILLING)
+    assert s.state is SessionState.FILLING
+
+
+def test_legacy_doc_injection_exploring_to_filling():
+    """Frontend's startProcedure REST path jumps EXPLORING → FILLING directly."""
+    s = Session(id="sess_x", citizen_id="abc")
+    transition(s, SessionState.FILLING)
+    assert s.state is SessionState.FILLING
+
+
 def test_filling_to_delivered_is_illegal():
     s = Session(id="sess_x", citizen_id="abc", state=SessionState.FILLING)
     with pytest.raises(IllegalTransitionError):

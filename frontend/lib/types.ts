@@ -227,18 +227,23 @@ export type WidgetSpec =
       options: string[];
       targetField: string;
       widgetId: string;
+      // Set by the store when the user submits. Persisted in localStorage
+      // so reloads don't re-arm the widget for a second submission.
+      submittedValue?: string | null;
     }
   | {
       type: "confirm";
       question: string;
       onConfirmTool?: string;
       widgetId: string;
+      submittedValue?: string | null;
     }
   | {
       type: "date";
       question: string;
       targetField: string;
       widgetId: string;
+      submittedValue?: string | null;
     };
 
 export type Message =
@@ -272,6 +277,9 @@ export type SessionSnapshot = {
   scenario_id: string | null;
   step_index: number | null;
   pending_widgets: PendingWidget[];
+  /** Monotonic per-process counter from the backend. The store drops
+   * any snapshot whose seq is lower than the last applied one. */
+  seq?: number;
 };
 
 // Frontend events pushed by tools. The store reacts to these directly

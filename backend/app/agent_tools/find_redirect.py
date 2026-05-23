@@ -1,7 +1,8 @@
 """find_redirect — detect out-of-primărie scope, transition to REDIRECTED.
 
-Valid in all states (we want to honestly redirect even mid-filling if the
-citizen pivots to "actually I need a different agency"). Transition to
+Valid only when the citizen is NOT actively filling a document — mid-fill
+mentions ("vreau și impozit cândva") shouldn't blow away the half-filled
+doc. To exit a fill, the user has to explicitly abandon. Transition to
 REDIRECTED is requested only when a target is found.
 """
 from __future__ import annotations
@@ -108,8 +109,6 @@ register(
         valid_states={
             SessionState.EXPLORING,
             SessionState.CONFIRMING_MATCH,
-            SessionState.FILLING,
-            SessionState.REVIEWING,
             SessionState.DELIVERED,
             SessionState.REDIRECTED,
         },

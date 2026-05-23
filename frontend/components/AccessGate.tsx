@@ -3,7 +3,15 @@
 import { useEffect, useState, FormEvent } from "react";
 
 const STORAGE_KEY = "civicai.access";
-const PASSWORD = "noaiused";
+// Read from env so the password isn't hardcoded in the shipped JS bundle.
+// When unset, the gate is bypassed entirely — keeps local dev frictionless.
+// Note: NEXT_PUBLIC_* envs end up in the bundle anyway; this isn't real
+// security, just an obscurity layer for the demo URL. Real auth is the
+// JWT issued by /auth/otp.
+const PASSWORD =
+  (typeof process !== "undefined" &&
+    process.env.NEXT_PUBLIC_ACCESS_PASSWORD) ||
+  "";
 
 export function AccessGate({ children }: { children: React.ReactNode }) {
   const [unlocked, setUnlocked] = useState<boolean | null>(null);
@@ -12,6 +20,11 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // No password configured? Skip the gate.
+    if (!PASSWORD) {
+      setUnlocked(true);
+      return;
+    }
     setUnlocked(window.localStorage.getItem(STORAGE_KEY) === "1");
   }, []);
 

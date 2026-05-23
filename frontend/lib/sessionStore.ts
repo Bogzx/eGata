@@ -84,6 +84,15 @@ export interface SessionState {
   loadDocument(docId: string): Promise<void>;
   openScenarioPlan(scenarioId: string): Promise<void>;
   sendText(text: string, opts?: { viaWs?: boolean }): Promise<void>;
+  /** Abort the in-flight chat turn. Safe to call when no turn is running. */
+  abortCurrentTurn(): void;
+  /** Submit a previously-proposed widget's answer.
+   *
+   * Bypasses Gemini for the trivial "Da/Nu/option/date" case: the backend
+   * resolves the pending widget, runs set_field if appropriate, persists,
+   * and returns a fresh snapshot. The widget's spec is marked
+   * `submittedValue` so reloads don't re-arm it. */
+  submitWidget(widgetSpec: WidgetSpec, value: string): Promise<void>;
   appendMessage(m: Message): void;
 
   /** Live messages stream their content in-place — used by both text
@@ -108,6 +117,10 @@ export interface SessionState {
   reset(): void;
 }
 
+// Out-of-band ref so we don't try to store the AbortController in zustand
+// state (it's not serializable and triggers needless re-renders).
+let _currentAbort: AbortController | null = null;
+
 export const useSessionStore = create<SessionState>((set, get) => ({
   citizen: null,
   activeDocId: null,
@@ -124,6 +137,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   session: null,
 
   setSession(snapshot) {
+    const current = get().session;
+    // Drop stale snapshots if seq goes backwards — defense against
+    // out-of-order delivery on reconnects or future buffered transports.
+    if (
+      current &&
+      typeof current.seq === "number" &&
+      typeof snapshot.seq === "number" &&
+      snapshot.seq < current.seq &&
+      current.id === snapshot.id
+    ) {
+      return;
+    }
     set({ session: snapshot });
   },
 
@@ -318,6 +343,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const liveId = get().beginLiveMessage("agent");
     const collectedToolCalls: StreamChatToolCall[] = [];
     let finalText = "";
+    // Replace any stale controller from a prior turn that never cleared.
+    if (_currentAbort) _currentAbort.abort();
+    _currentAbort = new AbortController();
+    const signal = _currentAbort.signal;
     try {
       await streamChat(
         {
@@ -338,6 +367,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           onToolCall: (call) => {
             collectedToolCalls.push(call);
           },
+          onToolResult: (name, _output, error) => {
+            if (error) {
+              get().appendMessage({
+                id: makeId(),
+                role: "system",
+                text: `A apărut o eroare la pasul „${name}": ${error}`,
+              });
+            }
+          },
           onSessionSnapshot: (snapshot) => {
             get().setSession(snapshot);
           },
@@ -357,14 +395,21 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           },
           onError: (err) => {
             const detail = err instanceof Error ? err.message : "necunoscută";
+            // AbortError is the user's own intent; don't shout an error bubble.
+            const aborted =
+              err instanceof Error &&
+              (err.name === "AbortError" || detail.includes("aborted"));
             get().finalizeLiveMessage(liveId, finalText || "");
-            get().appendMessage({
-              id: makeId(),
-              role: "system",
-              text: `Eroare: ${detail}`,
-            });
+            if (!aborted) {
+              get().appendMessage({
+                id: makeId(),
+                role: "system",
+                text: `Eroare: ${detail}`,
+              });
+            }
           },
         },
+        signal,
       );
     } catch (err) {
       void err; // onError already pushed a system bubble + finalized
@@ -372,7 +417,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       // If onDone never fired (mid-stream abort), make sure the live
       // message is finalized so it stops showing the streaming caret.
       get().finalizeLiveMessage(liveId, finalText || "");
+      if (_currentAbort?.signal === signal) _currentAbort = null;
       set({ sending: false });
+    }
+  },
+
+  abortCurrentTurn() {
+    if (_currentAbort) {
+      _currentAbort.abort();
+      _currentAbort = null;
     }
   },
 
@@ -381,6 +434,80 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set({ messages: next });
     const id = get().activeDocId;
     if (id) saveMessages(id, next);
+  },
+
+  async submitWidget(widgetSpec, value) {
+    const { conversationId, activeDocId } = get();
+    if (!conversationId) {
+      // No active conversation — fall back to plain text so the agent
+      // hears the answer in its first turn.
+      void get().sendText(value);
+      return;
+    }
+
+    // 1. Optimistically mark the widget submitted so the UI disables it
+    //    immediately — protects against double-click.
+    const messages = get().messages;
+    const newMessages = messages.map((m) => {
+      if (m.role !== "agent" || !m.widgets) return m;
+      const updated = m.widgets.map((w) =>
+        w.widgetId === widgetSpec.widgetId ? { ...w, submittedValue: value } : w,
+      );
+      return { ...m, widgets: updated };
+    });
+    set({ messages: newMessages });
+    if (activeDocId) saveMessages(activeDocId, newMessages);
+
+    // 2. Append the user-side bubble so the transcript reads naturally.
+    get().appendMessage({
+      id: makeId(),
+      role: "user",
+      text: value,
+      via: "text",
+    });
+
+    // 3. Hit the backend; the structured response includes the new snapshot
+    //    plus any frontend_event (field_updated, etc).
+    try {
+      const res = await api.submitWidget({
+        conversation_id: conversationId,
+        widget_id: widgetSpec.widgetId,
+        value,
+      });
+      get().setSession(res.snapshot);
+      for (const ev of res.events) {
+        if (ev.kind === "frontend_event" && ev.event) {
+          void get().handleFrontendEvent(
+            ev.event as unknown as FrontendEvent,
+          );
+        } else if (ev.kind === "tool_result" && ev.error) {
+          get().appendMessage({
+            id: makeId(),
+            role: "system",
+            text: `Eroare la trimiterea răspunsului: ${ev.error}`,
+          });
+        }
+      }
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "necunoscută";
+      get().appendMessage({
+        id: makeId(),
+        role: "system",
+        text: `Nu am putut trimite răspunsul: ${detail}`,
+      });
+      // Roll back the optimistic submittedValue so user can retry.
+      const rolled = get().messages.map((m) => {
+        if (m.role !== "agent" || !m.widgets) return m;
+        const reverted = m.widgets.map((w) =>
+          w.widgetId === widgetSpec.widgetId
+            ? { ...w, submittedValue: null }
+            : w,
+        );
+        return { ...m, widgets: reverted };
+      });
+      set({ messages: rolled });
+      if (activeDocId) saveMessages(activeDocId, rolled);
+    }
   },
 
   beginLiveMessage(role) {

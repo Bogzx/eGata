@@ -140,6 +140,25 @@ export const api = {
     preferences?: VoicePreferences;
   }) => request<ChatResponse>("/agent/chat", { method: "POST", body: b }),
 
+  /** Resolve a pending widget without round-tripping through Gemini. */
+  submitWidget: (b: {
+    conversation_id: string;
+    widget_id: string;
+    value: unknown;
+  }) =>
+    request<{
+      conversation_id: string;
+      snapshot: import("./types").SessionSnapshot;
+      user_message: string;
+      events: Array<{
+        kind: "tool_result" | "frontend_event";
+        name?: string | null;
+        output?: Record<string, unknown> | null;
+        error?: string | null;
+        event?: Record<string, unknown> | null;
+      }>;
+    }>("/agent/widget-result", { method: "POST", body: b }),
+
   createVoiceSession: (b: {
     document_id?: string;
     preferences?: VoicePreferences;

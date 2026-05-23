@@ -26,15 +26,29 @@ the agent loop and the WebSocket bridge.
 """
 from __future__ import annotations
 
+import asyncio
 import enum
 import json
 import secrets
+import time
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
 from app.db import get_pg_connection
+
+
+def _next_snapshot_seq() -> int:
+    """Monotonic per-process counter for snapshot ordering.
+
+    The session_lock serializes turns on the same conversation, so within a
+    process snapshots already arrive in order. This seq is defense in depth
+    so the frontend can reject any obviously-stale snapshot that slips
+    through buffering / reconnect / future transports.
+    """
+    return time.monotonic_ns()
 
 
 class SessionState(str, enum.Enum):
@@ -52,6 +66,9 @@ _TRANSITIONS: dict[SessionState, set[SessionState]] = {
     SessionState.EXPLORING: {
         SessionState.EXPLORING,
         SessionState.CONFIRMING_MATCH,
+        # Legacy doc-injection path: frontend POSTs /documents then chats with
+        # an active document_id, so the transport jumps straight to FILLING.
+        SessionState.FILLING,
         SessionState.REDIRECTED,
     },
     SessionState.CONFIRMING_MATCH: {
@@ -76,6 +93,9 @@ _TRANSITIONS: dict[SessionState, set[SessionState]] = {
         SessionState.DELIVERED,
         SessionState.EXPLORING,
         SessionState.CONFIRMING_MATCH,  # scenario step continuation
+        # Scenario chain step 2: start_procedure opens the next doc and jumps
+        # straight to FILLING without an interactive confirm.
+        SessionState.FILLING,
     },
     SessionState.REDIRECTED: {
         SessionState.REDIRECTED,
@@ -122,6 +142,8 @@ class Session:
 
         Excludes `history` (large + agent-internal). Includes everything
         the frontend needs to render the right pane and live messages.
+        Each snapshot carries a monotonic `seq` so the frontend can drop
+        stale snapshots if reordering ever creeps in.
         """
         return {
             "id": self.id,
@@ -140,6 +162,7 @@ class Session:
                 }
                 for w in self.pending_widgets
             ],
+            "seq": _next_snapshot_seq(),
         }
 
     def add_pending_widget(self, w: PendingWidget) -> None:
@@ -267,6 +290,34 @@ def transition(session: Session, to_state: SessionState) -> Session:
 
 class IllegalTransitionError(ValueError):
     """Raised when a state transition is not permitted."""
+
+
+# ---- per-session in-process lock ----
+#
+# Single-worker scope (the demo runs one FastAPI process). Concurrent
+# transports (voice WS + text SSE on the same conversation, or two browser
+# tabs, or a reload mid-stream) all race on the same Session row. Without
+# a lock, fetch → mutate → update_session writes overwrite each other:
+# user message + model reply of the slower turn disappear.
+#
+# Multi-worker scale = swap this for a Postgres advisory lock (held on a
+# dedicated connection for the whole step duration). Out of scope for the
+# hackathon demo.
+
+_SESSION_LOCKS: dict[str, asyncio.Lock] = {}
+
+
+@asynccontextmanager
+async def session_lock(session_id: str):
+    """Async context manager: serialize concurrent step() calls per session.
+
+    Holds an asyncio.Lock per session_id for the full body. Other turns on
+    the same conversation queue rather than racing. The lock is held only
+    in-process; multi-worker deployments need a Postgres advisory lock.
+    """
+    lock = _SESSION_LOCKS.setdefault(session_id, asyncio.Lock())
+    async with lock:
+        yield
 
 
 def _row_to_session(row: dict[str, Any]) -> Session:

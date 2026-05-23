@@ -132,6 +132,12 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
         const ws = new VoiceWs({
           onReady: (convId) => {
             LOG("ready", convId);
+            // If the bridge picked up a stored conv_id, this is a no-op.
+            // If the backend minted a fresh one, capture it so subsequent
+            // text turns and voice reconnects target the same conversation.
+            if (convId && useSessionStore.getState().conversationId !== convId) {
+              useSessionStore.setState({ conversationId: convId });
+            }
             setState("listening");
           },
           onUserDelta: (text) => {
@@ -212,9 +218,14 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
         wsRef.current = ws;
 
         await ws.connect(voiceWsUrl());
+        // Reuse the existing conversation_id from the store so a voice
+        // reconnect picks up the text-chat history instead of getting a
+        // fresh `conv_*` minted server-side and an amnesic agent.
+        const existingConvId = useSessionStore.getState().conversationId;
         ws.sendStart({
           token: sess.access_token,
           documentId: opts.documentId,
+          conversationId: existingConvId ?? undefined,
           preferences: {
             simpleLanguage: opts.preferences?.simple_language,
             voiceOnly: opts.preferences?.voice_only,
