@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { prewarmMicPermission } from "./audioWorklet";
 import { useVoiceAgentBridge, type VoiceAgentHook } from "./useVoiceAgentBridge";
 
 // Why this file exists: ChatSurface was calling useVoiceAgentBridge directly,
@@ -19,6 +20,14 @@ const VoiceContext = createContext<VoiceAgentHook | null>(null);
 
 export function VoiceProvider({ children }: { children: ReactNode }) {
   const voice = useVoiceAgentBridge();
+  // Prewarm the mic permission as soon as the authenticated app mounts.
+  // Without this the first mic click pays for both the permission prompt
+  // and the hardware/worklet init at the same time, which stalls the UI
+  // for ~500ms+ on a cold permission. We acquire the stream and release
+  // the tracks immediately so the mic isn't actually open.
+  useEffect(() => {
+    void prewarmMicPermission();
+  }, []);
   return (
     <VoiceContext.Provider value={voice}>{children}</VoiceContext.Provider>
   );

@@ -190,11 +190,12 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
             readyDeferredRef.current = null;
           },
           onUserDelta: (text) => {
-            if (liveAgentIdRef.current) {
-              // The agent was talking; finalize whatever it just said
-              // so we don't leave a ghost live-bubble open.
-              finalizeLiveAgent(text);
-            }
+            // Don't cross-finalize the agent here. The old code passed
+            // the USER's text into finalizeLiveAgent, which overwrote
+            // the agent's bubble with the user's words (visible as
+            // "agent messages in wrong place"). Each role finalizes
+            // itself via its own _done event; the two streams can be
+            // live concurrently during barge-in.
             if (!liveUserIdRef.current) {
               liveUserIdRef.current = store().beginLiveMessage("user");
             }
@@ -206,9 +207,11 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
             opts.onUserMessage?.(text);
           },
           onAgentDelta: (text) => {
-            if (liveUserIdRef.current) {
-              finalizeLiveUser(liveUserIdRef.current ? "" : "");
-            }
+            // Symmetric to onUserDelta: don't cross-finalize the live
+            // user with the wrong text. The old code called
+            // finalizeLiveUser("") here, which produced visible "empty
+            // Tu:" bubbles whenever the agent started replying before
+            // user_done arrived.
             if (!liveAgentIdRef.current) {
               liveAgentIdRef.current = store().beginLiveMessage("agent");
               setState("speaking");
@@ -316,17 +319,29 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
   );
 
   const enableMic: VoiceAgentHook["enableMic"] = useCallback(async () => {
-    if (!wsRef.current) {
-      throw new Error("WS not open; call start() first.");
-    }
     if (recorderRef.current) return; // already on
+    // Optimistically flip micOn=true the moment the user requests it so
+    // the Composer's mic button stays lit through the getUserMedia +
+    // worklet-load window. Otherwise voiceStatus has already transitioned
+    // from "connecting" → "listening" by the time enableMic() runs, and
+    // `voiceActive = micOn || status==="connecting"` evaluates to false
+    // for several hundred ms — the button visibly flickers ON → OFF → ON.
+    setMicOn(true);
     try {
-      const ws = wsRef.current;
-      const recorder = await startMicRecorder((chunk) => ws.sendAudio(chunk));
+      // Read wsRef at each chunk-emit, not now: enableMic() can run in
+      // parallel with start(), so the recorder may boot before the WS is
+      // open. Chunks emitted while wsRef is null are dropped silently
+      // (sendAudio already guards on ws.readyState). The recorder cost
+      // (AudioContext + worklet load, ~200-500ms) overlaps with the WS
+      // handshake (~1-2s to Azure VoiceLive), shaving the perceived
+      // click-to-listening latency.
+      const recorder = await startMicRecorder((chunk) => {
+        wsRef.current?.sendAudio(chunk);
+      });
       recorderRef.current = recorder;
-      setMicOn(true);
       LOG("mic enabled");
     } catch (micErr) {
+      setMicOn(false);
       ERR("mic denied", micErr);
       throw new VoiceAgentMicDeniedError();
     }

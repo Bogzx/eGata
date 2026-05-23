@@ -7,6 +7,49 @@ const LOG = (...args: unknown[]) =>
 const WARN = (...args: unknown[]) =>
   console.warn("[egata:audio]", ...args);
 
+let _prewarmPromise: Promise<"granted" | "denied" | "unsupported"> | null =
+  null;
+
+/**
+ * Triggers the browser's mic permission prompt on page load so the
+ * first click on the mic button doesn't pay the prompt + hardware-init
+ * tax. The acquired MediaStream is stopped immediately — we only want
+ * the permission grant cached by the browser, not an open mic.
+ *
+ * Idempotent: repeat calls return the same in-flight or settled promise.
+ * Safe on SSR (no-op when navigator/getUserMedia is missing).
+ */
+export function prewarmMicPermission(): Promise<
+  "granted" | "denied" | "unsupported"
+> {
+  if (_prewarmPromise) return _prewarmPromise;
+  if (
+    typeof navigator === "undefined" ||
+    !navigator.mediaDevices?.getUserMedia
+  ) {
+    _prewarmPromise = Promise.resolve("unsupported" as const);
+    return _prewarmPromise;
+  }
+  LOG("prewarmMicPermission — requesting getUserMedia (release immediately)");
+  _prewarmPromise = navigator.mediaDevices
+    .getUserMedia({ audio: true })
+    .then((stream) => {
+      stream.getTracks().forEach((t) => t.stop());
+      LOG("prewarmMicPermission — granted, tracks released");
+      return "granted" as const;
+    })
+    .catch((err) => {
+      WARN("prewarmMicPermission — denied or failed:", err);
+      // Reset so a later real click can retry the prompt (Chrome only
+      // shows the prompt once per page-load otherwise; once we've
+      // observed a denial we want enableMic() to surface a fresh error
+      // rather than silently reuse a stale "denied" cache).
+      _prewarmPromise = null;
+      return "denied" as const;
+    });
+  return _prewarmPromise;
+}
+
 export type RecorderHandle = {
   context: AudioContext;
   source: MediaStreamAudioSourceNode;

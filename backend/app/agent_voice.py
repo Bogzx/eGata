@@ -136,6 +136,19 @@ class VoiceBridgeSession:
     audio_in_bytes: int = 0
     audio_out_bytes: int = 0
     last_audio_log: float = 0.0
+    # Azure Speech SDK — parallel streaming STT for partial user transcripts.
+    # VoiceLive only emits a final COMPLETED transcript (no DELTA partials),
+    # so we run the classic Speech SDK in parallel: PCM16 16kHz audio is
+    # forked from `inbound_audio` to a PushAudioInputStream feeding a
+    # SpeechRecognizer. Its `recognizing` event gives us partial token
+    # deltas which we forward as `user_delta` frames; `recognized` gives
+    # us the per-phrase finalized text which we forward as `user_done`.
+    # All Speech SDK callbacks run on its internal thread pool — we bridge
+    # to asyncio via `asyncio.run_coroutine_threadsafe(..., self.loop)`.
+    speech_recognizer: Any = None  # SpeechRecognizer
+    speech_push_stream: Any = None  # PushAudioInputStream
+    speech_enabled: bool = False
+    loop: Any = None  # asyncio.AbstractEventLoop, captured at start
 
     async def send_json(self, obj: dict[str, Any]) -> None:
         try:
@@ -272,25 +285,21 @@ class VoiceBridgeSession:
             "sistem inițială, care nu se actualizează în timp ce vorbim."
         )
 
+        # Capture the asyncio loop now so the Speech SDK's worker-thread
+        # callbacks can schedule coroutines back onto it via
+        # asyncio.run_coroutine_threadsafe.
+        self.loop = asyncio.get_running_loop()
+        self._try_init_speech_recognizer(settings)
+
         # Build the session configuration. RequestSession is a TypedDict
         # in the SDK; pass tools+instructions+voice all at once.
         voice = AzureStandardVoice(name=settings.azure_voicelive_voice)
-        session_config = RequestSession(
+        session_kwargs: dict[str, Any] = dict(
             modalities=[Modality.TEXT, Modality.AUDIO],
             instructions=full_prompt,
             voice=voice,
             input_audio_format=InputAudioFormat.PCM16,
             output_audio_format=OutputAudioFormat.PCM16,
-            # Typed config — the speech-to-text events
-            # (CONVERSATION_ITEM_INPUT_AUDIO_TRANSCRIPTION_DELTA/COMPLETED)
-            # only fire when transcription is explicitly enabled. The
-            # `model` here is the Whisper *deployment name* on the Azure
-            # resource (not the literal "whisper-1" used by OpenAI public
-            # API). Language hint keeps it on Romanian tokens.
-            input_audio_transcription=AudioInputTranscriptionOptions(
-                model=settings.azure_voicelive_transcription_model,
-                language=settings.azure_voicelive_transcription_language,
-            ),
             turn_detection=AzureSemanticVadMultilingual(),
             input_audio_echo_cancellation=AudioEchoCancellation(),
             input_audio_noise_reduction=AudioNoiseReduction(
@@ -299,6 +308,16 @@ class VoiceBridgeSession:
             tools=tools_for_realtime(_browser_function_declarations()),
             tool_choice="auto",
         )
+        # Only ask VoiceLive to transcribe input when Azure Speech isn't
+        # running. The two would produce competing user_delta frames if
+        # both were active; Speech wins because it streams (VoiceLive only
+        # ships the final COMPLETED text).
+        if not self.speech_enabled:
+            session_kwargs["input_audio_transcription"] = AudioInputTranscriptionOptions(
+                model=settings.azure_voicelive_transcription_model,
+                language=settings.azure_voicelive_transcription_language,
+            )
+        session_config = RequestSession(**session_kwargs)
 
         history_texts = history_to_user_only_texts(self.db_session.history)
 
@@ -386,6 +405,155 @@ class VoiceBridgeSession:
                         await watchdog_task
                     except (asyncio.CancelledError, Exception):
                         pass
+                self._teardown_speech_recognizer()
+
+    def _try_init_speech_recognizer(self, settings: Any) -> None:
+        """Start a parallel Azure Speech SDK SpeechRecognizer for streaming
+        user transcripts. Failure is non-fatal — we fall back to
+        VoiceLive's COMPLETED-only transcription path.
+        """
+        if not settings.azure_speech_key:
+            log.info(
+                "voice_ws: AZURE_SPEECH_KEY not set, falling back to "
+                "VoiceLive transcription (no streaming partials) conv=%s",
+                self.conv_id,
+            )
+            return
+        try:
+            import azure.cognitiveservices.speech as speechsdk  # type: ignore
+        except ImportError:
+            log.warning(
+                "voice_ws: azure-cognitiveservices-speech not installed, "
+                "falling back to VoiceLive transcription conv=%s",
+                self.conv_id,
+            )
+            return
+
+        try:
+            speech_config = speechsdk.SpeechConfig(
+                subscription=settings.azure_speech_key,
+                region=settings.azure_speech_region,
+            )
+            speech_config.speech_recognition_language = (
+                settings.azure_speech_language
+            )
+            # Match the format the browser already sends: PCM16 mono 16kHz.
+            audio_format = speechsdk.audio.AudioStreamFormat(
+                samples_per_second=16000,
+                bits_per_sample=16,
+                channels=1,
+            )
+            push_stream = speechsdk.audio.PushAudioInputStream(
+                stream_format=audio_format
+            )
+            audio_config = speechsdk.audio.AudioConfig(stream=push_stream)
+            recognizer = speechsdk.SpeechRecognizer(
+                speech_config=speech_config,
+                audio_config=audio_config,
+            )
+
+            recognizer.recognizing.connect(self._on_speech_recognizing)
+            recognizer.recognized.connect(self._on_speech_recognized)
+            recognizer.canceled.connect(self._on_speech_canceled)
+
+            # Fire-and-forget — start_continuous_recognition_async returns
+            # a future we don't need to await; recognition is live as soon
+            # as the SDK accepts the start signal.
+            recognizer.start_continuous_recognition_async()
+
+            self.speech_recognizer = recognizer
+            self.speech_push_stream = push_stream
+            self.speech_enabled = True
+            log.info(
+                "voice_ws: Azure Speech recognizer started conv=%s region=%s lang=%s",
+                self.conv_id,
+                settings.azure_speech_region,
+                settings.azure_speech_language,
+            )
+        except Exception:
+            log.exception(
+                "voice_ws: Speech recognizer init failed conv=%s — "
+                "falling back to VoiceLive transcription",
+                self.conv_id,
+            )
+            self.speech_recognizer = None
+            self.speech_push_stream = None
+            self.speech_enabled = False
+
+    def _teardown_speech_recognizer(self) -> None:
+        if self.speech_push_stream is not None:
+            try:
+                self.speech_push_stream.close()
+            except Exception:
+                log.exception("voice_ws: speech_push_stream.close failed")
+            self.speech_push_stream = None
+        if self.speech_recognizer is not None:
+            try:
+                self.speech_recognizer.stop_continuous_recognition_async()
+            except Exception:
+                log.exception("voice_ws: stop_continuous_recognition failed")
+            self.speech_recognizer = None
+        self.speech_enabled = False
+
+    def _on_speech_recognizing(self, evt: Any) -> None:
+        """Speech SDK callback (worker thread). Fires for partial tokens
+        while the user is still speaking. Bridge to asyncio via the loop
+        captured at session start."""
+        try:
+            text = (getattr(evt, "result", None) and evt.result.text) or ""
+        except Exception:
+            text = ""
+        if not text or self.loop is None or self.stop_event.is_set():
+            return
+        asyncio.run_coroutine_threadsafe(
+            self._handle_speech_partial(text), self.loop
+        )
+
+    def _on_speech_recognized(self, evt: Any) -> None:
+        """Speech SDK callback (worker thread). Fires once per finalized
+        phrase, i.e. when the recognizer commits a chunk of audio."""
+        try:
+            text = (getattr(evt, "result", None) and evt.result.text) or ""
+        except Exception:
+            text = ""
+        if not text or self.loop is None or self.stop_event.is_set():
+            return
+        asyncio.run_coroutine_threadsafe(
+            self._handle_speech_final(text), self.loop
+        )
+
+    def _on_speech_canceled(self, evt: Any) -> None:
+        try:
+            reason = getattr(evt, "reason", None)
+            details = getattr(evt, "error_details", "") or ""
+        except Exception:
+            reason = "?"
+            details = ""
+        log.warning(
+            "voice_ws: Speech recognizer canceled conv=%s reason=%s details=%s",
+            self.conv_id,
+            reason,
+            details[:300],
+        )
+
+    async def _handle_speech_partial(self, text: str) -> None:
+        log.info("voice_ws: SPEECH partial conv=%s text=%r", self.conv_id, text[:80])
+        if self.last_role == "agent":
+            await self._flush_role("agent")
+        self.last_role = "user"
+        # Partial deltas overwrite — Speech SDK ships the cumulative
+        # phrase-so-far in each `recognizing` event, not the increment.
+        self.user_buf = text
+        await self.send_json({"type": "user_delta", "text": self.user_buf})
+
+    async def _handle_speech_final(self, text: str) -> None:
+        log.info("voice_ws: SPEECH final   conv=%s text=%r", self.conv_id, text[:80])
+        if self.last_role == "agent":
+            await self._flush_role("agent")
+        self.last_role = "user"
+        self.user_buf = text
+        await self.send_json({"type": "user_delta", "text": self.user_buf})
+        await self._flush_role("user")
 
     def _maybe_log_audio_counters(self) -> None:
         now = time.perf_counter()
@@ -511,6 +679,20 @@ class VoiceBridgeSession:
             pcm16k = await self.inbound_audio.get()
             if pcm16k is None:
                 break
+            # Fork audio: VoiceLive (24kHz, conversation) + Azure Speech
+            # (16kHz, streaming user-transcript). Speech first — its
+            # push_stream.write is sync and cheap; if it raises we don't
+            # want to crash the conversation path.
+            if self.speech_enabled and self.speech_push_stream is not None:
+                try:
+                    self.speech_push_stream.write(pcm16k)
+                except Exception:
+                    log.exception(
+                        "voice_ws: speech_push_stream.write failed conv=%s",
+                        self.conv_id,
+                    )
+                    # Disable further writes; conversation continues.
+                    self.speech_enabled = False
             try:
                 pcm24k = self._resample_16k_to_24k(pcm16k)
                 b64 = base64.b64encode(pcm24k).decode("ascii")
@@ -595,7 +777,11 @@ class VoiceBridgeSession:
             return
 
         if et == ServerEventType.CONVERSATION_ITEM_INPUT_AUDIO_TRANSCRIPTION_DELTA:
-            # Incremental user transcript while they're still speaking.
+            # When Azure Speech is running it owns the user-transcript
+            # channel — ignore VoiceLive's transcription side-stream so
+            # the two don't fight each other.
+            if self.speech_enabled:
+                return
             delta = getattr(event, "delta", "") or ""
             if delta:
                 if self.last_role == "agent":
@@ -606,6 +792,15 @@ class VoiceBridgeSession:
             return
 
         if et == ServerEventType.CONVERSATION_ITEM_INPUT_AUDIO_TRANSCRIPTION_COMPLETED:
+            text_dbg = (getattr(event, "transcript", "") or "")[:80]
+            log.info(
+                "voice_ws: VOICELIVE completed conv=%s speech_enabled=%s text=%r",
+                self.conv_id,
+                self.speech_enabled,
+                text_dbg,
+            )
+            if self.speech_enabled:
+                return
             text = getattr(event, "transcript", "") or ""
             if text:
                 if self.last_role == "agent":
@@ -651,9 +846,25 @@ class VoiceBridgeSession:
             return
 
         if et == ServerEventType.RESPONSE_AUDIO_TRANSCRIPT_DELTA:
+            # Late deltas can arrive AFTER RESPONSE_DONE on barge-in /
+            # cancel — Azure flushes the in-flight events even after we've
+            # already accepted the cancellation. If we let them through,
+            # agent_buf (just cleared by RESPONSE_DONE's flush) gets
+            # repopulated and then re-flushed by the next role-change,
+            # producing a duplicate agent_done frame.
+            if self.response_done:
+                return
             delta = getattr(event, "delta", "") or ""
             if delta:
-                if self.last_role == "user":
+                # When Speech SDK owns the user transcript channel, do NOT
+                # flush user here — the latest user_buf is still the
+                # streaming lowercase partial from `recognizing` events,
+                # and the authoritative final (with punctuation/casing)
+                # only arrives later via Speech SDK's `recognized` event.
+                # Flushing now would emit a user_done with the raw partial,
+                # then SPEECH final would emit a SECOND user_done with the
+                # refined text → frontend renders both as separate bubbles.
+                if self.last_role == "user" and not self.speech_enabled:
                     await self._flush_role("user")
                 self.last_role = "agent"
                 self.agent_buf += delta
@@ -661,11 +872,19 @@ class VoiceBridgeSession:
             return
 
         if et == ServerEventType.RESPONSE_AUDIO_TRANSCRIPT_DONE:
+            # Same late-event guard as DELTA above. The original purpose
+            # of the `if not self.agent_buf: self.agent_buf = transcript`
+            # was a fallback when DELTAs didn't arrive — but the
+            # repopulation path is exactly what produces duplicates when
+            # RESPONSE_DONE fired first and cleared the buffer.
+            if self.response_done:
+                return
             transcript = getattr(event, "transcript", None)
             if transcript and not self.agent_buf:
                 self.agent_buf = transcript
             if self.agent_buf:
-                if self.last_role == "user":
+                # Same Speech-SDK guard as DELTA above.
+                if self.last_role == "user" and not self.speech_enabled:
                     await self._flush_role("user")
                 self.last_role = "agent"
             return

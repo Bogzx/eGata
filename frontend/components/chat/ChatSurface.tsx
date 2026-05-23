@@ -120,22 +120,42 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   // toggle and by the voice_only auto-start. If the mic is denied after the
   // WS opens, tear the WS back down so we don't leave a dangling session.
   async function enterVoiceMode(): Promise<void> {
+    // Run the WS handshake and the mic-recorder boot in PARALLEL. The
+    // recorder reads wsRef on each chunk emit, so it tolerates the WS
+    // being still-opening — early chunks are dropped, later ones flow.
+    // This shaves the click-to-listening latency from
+    //   ws_handshake (~1-2s) + mic_boot (~200-500ms)
+    // down to
+    //   max(ws_handshake, mic_boot)
+    // which the user perceives as "talking instantly after the click".
+    //
     // If the WS is already up (e.g. user previously had voice on and the
     // VoiceProvider kept it alive across navigation), skip start() —
     // calling start twice would race two WS connections on the same
     // conv_id and deadlock on session_lock.
-    if (!voice.wsReady) {
-      await voice.start({
-        documentId: useSessionStore.getState().activeDocId ?? undefined,
-        preferences: { simple_language: simpleLanguage, voice_only: voiceOnly },
-      });
-    }
-    try {
-      await voice.enableMic();
-    } catch (err) {
-      // Tear down the WS so text mode (SSE) can acquire session_lock again.
+    const startP = voice.wsReady
+      ? Promise.resolve()
+      : voice.start({
+          documentId: useSessionStore.getState().activeDocId ?? undefined,
+          preferences: {
+            simple_language: simpleLanguage,
+            voice_only: voiceOnly,
+          },
+        });
+    const micP = voice.enableMic();
+    const results = await Promise.allSettled([startP, micP]);
+    const startResult = results[0];
+    const micResult = results[1];
+    if (micResult.status === "rejected") {
+      // Mic denied — tear the WS back down so text mode (SSE) can
+      // acquire session_lock again.
       voice.stop();
-      throw err;
+      throw micResult.reason;
+    }
+    if (startResult.status === "rejected") {
+      // WS failed but mic is on — stop mic + propagate.
+      voice.disableMic();
+      throw startResult.reason;
     }
   }
 

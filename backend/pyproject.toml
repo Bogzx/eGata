@@ -11,6 +11,7 @@ dependencies = [
   "supabase>=2.18.0,<3.0",
   "psycopg[binary,pool]==3.2.3",
   "azure-ai-voicelive>=1.0.0b6",
+  "azure-cognitiveservices-speech>=1.40.0",
   "azure-core>=1.32.0",
   "openai>=1.55.0,<2",
   "aiohttp>=3.11,<4",
