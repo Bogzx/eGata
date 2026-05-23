@@ -11,6 +11,14 @@
     "trebuie să schimb adresa pe buletin",
     "cum procedez când mă mut în alt oraș"
   ],
+  "acte_necesare": [
+    { "denumire": "Cerere Anexa 1 (semnată în fața funcționarului)", "emitent": "primarie" },
+    { "denumire": "CI vechi (cu domiciliul actual)", "emitent": "user" },
+    { "denumire": "Certificate stare civilă (naștere, căsătorie, copii minori sub 14 ani)", "emitent": "user", "format": "original" },
+    { "denumire": "Document proprietate (act vânzare-cumpărare / certificat moștenitor)", "emitent_id": "ocpi-ancpi", "format": "original", "observatie": "Cu prezența proprietarului spațiului" },
+    { "denumire": "Extras carte funciară (max 30 zile)", "emitent_id": "ocpi-ancpi", "format": "original" },
+    { "denumire": "Anexa 2 — declarație găzduitor", "emitent": "primarie", "obligatoriu": false, "observatie": "Doar dacă nu ești proprietarul spațiului", "alternative": ["declarație notarială valabilă 90 zile (notariat)", "declarație misiune diplomatică (consulat, 6 luni)"] }
+  ],
   "fields": [
     { "name": "nume_complet",   "label": "Nume complet",   "source": "id_scan|profile", "required": true },
     { "name": "cnp",            "label": "CNP",            "source": "id_scan|profile", "required": true, "redact_in_voice": true },

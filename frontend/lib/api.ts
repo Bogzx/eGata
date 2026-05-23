@@ -98,6 +98,35 @@ export const api = {
   patchReminderStatus: (id: string, status: Reminder["status"]) =>
     request<Reminder>(`/reminders/${id}`, { method: "PATCH", body: { status } }),
 
+  startReminder: (id: string) =>
+    request<{ id: string; status: string; document_id: string; procedure_id: string }>(
+      `/reminders/${id}/start`,
+      { method: "POST" },
+    ),
+
+  dismissReminder: (id: string) =>
+    request<Reminder>(`/reminders/${id}/dismiss`, { method: "POST" }),
+
+  resetDemo: (citizenId?: string) => {
+    const token =
+      (typeof process !== "undefined" && process.env.NEXT_PUBLIC_DEMO_TOKEN) || "";
+    return fetch(`${BASE_URL}/demo/reset`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Demo-Token": token,
+      },
+      body: JSON.stringify({ citizen_id: citizenId ?? null }),
+    }).then(async (res) => {
+      const text = await res.text();
+      const parsed = text ? JSON.parse(text) : null;
+      if (!res.ok) {
+        throw new ApiError(res.status, parsed, `POST /demo/reset → ${res.status}`);
+      }
+      return parsed as { ok: boolean; citizen_id: string };
+    });
+  },
+
   chat: (b: {
     conversation_id?: string | null;
     document_id?: string;
