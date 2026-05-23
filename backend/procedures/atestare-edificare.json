@@ -23,6 +23,17 @@
   "fields": [
     { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
     { "name": "cnp", "label": "CNP", "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "judet", "label": "Județul", "source": "ask", "required": true },
+    { "name": "localitate", "label": "Localitatea (mun./oraș/comună)", "source": "ask", "required": true },
+    { "name": "sector", "label": "Sector/sat", "source": "ask", "required": false },
+    { "name": "cod_postal", "label": "Cod poștal", "source": "ask", "required": false },
+    { "name": "strada", "label": "Strada", "source": "ask", "required": true },
+    { "name": "numar", "label": "Numărul", "source": "ask", "required": true },
+    { "name": "bloc", "label": "Blocul", "source": "ask", "required": false },
+    { "name": "scara", "label": "Scara", "source": "ask", "required": false },
+    { "name": "etaj", "label": "Etajul", "source": "ask", "required": false },
+    { "name": "apartament", "label": "Apartamentul", "source": "ask", "required": false },
+    { "name": "telefon", "label": "Telefon", "source": "profile", "required": true },
     { "name": "adresa_imobil", "label": "Adresa imobil", "source": "ask", "required": true },
     { "name": "nr_ac", "label": "Număr AC", "source": "ask", "required": true },
     { "name": "data_finalizare", "label": "Data finalizării lucrărilor", "source": "ask", "required": true }

@@ -33,7 +33,8 @@
     { "name": "categoria_eligibilitate", "label": "Categoria de eligibilitate", "source": "ask", "required": true, "options": ["handicap_grav_accentuat", "pensionar_invalid_veteran", "somer", "beneficiar_vmi", "victima_trafic", "victima_violenta_domestica"] },
     { "name": "document_1",       "label": "Document doveditor 1", "source": "ask",             "required": true },
     { "name": "document_2",       "label": "Document doveditor 2", "source": "ask",             "required": false },
-    { "name": "document_3",       "label": "Document doveditor 3", "source": "ask",             "required": false }
+    { "name": "document_3",       "label": "Document doveditor 3", "source": "ask",             "required": false },
+    { "name": "data_cerere",      "label": "Data cererii",         "source": "ask",             "required": true, "suggest_default": "today" }
   ],
   "template": "tichete-alimente.tex",
   "next_steps": [
