@@ -18,19 +18,34 @@ CITIZEN = UUID("11111111-1111-1111-1111-111111111111")
 DOC = uuid4()
 
 
-def _doc_row(status: str = "draft", fields: dict | None = None) -> dict:
+def _doc_row(
+    status: str = "draft",
+    fields: dict | None = None,
+    pdf_url: str | None = None,
+) -> dict:
     return {
         "id": DOC,
         "citizen_id": CITIZEN,
         "procedure_id": "schimbare-domiciliu",
         "status": status,
         "fields": fields or {},
-        "pdf_url": None,
+        "pdf_url": pdf_url,
         "delivery": None,
         "ref_number": None,
         "created_at": datetime.now(timezone.utc),
         "delivered_at": None,
     }
+
+
+# Full required set for schimbare-domiciliu (no applies_if conditionals fire
+# without owns_vehicle etc. — the unconditional required set is enough).
+_FULL_FIELDS = {
+    "nume_complet": "Maria Ionescu",
+    "cnp": "2851014123456",
+    "adresa_curenta": "X",
+    "adresa_noua": "Y",
+    "tip_proprietate": "proprietar",
+}
 
 
 @patch("app.documents.append_ledger")
@@ -44,6 +59,8 @@ def _doc_row(status: str = "draft", fields: dict | None = None) -> dict:
 @patch("app.documents.update_document_fields")
 @patch("app.documents.fetch_document")
 @patch("app.documents.insert_document")
+@patch("app.documents._fetch_citizen_attributes", return_value={})
+@patch("app.documents.verify_global_chain", return_value=True)
 @patch("app.citizens.fetch_citizen_by_id")
 @patch("app.auth.fetch_citizen_by_persona_id")
 @patch("app.auth.issue_otp")
@@ -53,6 +70,8 @@ def test_full_happy_path(
     mock_issue: MagicMock,
     mock_fetch_persona: MagicMock,
     mock_fetch_citizen: MagicMock,
+    mock_verify_chain: MagicMock,
+    mock_fetch_attrs: MagicMock,
     mock_insert_doc: MagicMock,
     mock_fetch_doc: MagicMock,
     mock_update_doc: MagicMock,
@@ -79,15 +98,18 @@ def test_full_happy_path(
         "attributes": {},
     }
     mock_insert_doc.return_value = _doc_row()
-    mock_fetch_doc.return_value = _doc_row(fields={
-        "nume_complet": "Maria Ionescu", "cnp": "2851014123456",
-        "adresa_curenta": "X", "adresa_noua": "Y", "tip_proprietate": "proprietar",
-    })
-    mock_update_doc.return_value = _doc_row(fields={
-        "nume_complet": "Maria Ionescu", "cnp": "2851014123456",
-        "adresa_curenta": "X", "adresa_noua": "Y", "tip_proprietate": "proprietar",
-    })
-    finalized = _doc_row(status="finalized")
+    # fetch_document is called by PATCH (pre-PATCH read), generate-pdf
+    # (before rendering), deliver (must see the pdf_url set by generate-pdf),
+    # and ledger (owner check). The side_effect cycles through the four
+    # states this test exercises.
+    mock_fetch_doc.side_effect = [
+        _doc_row(fields=_FULL_FIELDS, pdf_url=None),
+        _doc_row(fields=_FULL_FIELDS, pdf_url=None),
+        _doc_row(fields=_FULL_FIELDS, pdf_url="https://x/pdf.pdf"),
+        _doc_row(status="finalized", fields=_FULL_FIELDS, pdf_url="https://x/pdf.pdf"),
+    ]
+    mock_update_doc.return_value = _doc_row(fields=_FULL_FIELDS, pdf_url=None)
+    finalized = _doc_row(status="finalized", fields=_FULL_FIELDS, pdf_url="https://x/pdf.pdf")
     finalized["delivery"] = "send"
     finalized["ref_number"] = "CV-AAAA"
     finalized["delivered_at"] = datetime.now(timezone.utc)
