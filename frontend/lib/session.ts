@@ -1,4 +1,4 @@
-const KEY = "civicai.session";
+const KEY = "egata.session";
 
 export type StoredSession = {
   access_token: string;

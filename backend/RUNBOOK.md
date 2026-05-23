@@ -1,4 +1,4 @@
-# CivicAI Backend Runbook
+# eGata Backend Runbook
 
 ## Local dev
 

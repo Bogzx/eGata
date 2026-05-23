@@ -111,7 +111,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(
-    title="CivicAI",
+    title="eGata",
     description="Civic AI agent for Romanian primărie procedures",
     version="0.1.0",
     lifespan=lifespan,
@@ -187,4 +187,4 @@ app.include_router(health_router)
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "civicai-backend"}
+    return {"status": "ok", "service": "egata-backend"}

@@ -1,7 +1,7 @@
 """Scenarios catalog + plan builder + GET /scenarios/{id}.
 
 A scenario links several existing procedures (in-scope) and external institution
-steps (CivicAI cannot complete) into a coherent multi-step plan for a real-life
+steps (eGata cannot complete) into a coherent multi-step plan for a real-life
 situation like "buying an apartment".
 """
 from __future__ import annotations

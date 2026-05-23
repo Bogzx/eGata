@@ -31,7 +31,7 @@ def test_expired_token_raises_token_expired_detail():
         "sub": "11111111-1111-1111-1111-111111111111",
         "iat": now - 100,
         "exp": now - 1,
-        "iss": "civicai",
+        "iss": "egata",
     }
     expired = jwt.encode(
         payload, settings.jwt_signing_secret, algorithm=settings.jwt_algorithm
@@ -51,7 +51,7 @@ def test_invalid_signature_raises_invalid_token_detail():
         "sub": "11111111-1111-1111-1111-111111111111",
         "iat": now,
         "exp": now + 3600,
-        "iss": "civicai",
+        "iss": "egata",
     }
     tampered = jwt.encode(
         payload, "wrong-secret", algorithm=settings.jwt_algorithm

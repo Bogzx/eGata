@@ -13,9 +13,9 @@ import type { VoicePreferences } from "./types";
 import { VoiceWs, type VoiceWsToolCall, voiceWsUrl } from "./voiceWs";
 
 const LOG = (...args: unknown[]) =>
-  console.log("[civicai:voice-bridge]", ...args);
+  console.log("[egata:voice-bridge]", ...args);
 const ERR = (...args: unknown[]) =>
-  console.error("[civicai:voice-bridge]", ...args);
+  console.error("[egata:voice-bridge]", ...args);
 
 // ---- Voice hook surface (was previously in useVoiceAgent.ts; now lives
 // here since the bridge is the only voice path).

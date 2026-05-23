@@ -1,7 +1,7 @@
 """Live smoke test against a deployed Railway URL.
 
 Skipped unless SMOKE_BASE_URL is set. Run manually after deploy:
-    SMOKE_BASE_URL=https://civicai.up.railway.app pytest tests/test_smoke_deployed.py -v
+    SMOKE_BASE_URL=https://egata.up.railway.app pytest tests/test_smoke_deployed.py -v
 """
 from __future__ import annotations
 

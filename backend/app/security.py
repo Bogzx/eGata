@@ -21,7 +21,7 @@ def mint_access_token(citizen_id: UUID | str) -> str:
         "sub": str(citizen_id),
         "iat": now,
         "exp": now + settings.jwt_expires_seconds,
-        "iss": "civicai",
+        "iss": "egata",
     }
     return cast(str, jwt.encode(payload, settings.jwt_signing_secret, algorithm=settings.jwt_algorithm))
 

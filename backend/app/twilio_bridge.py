@@ -499,7 +499,7 @@ _TWIML_FALLBACK = """\
 <Response>
   <Say voice="alice" language="ro-RO">
     Bună ziua. Asistentul vocal este indisponibil momentan.
-    Vă rugăm să vizitați civicai.ro pentru asistență completă.
+    Vă rugăm să vizitați egata.ro pentru asistență completă.
     Mulțumim.
   </Say>
 </Response>

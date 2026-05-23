@@ -44,7 +44,7 @@ git checkout -b feat/multi-procedure-rag
   "url": "https://www.uniuneanotarilor.ro",
   "phone": null,
   "online_disponibil": false,
-  "note_ai_cannot_complete": "Contractul autentificat se semnează în prezența notarului. CivicAI nu poate emite contracte notariale."
+  "note_ai_cannot_complete": "Contractul autentificat se semnează în prezența notarului. eGata nu poate emite contracte notariale."
 }
 ```
 
@@ -59,7 +59,7 @@ git checkout -b feat/multi-procedure-rag
   "url": "https://www.ancpi.ro",
   "phone": "021 317 7339",
   "online_disponibil": true,
-  "note_ai_cannot_complete": "Extras carte funciară se obține direct la OCPI sau online pe ePay. CivicAI nu poate emite acest document — instituție diferită."
+  "note_ai_cannot_complete": "Extras carte funciară se obține direct la OCPI sau online pe ePay. eGata nu poate emite acest document — instituție diferită."
 }
 ```
 
@@ -74,7 +74,7 @@ git checkout -b feat/multi-procedure-rag
   "url": "https://www.mdrt.gov.ro",
   "phone": null,
   "online_disponibil": false,
-  "note_ai_cannot_complete": "Certificatul energetic se eliberează de un auditor atestat după inspecție. CivicAI nu îl poate emite."
+  "note_ai_cannot_complete": "Certificatul energetic se eliberează de un auditor atestat după inspecție. eGata nu îl poate emite."
 }
 ```
 
@@ -89,7 +89,7 @@ git checkout -b feat/multi-procedure-rag
   "url": "https://www.drpciv.ro",
   "phone": "021 9665",
   "online_disponibil": true,
-  "note_ai_cannot_complete": "Actualizarea talonului auto se face la DRPCIV după schimbarea CI. CivicAI nu poate emite documente DRPCIV."
+  "note_ai_cannot_complete": "Actualizarea talonului auto se face la DRPCIV după schimbarea CI. eGata nu poate emite documente DRPCIV."
 }
 ```
 
@@ -104,7 +104,7 @@ git checkout -b feat/multi-procedure-rag
   "url": "https://www.anaf.ro",
   "phone": "031 403 9160",
   "online_disponibil": true,
-  "note_ai_cannot_complete": "Notificările fiscale se depun la ANAF. CivicAI nu poate emite documente ANAF."
+  "note_ai_cannot_complete": "Notificările fiscale se depun la ANAF. eGata nu poate emite documente ANAF."
 }
 ```
 
@@ -119,7 +119,7 @@ git checkout -b feat/multi-procedure-rag
   "url": "https://www.cnas.ro",
   "phone": "0800 800 950",
   "online_disponibil": true,
-  "note_ai_cannot_complete": "Schimbarea medicului de familie se face la CNAS. CivicAI nu poate emite documente CNAS."
+  "note_ai_cannot_complete": "Schimbarea medicului de familie se face la CNAS. eGata nu poate emite documente CNAS."
 }
 ```
 
@@ -134,7 +134,7 @@ git checkout -b feat/multi-procedure-rag
   "url": "https://depabd.mai.gov.ro",
   "phone": null,
   "online_disponibil": false,
-  "note_ai_cannot_complete": "CI nou se predă fizic la SPCLEP/Primărie. Cererea (Anexa 1) se completează în CivicAI dar prezentarea fizică este necesară."
+  "note_ai_cannot_complete": "CI nou se predă fizic la SPCLEP/Primărie. Cererea (Anexa 1) se completează în eGata dar prezentarea fizică este necesară."
 }
 ```
 
@@ -636,7 +636,7 @@ Expected: ImportError on `from app.scenarios import ...`.
 """Scenarios catalog + plan builder + GET /scenarios/{id}.
 
 A scenario links several existing procedures (in-scope) and external institution
-steps (CivicAI cannot complete) into a coherent multi-step plan for a real-life
+steps (eGata cannot complete) into a coherent multi-step plan for a real-life
 situation like "buying an apartment".
 """
 from __future__ import annotations
@@ -1307,7 +1307,7 @@ Same file, find `PHONE_SYSTEM`. Append before the closing `"""`:
 ```
 7. Dacă `lookup_procedure` returnează un `scenario_plan`, citește pe scurt:
    "Acest plan are X cereri la primărie și Y pași externi. Primul pas: <titlu>."
-   Apoi invită cetățeanul pe civicai.ro pentru execuție. Nu enumera vocal toate
+   Apoi invită cetățeanul pe egata.ro pentru execuție. Nu enumera vocal toate
    procedurile sau actele — fragmentează în mai multe replici dacă cetățeanul cere detalii.
 ```
 

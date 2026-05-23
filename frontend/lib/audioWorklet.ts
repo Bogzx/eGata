@@ -3,9 +3,9 @@
 // off the main thread so React renders don't block frames.
 
 const LOG = (...args: unknown[]) =>
-  console.log("[civicai:audio]", ...args);
+  console.log("[egata:audio]", ...args);
 const WARN = (...args: unknown[]) =>
-  console.warn("[civicai:audio]", ...args);
+  console.warn("[egata:audio]", ...args);
 
 export type RecorderHandle = {
   context: AudioContext;

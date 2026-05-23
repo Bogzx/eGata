@@ -51,7 +51,7 @@ export async function primeSession(
   // localStorage on (a blank page about:blank has no localStorage).
   await page.goto("/");
   await page.evaluate((s) => {
-    window.localStorage.setItem("civicai.session", JSON.stringify(s));
+    window.localStorage.setItem("egata.session", JSON.stringify(s));
   }, session);
 }
 

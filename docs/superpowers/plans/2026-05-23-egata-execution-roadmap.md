@@ -1,8 +1,8 @@
-# CivicAI Execution Roadmap
+# eGata Execution Roadmap
 
 > **Purpose:** Coordinate 4 implementation plans across 2 parallel waves. This document is the **source of truth for shared contracts** (API, hooks, repo structure, conventions). Each plan references this roadmap; deviations require updating this file first.
 
-**Spec:** `docs/superpowers/specs/2026-05-23-civicai-design.md`
+**Spec:** `docs/superpowers/specs/2026-05-23-egata-design.md`
 
 ---
 
@@ -117,13 +117,13 @@ ClujHackathon/
 └── docs/
     └── superpowers/
         ├── specs/
-        │   └── 2026-05-23-civicai-design.md
+        │   └── 2026-05-23-egata-design.md
         └── plans/
-            ├── 2026-05-23-civicai-execution-roadmap.md  (this file)
-            ├── 2026-05-23-civicai-plan-1-frontend-foundation.md
-            ├── 2026-05-23-civicai-plan-2-backend-foundation.md
-            ├── 2026-05-23-civicai-plan-3-agent-voice.md
-            └── 2026-05-23-civicai-plan-4-proactive-polish.md
+            ├── 2026-05-23-egata-execution-roadmap.md  (this file)
+            ├── 2026-05-23-egata-plan-1-frontend-foundation.md
+            ├── 2026-05-23-egata-plan-2-backend-foundation.md
+            ├── 2026-05-23-egata-plan-3-agent-voice.md
+            └── 2026-05-23-egata-plan-4-proactive-polish.md
 ```
 
 **Convention:** Plan N is the **sole writer** of files marked `(Plan N)`. Plans that **extend** a file (e.g., Plan 3 extending `agent.py`) replace its body while keeping the function/endpoint signatures stable.

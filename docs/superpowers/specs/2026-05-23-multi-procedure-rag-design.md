@@ -1,9 +1,9 @@
-# CivicAI Multi-Procedure RAG — Design
+# eGata Multi-Procedure RAG — Design
 
 **Status:** Draft for implementation
 **Date:** 2026-05-23
 **Owners:** Bogdan + team
-**Builds on:** `docs/superpowers/specs/2026-05-23-civicai-design.md`, `docs/superpowers/specs/2026-05-23-chat-first-redesign-design.md`
+**Builds on:** `docs/superpowers/specs/2026-05-23-egata-design.md`, `docs/superpowers/specs/2026-05-23-chat-first-redesign-design.md`
 
 ---
 
@@ -11,8 +11,8 @@
 
 Let a citizen describe a real-life situation in natural Romanian (e.g., *"am cumpărat un apartament"*) and have the agent return a coherent plan that distinguishes:
 
-- **In-scope steps** — procedures CivicAI can autocomplete (linked to existing `backend/procedures/*.json`).
-- **External steps** — documents/actions the citizen must obtain from third parties (notar, OCPI, auditor energetic, DRPCIV, …) that CivicAI cannot complete due to institutional boundaries.
+- **In-scope steps** — procedures eGata can autocomplete (linked to existing `backend/procedures/*.json`).
+- **External steps** — documents/actions the citizen must obtain from third parties (notar, OCPI, auditor energetic, DRPCIV, …) that eGata cannot complete due to institutional boundaries.
 
 The existing single-procedure RAG keeps working unchanged for atomic queries. This adds a parallel **scenario** layer on top, plus a missing **external-institutions catalog** that is already referenced by `ActNecesar.emitent_id` but has no backing data.
 
@@ -140,7 +140,7 @@ Lives at `backend/institutions/<id>.json`. Loader mirrors procedures.
   "url": "https://www.ancpi.ro",
   "phone": "021 317 7339",
   "online_disponibil": true,
-  "note_ai_cannot_complete": "Extras CF se obține direct la OCPI sau online pe ePay. CivicAI nu poate emite acest document — instituție diferită."
+  "note_ai_cannot_complete": "Extras CF se obține direct la OCPI sau online pe ePay. eGata nu poate emite acest document — instituție diferită."
 }
 ```
 
@@ -335,7 +335,7 @@ New `frontend/components/right-pane/PlanPane.tsx`. Reads `scenario_plan` from th
 │  ↗ Ce trebuie să faci tu (extern)                │
 │  • Notar — contract V-C autentificat              │
 │      📞 (nr) · 🌐 notar.ro                        │
-│      CivicAI nu poate emite — instituție diferită.│
+│      eGata nu poate emite — instituție diferită.│
 │  • OCPI — extras carte funciară                  │
 │  • Auditor energetic — certificat                │
 └───────────────────────────────────────────────────┘
@@ -424,7 +424,7 @@ Append to `CONVERSATIONAL_SYSTEM` in `backend/app/prompts.py`:
 ```
 12. Pe telefon, dacă `scenario_plan` apare, citește pe scurt: numărul de pași
     interni și externi, primul pas recomandat. Apoi invită cetățeanul pe
-    civicai.ro pentru execuție.
+    egata.ro pentru execuție.
 ```
 
 ## 7. Failure mode

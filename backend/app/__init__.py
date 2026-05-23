@@ -1,1 +1,1 @@
-"""CivicAI FastAPI backend."""
+"""eGata FastAPI backend."""
