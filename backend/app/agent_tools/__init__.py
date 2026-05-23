@@ -169,6 +169,7 @@ async def dispatch(
 from app.agent_tools import (  # noqa: E402, F401
     complete_document,
     find_redirect,
+    list_procedures,
     lookup_procedure,
     propose_widget,
     set_field,
