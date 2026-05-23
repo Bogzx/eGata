@@ -34,13 +34,33 @@ async def execute(
     if type not in _ALLOWED_TYPES:
         return ToolResult(error=f"Tip widget necunoscut {type!r}.")
     opts = options or []
-    if type == "choice":
-        if len(opts) < 2:
-            return ToolResult(error="Widget de tip 'choice' are nevoie de minim 2 opțiuni.")
-        if not target_field:
-            return ToolResult(error="Widget de tip 'choice' are nevoie de target_field.")
+    if type == "choice" and len(opts) < 2:
+        return ToolResult(error="Widget de tip 'choice' are nevoie de minim 2 opțiuni.")
     if type == "date" and not target_field:
         return ToolResult(error="Widget de tip 'date' are nevoie de target_field.")
+
+    # target_field binds the widget answer to a document field via set_field.
+    # set_field is only valid in FILLING/REVIEWING — there's no document to
+    # write into during CONFIRMING_MATCH, so the combination is fatal if the
+    # user clicks. Refuse it loudly so the model either calls start_procedure
+    # first or drops target_field (a plain confirm/choice question whose
+    # answer the model interprets in chat). `choice` without target_field is
+    # the right primitive for "which of these procedures do you want?" in
+    # CONFIRMING_MATCH.
+    if target_field and session.state not in {
+        SessionState.FILLING,
+        SessionState.REVIEWING,
+    }:
+        return ToolResult(
+            error=(
+                f"target_field este permis doar în starea FILLING (sau REVIEWING). "
+                f"Stare curentă: {session.state.value}. Pentru a alege între "
+                f"proceduri folosește 'choice' fără target_field — răspunsul "
+                f"ajunge la tine ca text și decizi ce procedură pornești. "
+                f"Pentru confirmare directă folosește 'confirm' fără target_field, "
+                f"apoi cheamă start_procedure."
+            )
+        )
 
     widget_id = uuid4().hex[:12]
     widget = PendingWidget(

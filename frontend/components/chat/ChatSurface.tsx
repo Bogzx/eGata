@@ -205,11 +205,11 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   }
 
   async function onWidgetSubmit(spec: WidgetSpec, value: string) {
-    // P0-2 fix: when voice is live, route the widget through the WS bridge
-    // so set_field's result is injected into the active Gemini Live
-    // session's context (the HTTP /widget-result path can't reach Live's
-    // in-session history). When voice is off, the HTTP endpoint is the
-    // right path — it bypasses Gemini entirely for the trivial case.
+    // When voice is live, route the widget through the WS bridge so
+    // set_field's result is injected into the active realtime session's
+    // context (the HTTP /widget-result path can't reach the in-session
+    // history). When voice is off, the HTTP endpoint is the right path —
+    // it bypasses the model entirely for the trivial case.
     if (voice.micOn) {
       try {
         await voice.submitWidget(spec.widgetId, value);

@@ -235,7 +235,7 @@ async def widget_result(
     req: WidgetResultRequest,
     citizen_id: UUID = Depends(current_citizen_id),
 ) -> WidgetResultResponse:
-    """Resolve a pending widget without bouncing through Gemini.
+    """Resolve a pending widget without bouncing through the model.
 
     Frontend posts {conversation_id, widget_id, value}. We pop the matching
     PendingWidget from session.pending_widgets, call set_field via the
@@ -288,7 +288,15 @@ async def widget_result(
             str(req.value) if not isinstance(req.value, str) else req.value
         )
 
-        if widget.target_field:
+        # Only dispatch set_field when there's a document to write into.
+        # A pre-fix widget may have been created with target_field while
+        # the session was in CONFIRMING_MATCH; treat its submission as a
+        # text answer instead of crashing on the state-gate.
+        can_set_field = (
+            widget.target_field is not None
+            and session.state in {SessionState.FILLING, SessionState.REVIEWING}
+        )
+        if can_set_field:
             # Direct path: a field gets set; the agent doesn't need to
             # react this turn because the field_updated event + state recap
             # carry the change to the model on its next turn. We synthesize
@@ -306,12 +314,35 @@ async def widget_result(
                 {"name": widget.target_field, "value": field_value},
                 ctx,
             )
+
+            # If set_field failed (e.g. the model invented an option label
+            # that doesn't match the schema's enum), don't bubble the error
+            # to the UI as a system bubble. Fall through to the chat-followup
+            # path: the frontend re-posts the user's choice as a normal turn,
+            # the model sees the validation error in the tool result, and
+            # re-runs set_field with the corrected value.
+            if result.error is not None:
+                log.info(
+                    "widget_result: set_field failed conv=%s field=%s value=%r — falling back to chat followup",
+                    session.id,
+                    widget.target_field,
+                    field_value,
+                )
+                update_session(session)
+                return WidgetResultResponse(
+                    conversation_id=session.id,
+                    snapshot=session.snapshot(),
+                    user_message=user_visible,
+                    events=events,
+                    requires_chat_followup=True,
+                )
+
             events.append(
                 WidgetResultEvent(
                     kind="tool_result",
                     name="set_field",
                     output=result.output,
-                    error=result.error,
+                    error=None,
                 )
             )
             if result.frontend_event:
@@ -321,18 +352,16 @@ async def widget_result(
                     )
                 )
 
-            history_entry = {
-                "role": "user",
-                "parts": [
-                    {
-                        "text": (
-                            f"[răspuns widget {widget.target_field}] "
-                            f"{user_visible}"
-                        )
-                    }
-                ],
-            }
-            session.history.append(history_entry)
+            # OpenAI message shape — matches the new session.history format.
+            session.history.append(
+                {
+                    "role": "user",
+                    "content": (
+                        f"[răspuns widget {widget.target_field}] "
+                        f"{user_visible}"
+                    ),
+                }
+            )
             update_session(session)
 
             return WidgetResultResponse(

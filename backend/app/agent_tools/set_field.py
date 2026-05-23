@@ -41,7 +41,7 @@ async def execute(
     if proc is None:
         return ToolResult(error=f"Procedura {doc['procedure_id']!r} nu există.")
 
-    # Gemini's function_declaration caps value at STRING; coerce booleans
+    # Function-call schemas cap value at STRING; coerce booleans
     # ("true"/"da"/"adevărat") into Python bool so applies_if can compare
     # against literal `true`/`false` in the procedure schema.
     coerced = coerce_field_value(proc, name, value)

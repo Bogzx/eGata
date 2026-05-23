@@ -21,15 +21,15 @@ At Checkpoint 1, frontend (Plan 1) talks to backend (Plan 2) directly — no MSW
 
 ### 1. Backend
 
-Prereqs: Python 3.12, a Supabase project (EU region), a Gemini API key.
+Prereqs: Python 3.12, a Supabase project (EU region), an Azure OpenAI resource with a chat deployment + embedding deployment + a VoiceLive realtime model.
 
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\Activate.ps1
 pip install -e .
-cp ../.env.example .env                                # fill in SUPABASE_* + GEMINI_API_KEY
+cp ../.env.example .env                                # fill in SUPABASE_* + AZURE_OPENAI_* + AZURE_VOICELIVE_*
 python scripts/apply_migrations.py                     # creates schema + seeds 3 demo citizens
-python scripts/embed_procedures.py                     # embeds the 7 procedure JSONs (Gemini text-embedding-004, 768 dims)
+python -m scripts.index_rag                            # embeds procedures + scenarios (text-embedding-3-large, 768 dims)
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -91,7 +91,7 @@ Each JSON file defines field schemas, the LaTeX template name, and `next_steps[]
 ## Roadmap
 
 - **Wave 1 ✅** — Plans 1 (frontend) + 2 (backend) merged.
-- **Wave 2 (next)** — Plans 3 (Pydantic AI + Gemini Live voice agent) + 4 (proactive worker, polish, a11y final pass).
+- **Wave 2 (next)** — Plans 3 (agent + Azure VoiceLive voice bridge) + 4 (proactive worker, polish, a11y final pass).
 - **Checkpoint 2** — full agent-driven flow + reminders worker + a11y certification.
 
 See `docs/superpowers/plans/2026-05-23-civicai-execution-roadmap.md` for the full execution model.

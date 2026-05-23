@@ -103,7 +103,7 @@ export class VoiceWs {
    *
    * The bridge resolves the widget server-side (popping it off
    * `session.pending_widgets`), dispatches `set_field` if the widget had a
-   * `target_field`, and injects a synthetic note into Gemini Live's
+   * `target_field`, and injects a synthetic note into the live session's
    * context so the model knows the field was answered without us having
    * to bounce through the HTTP /widget-result endpoint. */
   sendWidgetSubmission(widgetId: string, value: unknown): void {

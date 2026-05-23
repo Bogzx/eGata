@@ -109,7 +109,7 @@ export interface SessionState {
   abortCurrentTurn(): void;
   /** Submit a previously-proposed widget's answer.
    *
-   * Bypasses Gemini for the trivial "Da/Nu/option/date" case: the backend
+   * Bypasses the model for the trivial "Da/Nu/option/date" case: the backend
    * resolves the pending widget, runs set_field if appropriate, persists,
    * and returns a fresh snapshot. The widget's spec is marked
    * `submittedValue` so reloads don't re-arm it. */

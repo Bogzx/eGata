@@ -5,14 +5,14 @@
 // handles the resample on the input node with a proper anti-alias filter
 // (which sounds dramatically better than nearest-neighbour decimation in
 // JS — the prior worklet aliased high frequencies into the voice band and
-// made Romanian sibilants almost unrecognisable to Gemini). If the browser
+// made Romanian sibilants almost unrecognisable to the STT). If the browser
 // honours the hint, `sampleRate` is 16000 and the worklet just chunks
 // straight through. If it does not (e.g. some Safari/Firefox builds
 // quantise to the device rate), we fall back to a single-pole low-pass
 // followed by polyphase nearest-sample picking — still better than the
 // raw nearest-neighbour version this replaces.
 //
-// Chunk size guideline (Gemini Live):
+// Chunk size guideline (Azure VoiceLive):
 //   - Too small (<100 ms) → VAD gets noisy, may split words.
 //   - Too big (>500 ms) → end-of-turn detection lags.
 //   - 100 ms (1600 samples @ 16 kHz) sits at the lower-latency edge of

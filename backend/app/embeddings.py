@@ -1,45 +1,47 @@
-"""Gemini embedding pipeline for procedure RAG."""
+"""Azure OpenAI embedding pipeline for procedure RAG.
+
+Vectors are reduced to 768d via the `dimensions` parameter so the pgvector
+column shape stays compatible across embedding-model swaps. Re-run
+`scripts.index_rag` whenever the underlying embedding deployment changes;
+vectors from different providers/models are not interchangeable.
+"""
 from __future__ import annotations
 
 import math
 from functools import lru_cache
 from typing import Any
 
-from google import genai
-from google.genai import types as genai_types
+from openai import AzureOpenAI
 
 from app.config import get_settings
 from app.db import get_pg_connection
 from app.models import Procedure
 
-EMBEDDING_MODEL = "gemini-embedding-001"
 EMBEDDING_DIM = 768
 
 
 @lru_cache(maxsize=1)
-def _get_client() -> Any:
-    return genai.Client(api_key=get_settings().gemini_api_key)
-
-
-# Module-level alias kept for monkeypatching in tests
-_gemini_client: Any = None
-
-
-def _client() -> Any:
-    global _gemini_client
-    if _gemini_client is None:
-        _gemini_client = _get_client()
-    return _gemini_client
+def _client() -> AzureOpenAI:
+    s = get_settings()
+    if not s.azure_openai_api_key:
+        raise RuntimeError(
+            "AZURE_OPENAI_API_KEY not set — embeddings require it."
+        )
+    return AzureOpenAI(
+        api_key=s.azure_openai_api_key,
+        azure_endpoint=s.azure_openai_endpoint,
+        api_version=s.azure_openai_api_version,
+    )
 
 
 def embed_text(text: str) -> list[float]:
-    client = _client()
-    resp = client.models.embed_content(
-        model=EMBEDDING_MODEL,
-        contents=text,
-        config=genai_types.EmbedContentConfig(output_dimensionality=EMBEDDING_DIM),
+    s = get_settings()
+    resp = _client().embeddings.create(
+        model=s.azure_openai_embed_deployment,
+        input=text,
+        dimensions=EMBEDDING_DIM,
     )
-    return list(resp.embeddings[0].values)
+    return list(resp.data[0].embedding)
 
 
 def procedure_source_text(proc: Procedure) -> str:
