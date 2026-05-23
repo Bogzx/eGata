@@ -220,17 +220,6 @@ export type LookupMatch = {
 
 // ---- Chat-first redesign types ----
 
-export type RightPaneState =
-  | { kind: "welcome" }
-  | { kind: "guide"; procedureId: string }
-  | { kind: "filling"; activeField?: string }
-  | { kind: "review" }
-  | { kind: "pdf"; url: string }
-  | { kind: "delivery" }
-  | { kind: "done"; refNumber: string }
-  | { kind: "plan"; scenarioId: string }
-  | { kind: "matches" };
-
 export type WidgetSpec =
   | {
       type: "choice";
@@ -306,14 +295,12 @@ export type FrontendEvent =
       delivery: "save" | "send" | "print";
       ref_number: string;
     }
-  | { type: "redirect"; target: string; name: string; url: string };
-
-export type PendingMessage = {
-  id: string;
-  role: "user" | "agent";
-  text: string;
-  via?: "text" | "voice";
-};
+  | { type: "redirect"; target: string; name: string; url: string }
+  | {
+      type: "lookup_returned";
+      matches: LookupMatch[];
+      scenario_plan: ScenarioPlan | null;
+    };
 
 export type VoiceStatus =
   | "idle"

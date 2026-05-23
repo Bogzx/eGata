@@ -7,9 +7,6 @@ import { DocPaper, type DocPaperField } from "./DocPaper";
 export function FillingPane() {
   const procedure = useSessionStore((s) => s.procedure);
   const document = useSessionStore((s) => s.document);
-  const rightPane = useSessionStore((s) => s.rightPane);
-  const activeField =
-    rightPane.kind === "filling" ? rightPane.activeField : undefined;
 
   if (!procedure || !document) return null;
 
@@ -17,7 +14,7 @@ export function FillingPane() {
     const v = document.fields[f.name];
     const filled = v !== undefined && v !== null && String(v).length > 0;
     return {
-      label: f.label + (activeField === f.name ? "  ←" : ""),
+      label: f.label,
       value: filled ? String(v) : "",
       auto: f.source === "roeid" || f.source === "citizen",
     };

@@ -56,14 +56,19 @@ async def execute(session: Session, ctx: ToolContext, query: str) -> ToolResult:
     if top_score >= MATCH_THRESHOLD or scenario_plan is not None:
         transition_to = SessionState.CONFIRMING_MATCH
 
+    output_data = {
+        "matches": matches,
+        "scenario_plan": scenario_plan.model_dump(mode="json")
+        if scenario_plan
+        else None,
+    }
     return ToolResult(
-        output={
-            "matches": matches,
-            "scenario_plan": scenario_plan.model_dump(mode="json")
-            if scenario_plan
-            else None,
-        },
+        output=output_data,
         transition_to=transition_to,
+        frontend_event={
+            "type": "lookup_returned",
+            **output_data,
+        },
     )
 
 
