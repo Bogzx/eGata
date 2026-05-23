@@ -282,14 +282,15 @@ class VoiceBridgeSession:
             voice=voice,
             input_audio_format=InputAudioFormat.PCM16,
             output_audio_format=OutputAudioFormat.PCM16,
-            # Typed config with Romanian language hint — the speech-to-text
-            # event (CONVERSATION_ITEM_INPUT_AUDIO_TRANSCRIPTION_COMPLETED)
-            # only fires when transcription is explicitly enabled, and the
-            # language hint is needed for `whisper-1` to land on Romanian
-            # tokens instead of guessing English.
+            # Typed config — the speech-to-text events
+            # (CONVERSATION_ITEM_INPUT_AUDIO_TRANSCRIPTION_DELTA/COMPLETED)
+            # only fire when transcription is explicitly enabled. The
+            # `model` here is the Whisper *deployment name* on the Azure
+            # resource (not the literal "whisper-1" used by OpenAI public
+            # API). Language hint keeps it on Romanian tokens.
             input_audio_transcription=AudioInputTranscriptionOptions(
-                model="whisper-1",
-                language="ro",
+                model=settings.azure_voicelive_transcription_model,
+                language=settings.azure_voicelive_transcription_language,
             ),
             turn_detection=AzureSemanticVadMultilingual(),
             input_audio_echo_cancellation=AudioEchoCancellation(),
