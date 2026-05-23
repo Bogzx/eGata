@@ -10,6 +10,7 @@ import { streamChat, type StreamChatToolCall } from "./sseChat";
 import type {
   Citizen,
   Document,
+  LookupMatch,
   Message,
   PendingMessage,
   Procedure,
@@ -80,6 +81,7 @@ export interface SessionState {
   profileMenuOpen: boolean;
   sending: boolean;
   scenarioPlan: ScenarioPlan | null;
+  lookupMatches: LookupMatch[];
 
   hydrateCitizen(): Promise<void>;
   startProcedure(procedureId: string): Promise<void>;
@@ -97,6 +99,10 @@ export interface SessionState {
   finalizePendingUser(): void;
   finalizePendingAgent(widgets?: WidgetSpec[]): void;
   clearPending(): void;
+  /** Live messages stream their content in-place (e.g., voice transcripts). */
+  beginLiveMessage(role: "user" | "agent"): string;
+  updateLiveMessage(id: string, text: string): void;
+  finalizeLiveMessage(id: string, text: string): void;
   transitionRightPane(next: RightPaneState): void;
   setVoiceStatus(s: VoiceStatus): void;
   openDrawer(): void;
@@ -121,6 +127,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   profileMenuOpen: false,
   sending: false,
   scenarioPlan: null,
+  lookupMatches: [],
 
   async hydrateCitizen() {
     const c = await api.getCitizenMe();
@@ -294,14 +301,26 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         break;
       }
       case "lookup_procedure": {
-        const res = _result as { scenario_plan?: ScenarioPlan | null } | undefined;
+        const res = _result as
+          | {
+              scenario_plan?: ScenarioPlan | null;
+              matches?: LookupMatch[];
+            }
+          | undefined;
         const sp = res?.scenario_plan ?? null;
+        const matches = res?.matches ?? [];
         if (sp && !activeDocId) {
           set({
             scenarioPlan: sp,
+            lookupMatches: matches,
             rightPane: { kind: "plan", scenarioId: sp.scenario_id },
           });
           pushPath(`/p/${sp.scenario_id}`);
+        } else if (matches.length > 0 && !activeDocId) {
+          set({
+            lookupMatches: matches,
+            rightPane: { kind: "matches" },
+          });
         }
         break;
       }
@@ -356,6 +375,42 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set({ pendingUser: null, pendingAgent: null });
   },
 
+  beginLiveMessage(role) {
+    const id = makeId();
+    const msg: Message =
+      role === "user"
+        ? { id, role: "user", text: "", via: "voice", live: true }
+        : { id, role: "agent", text: "", live: true };
+    set((s) => {
+      const messages = [...s.messages, msg];
+      if (s.activeDocId) saveMessages(s.activeDocId, messages);
+      return { messages };
+    });
+    return id;
+  },
+
+  updateLiveMessage(id, text) {
+    set((s) => {
+      const messages = s.messages.map((m) =>
+        m.id === id && m.role !== "system" ? { ...m, text } : m,
+      );
+      if (s.activeDocId) saveMessages(s.activeDocId, messages);
+      return { messages };
+    });
+  },
+
+  finalizeLiveMessage(id, text) {
+    set((s) => {
+      const messages = s.messages.map((m) =>
+        m.id === id && m.role !== "system"
+          ? { ...m, text, live: false }
+          : m,
+      );
+      if (s.activeDocId) saveMessages(s.activeDocId, messages);
+      return { messages };
+    });
+  },
+
   transitionRightPane(next) {
     set({ rightPane: next });
   },
@@ -390,6 +445,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       drawerOpen: false,
       profileMenuOpen: false,
       scenarioPlan: null,
+      lookupMatches: [],
     });
     pushPath("/");
   },

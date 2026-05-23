@@ -234,9 +234,22 @@ html.large-text {
 }
 
 .brand {
+  appearance: none;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: left;
   display: flex;
   align-items: center;
   gap: 12px;
+  transition: opacity 0.15s ease;
+}
+.brand:hover {
+  opacity: 0.85;
 }
 .brand-mark {
   width: 36px;
@@ -350,10 +363,12 @@ html.large-text {
   flex-direction: column;
   min-height: 0;
   gap: 16px;
+  padding-bottom: 0;
+  transition: padding-bottom 0.55s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .civic-left.idle {
   justify-content: space-between;
-  padding: 0;
+  padding: 0 0 32vh;
 }
 
 .civic-right {
@@ -711,9 +726,16 @@ html.large-text {
   border: 1px solid var(--c-line);
   border-radius: 999px;
   box-shadow: var(--shadow-card);
+  width: 100%;
+  max-width: 100%;
+  margin-inline: auto;
   transition:
     border-color 0.2s ease,
-    box-shadow 0.25s ease;
+    box-shadow 0.25s ease,
+    max-width 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.civic-left.idle .composer-shell {
+  max-width: 560px;
 }
 .composer-shell:focus-within {
   border-color: var(--c-mid);
