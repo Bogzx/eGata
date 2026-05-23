@@ -110,6 +110,7 @@ def _phone_function_declarations() -> list[dict[str, Any]]:
 async def _run_phone_voicelive_session(
     inbound: asyncio.Queue[bytes | None],
     send_to_twilio: Callable[[bytes], Awaitable[None]],
+    send_clear_to_twilio: Callable[[], Awaitable[None]],
     stop_event: asyncio.Event,
 ) -> None:
     settings = get_settings()
@@ -222,12 +223,18 @@ async def _run_phone_voicelive_session(
                             )
 
                 elif et == ServerEventType.INPUT_AUDIO_BUFFER_SPEECH_STARTED:
-                    # Twilio caller barge-in; clear any pending playback by
-                    # cancelling the in-progress response.
+                    # Caller barge-in. Two things must happen, in order:
+                    #   1. Tell VoiceLive to stop generating more audio.
+                    #   2. Tell Twilio to drop everything we've already
+                    #      buffered for playback. VoiceLive emits TTS
+                    #      faster than realtime, so cancelling step 1
+                    #      alone still leaves seconds of agent audio
+                    #      queued in Twilio's outbound stream.
                     try:
                         await connection.response.cancel()
                     except Exception:
                         pass
+                    await send_clear_to_twilio()
                     log.info(
                         "twilio_voicelive: barge-in (caller spoke) session=%s",
                         phone_session.id,
@@ -386,8 +393,22 @@ async def twilio_media_stream(ws: WebSocket) -> None:
         except Exception:
             log.exception("twilio_ws: send audio failed sid=%s", sid)
 
+    async def send_clear_to_twilio() -> None:
+        sid = stream_sid_holder.get("sid")
+        if not sid:
+            return
+        try:
+            await ws.send_text(
+                json.dumps({"event": "clear", "streamSid": sid})
+            )
+            log.info("twilio_ws: clear (barge-in flush) sid=%s", sid)
+        except Exception:
+            log.exception("twilio_ws: send clear failed sid=%s", sid)
+
     voicelive_task = asyncio.create_task(
-        _run_phone_voicelive_session(inbound, send_to_twilio, stop_event)
+        _run_phone_voicelive_session(
+            inbound, send_to_twilio, send_clear_to_twilio, stop_event
+        )
     )
 
     started = time.perf_counter()
