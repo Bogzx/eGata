@@ -1,9 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore } from "@/lib/sessionStore";
 import type {
@@ -12,6 +9,33 @@ import type {
   Reminder,
   ScenarioSummary,
 } from "@/lib/types";
+
+type Suggestion = {
+  key: string;
+  kind: "scenario" | "procedure" | "reminder";
+  id: string;
+  icon: string;
+  title: string;
+  hint: string;
+};
+
+const ICON_BY_CATEGORY: Record<string, string> = {
+  acte: "🪪",
+  domiciliu: "🏠",
+  fiscal: "🧾",
+  venit: "📄",
+  scolarizare: "🎓",
+  copii: "👶",
+  vehicul: "🚗",
+  sanatate: "🩺",
+};
+
+function iconFor(category: string): string {
+  for (const [key, ico] of Object.entries(ICON_BY_CATEGORY)) {
+    if (category.includes(key)) return ico;
+  }
+  return "📋";
+}
 
 function filterProcedures(
   procs: Procedure[],
@@ -25,7 +49,7 @@ function filterProcedures(
     if (seenCategories.has(p.category)) continue;
     seenCategories.add(p.category);
     out.push(p);
-    if (out.length >= 2) break;
+    if (out.length >= 3) break;
   }
   return out;
 }
@@ -52,11 +76,9 @@ export function WelcomePane() {
   const citizen = useSessionStore((s) => s.citizen);
   const startProcedure = useSessionStore((s) => s.startProcedure);
   const openScenarioPlan = useSessionStore((s) => s.openScenarioPlan);
-  const openDrawer = useSessionStore((s) => s.openDrawer);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     void Promise.all([
@@ -67,62 +89,113 @@ export function WelcomePane() {
       setProcedures(p);
       setScenarios(s);
       setReminders(r);
-      setLoading(false);
     });
   }, []);
 
-  const pendingReminders = reminders.filter((r) => r.status === "pending");
   const attrs = citizen?.attributes ?? {};
-  const procSuggestions = filterProcedures(procedures, attrs);
-  const scenarioSuggestions = filterScenarios(scenarios, attrs);
+  const suggestions = useMemo<Suggestion[]>(() => {
+    const out: Suggestion[] = [];
+    const pendingReminders = reminders.filter((r) => r.status === "pending");
+    for (const r of pendingReminders.slice(0, 1)) {
+      out.push({
+        key: `reminder-${r.id}`,
+        kind: "reminder",
+        id: r.id,
+        icon: "🔔",
+        title: r.title,
+        hint: r.due_date
+          ? `Termen: ${new Date(r.due_date).toLocaleDateString("ro-RO")}`
+          : "Amintire activă",
+      });
+    }
+    for (const s of filterScenarios(scenarios, attrs)) {
+      out.push({
+        key: `scenario-${s.id}`,
+        kind: "scenario",
+        id: s.id,
+        icon: "📋",
+        title: s.title,
+        hint: s.description ?? "Plan pas cu pas",
+      });
+    }
+    for (const p of filterProcedures(procedures, attrs)) {
+      out.push({
+        key: `procedure-${p.id}`,
+        kind: "procedure",
+        id: p.id,
+        icon: iconFor(p.category),
+        title: p.title,
+        hint: p.description ?? "Pornește această procedură",
+      });
+    }
+    return out.slice(0, 4);
+  }, [reminders, scenarios, procedures, attrs]);
+
+  function handleClick(s: Suggestion) {
+    if (s.kind === "scenario") void openScenarioPlan(s.id);
+    else if (s.kind === "procedure") void startProcedure(s.id);
+    else if (s.kind === "reminder") {
+      void api.startReminder(s.id).then((out) => {
+        void useSessionStore.getState().loadDocument(out.document_id);
+      });
+    }
+  }
+
+  const prenume = citizen?.prenume ?? "";
 
   return (
-    <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-5 p-6 text-center">
-      <Sparkles className="text-primary" size={36} aria-hidden />
-      <h2 className="text-2xl font-semibold">
-        Bună{citizen?.prenume ? `, ${citizen.prenume}` : ""}. Cu ce te pot ajuta?
+    <div className="welcome">
+      <div className="welcome-pill">
+        <span className="dot dot-pulse" aria-hidden="true" />
+        Asistent CivicAI · ROeID activă
+      </div>
+      <h2 className="hello">
+        Bună{prenume ? `, ${prenume}` : ""}.
+        <br />
+        <span className="hello-soft">Cu ce te pot ajuta astăzi?</span>
       </h2>
-      <p className="text-sm text-muted-foreground">
-        Spune-mi în cuvinte simple ce ai nevoie — eu mă ocup de hârtii.
+      <p className="welcome-sub">
+        Spune-mi în cuvinte simple ce ai nevoie. Eu îți spun ce acte îți trebuie
+        — și le completez cu tine.
       </p>
 
-      <div className="flex flex-wrap justify-center gap-2 pt-2">
-        {pendingReminders.length > 0 ? (
-          <Button variant="secondary" size="sm" onClick={() => openDrawer()}>
-            🔔 Ai {pendingReminders.length}{" "}
-            {pendingReminders.length === 1
-              ? "amintire activă"
-              : "amintiri active"}
-          </Button>
-        ) : null}
-        {scenarioSuggestions.map((s) => (
-          <Button
-            key={s.id}
-            variant="secondary"
-            size="sm"
-            onClick={() => void openScenarioPlan(s.id)}
-          >
-            📋 {s.title}
-          </Button>
-        ))}
-        {procSuggestions.map((p) => (
-          <Button
-            key={p.id}
-            variant="outline"
-            size="sm"
-            onClick={() => void startProcedure(p.id)}
-          >
-            💡 {p.title}
-          </Button>
-        ))}
-      </div>
-
-      {loading && procedures.length === 0 && scenarios.length === 0 ? (
-        <Card className="mt-4">
-          <CardContent className="p-4 text-sm text-muted-foreground">
-            Se încarcă procedurile…
-          </CardContent>
-        </Card>
+      {suggestions.length > 0 ? (
+        <div
+          className="suggest-grid"
+          role="list"
+          aria-label="Proceduri sugerate"
+        >
+          {suggestions.map((s) => (
+            <button
+              type="button"
+              key={s.key}
+              className="suggest-card"
+              onClick={() => handleClick(s)}
+              role="listitem"
+            >
+              <span className="suggest-icon" aria-hidden="true">
+                {s.icon}
+              </span>
+              <span className="suggest-body">
+                <span className="suggest-title">{s.title}</span>
+                <span className="suggest-hint">{s.hint}</span>
+              </span>
+              <svg
+                className="suggest-arrow"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M5 12h14M13 5l7 7-7 7" />
+              </svg>
+            </button>
+          ))}
+        </div>
       ) : null}
     </div>
   );
