@@ -15,6 +15,7 @@ import {
   VoiceAgentMicDeniedError,
   useVoiceAgent,
 } from "@/lib/useVoiceAgent";
+import { useVoiceAgentBridge } from "@/lib/useVoiceAgentBridge";
 import { AnimatedBackground } from "./AnimatedBackground";
 import { ChatStream } from "./ChatStream";
 import { Composer } from "./Composer";
@@ -93,7 +94,15 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   const hasPendingUser = useSessionStore((s) => s.pendingUser !== null);
   const hasPendingAgent = useSessionStore((s) => s.pendingAgent !== null);
 
-  const voice = useVoiceAgent();
+  // Choose between the legacy direct-to-Gemini WS hook and the backend
+  // bridge based on a build-time env flag. The value is inlined by Next,
+  // so the conditional resolves at module-init time and React's
+  // rules-of-hooks (stable order across renders) are satisfied.
+  const useVoiceHook =
+    process.env.NEXT_PUBLIC_VOICE_BRIDGE === "1"
+      ? useVoiceAgentBridge
+      : useVoiceAgent;
+  const voice = useVoiceHook();
   const voiceStartedRef = useRef(false);
 
   // Auth gate.

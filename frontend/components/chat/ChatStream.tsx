@@ -135,13 +135,23 @@ export function ChatStream({ onWidgetSubmit }: Props) {
       aria-label="Conversație cu asistentul CivicAI"
     >
       {messages.map((m: Message) => (
-        <li key={m.id}>
+        <li
+          key={m.id}
+          aria-label={
+            m.role !== "system" && m.live
+              ? m.role === "user"
+                ? "Mesajul tău se transcrie"
+                : "Asistentul răspunde"
+              : undefined
+          }
+        >
           {m.role === "user" ? (
-            <MsgUser text={cleanText(m.text)} />
+            <MsgUser text={cleanText(m.text)} streaming={m.live} />
           ) : m.role === "agent" ? (
             <MsgAgent
               text={cleanText(m.text)}
               widgets={m.widgets}
+              streaming={m.live}
               onWidgetSubmit={onWidgetSubmit}
             />
           ) : (
