@@ -64,6 +64,11 @@ class ProcedureField(BaseModel):
     options: list[str] | None = None
     suggest_default: str | None = None
     redact_in_voice: bool | None = None
+    # First-class conditional logic. When set, the field is only applicable
+    # when this expression evaluates true against the combined context of
+    # {citizen.attributes, document.fields}. Inapplicable fields are not
+    # counted as required even if `required: true`. See app.applies_if.
+    applies_if: str | None = None
 
 
 class NextStep(BaseModel):
