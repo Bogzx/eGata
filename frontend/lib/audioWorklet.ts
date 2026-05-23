@@ -39,7 +39,18 @@ export async function startMicRecorder(
     })),
   );
 
-  const context = new AudioContext({ latencyHint: "interactive" });
+  // Match the recorder context to Gemini Live's expected input rate
+  // (16 kHz) so the browser handles the downsample on the input node with
+  // a proper anti-alias filter, rather than the worklet trying to decimate
+  // by hand. Older recorders ran the context at the system default
+  // (typically 48 kHz) and the worklet did nearest-neighbour downsampling,
+  // which folded high frequencies back into the voice band and made
+  // Romanian transcription unreliable. Some platforms ignore the hint and
+  // pick a different rate; the worklet adapts at runtime via `sampleRate`.
+  const context = new AudioContext({
+    sampleRate: 16000,
+    latencyHint: "interactive",
+  });
   LOG("AudioContext created — sampleRate:", context.sampleRate);
   await context.audioWorklet.addModule("/worklets/pcm-recorder.js");
   LOG("pcm-recorder worklet module loaded");
