@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.agent import router as agent_router
+from app.agent_voice import router as agent_voice_router
 from app.auth import router as auth_router
 from app.citizens import router as citizens_router
 from app.config import get_settings
@@ -76,6 +77,7 @@ app.include_router(procedures_router)
 app.include_router(scenarios_router)
 app.include_router(documents_router)
 app.include_router(agent_router)
+app.include_router(agent_voice_router)
 app.include_router(reminders_router)
 app.include_router(voice_router)
 app.include_router(tool_dispatch_router)
