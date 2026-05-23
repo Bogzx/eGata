@@ -1,36 +1,60 @@
 "use client";
 
 import { useSessionStore } from "@/lib/sessionStore";
-import { DeliveryPane } from "@/components/right-pane/DeliveryPane";
 import { DonePane } from "@/components/right-pane/DonePane";
 import { FillingPane } from "@/components/right-pane/FillingPane";
-import { GuidePane } from "@/components/right-pane/GuidePane";
 import { MatchesPane } from "@/components/right-pane/MatchesPane";
-import { PdfPane } from "@/components/right-pane/PdfPane";
 import { PlanPane } from "@/components/right-pane/PlanPane";
 import { ReviewPane } from "@/components/right-pane/ReviewPane";
 import { WelcomePane } from "@/components/right-pane/WelcomePane";
+import type { SessionStateName } from "@/lib/types";
 
-export function RightPane() {
-  const kind = useSessionStore((s) => s.rightPane.kind);
-  switch (kind) {
-    case "welcome":
+/**
+ * Right pane is a pure function of the backend session state.
+ *
+ *   exploring         → WelcomePane
+ *   confirming_match  → MatchesPane | PlanPane  (PlanPane when a scenario
+ *                       plan was returned by the latest lookup)
+ *   filling           → FillingPane
+ *   reviewing         → ReviewPane
+ *   delivered         → DonePane
+ *   redirected        → WelcomePane (the redirect itself is a chat bubble)
+ *
+ * No internal state, no self-transitions, no rightPane.kind anywhere
+ * else in the codebase — those went away in the cleanup pass.
+ */
+function paneForSessionState(
+  state: SessionStateName,
+  hasScenarioPlan: boolean,
+): React.ReactNode {
+  switch (state) {
+    case "exploring":
       return <WelcomePane />;
-    case "guide":
-      return <GuidePane />;
+    case "confirming_match":
+      return hasScenarioPlan ? <PlanPane /> : <MatchesPane />;
     case "filling":
       return <FillingPane />;
-    case "review":
+    case "reviewing":
       return <ReviewPane />;
-    case "pdf":
-      return <PdfPane />;
-    case "delivery":
-      return <DeliveryPane />;
-    case "done":
+    case "delivered":
       return <DonePane />;
-    case "plan":
-      return <PlanPane />;
-    case "matches":
-      return <MatchesPane />;
+    case "redirected":
+      return <WelcomePane />;
   }
+}
+
+export function RightPane() {
+  const session = useSessionStore((s) => s.session);
+  const scenarioPlan = useSessionStore((s) => s.scenarioPlan);
+  const document = useSessionStore((s) => s.document);
+
+  // No session yet (initial paint, fresh visit). If we have a document
+  // already loaded — which happens on direct /r/<id> URLs — assume the
+  // user is still filling. Otherwise show the welcome lane.
+  if (!session) {
+    if (document) return <FillingPane />;
+    return <WelcomePane />;
+  }
+
+  return paneForSessionState(session.state, scenarioPlan !== null);
 }

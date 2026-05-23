@@ -10,11 +10,10 @@ import { DocPane } from "./DocPane";
 export function ReviewPane() {
   const procedure = useSessionStore((s) => s.procedure);
   const document = useSessionStore((s) => s.document);
-  const transition = useSessionStore((s) => s.transitionRightPane);
   const sendText = useSessionStore((s) => s.sendText);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
-  const [generating, setGenerating] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   if (!procedure || !document) return null;
 
@@ -27,18 +26,20 @@ export function ReviewPane() {
     setDraft("");
   }
 
-  async function generatePdf() {
-    const doc = useSessionStore.getState().document;
-    if (!doc) return;
-    setGenerating(true);
+  async function requestDelivery(delivery: "save" | "send" | "print") {
+    setSubmitting(true);
     try {
-      const r = await api.generatePdf(doc.id);
-      const fresh = await api.getDocument(doc.id);
-      useSessionStore.setState({ document: fresh });
-      transition({ kind: "pdf", url: fresh.pdf_url ?? r.pdf_url });
-      void sendText("Am generat PDF-ul, vezi în dreapta.");
+      const label =
+        delivery === "save"
+          ? "Salvează"
+          : delivery === "send"
+            ? "Trimite-mi pe SMS"
+            : "Printează";
+      await sendText(
+        `Te rog generează PDF-ul și finalizează documentul cu ${label}.`,
+      );
     } finally {
-      setGenerating(false);
+      setSubmitting(false);
     }
   }
 
@@ -55,19 +56,18 @@ export function ReviewPane() {
           <button
             type="button"
             className="civic-btn civic-btn-ghost"
-            onClick={() =>
-              transition({ kind: "filling", activeField: undefined })
-            }
+            onClick={() => void requestDelivery("save")}
+            disabled={submitting}
           >
-            Înapoi la editare
+            Salvează
           </button>
           <button
             type="button"
             className="civic-btn civic-btn-primary"
-            onClick={() => void generatePdf()}
-            disabled={generating}
+            onClick={() => void requestDelivery("send")}
+            disabled={submitting}
           >
-            {generating ? "Se generează…" : "Generează PDF"}
+            {submitting ? "Se finalizează…" : "Trimite pe SMS"}
             <svg
               width="14"
               height="14"

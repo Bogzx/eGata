@@ -220,17 +220,6 @@ export type LookupMatch = {
 
 // ---- Chat-first redesign types ----
 
-export type RightPaneState =
-  | { kind: "welcome" }
-  | { kind: "guide"; procedureId: string }
-  | { kind: "filling"; activeField?: string }
-  | { kind: "review" }
-  | { kind: "pdf"; url: string }
-  | { kind: "delivery" }
-  | { kind: "done"; refNumber: string }
-  | { kind: "plan"; scenarioId: string }
-  | { kind: "matches" };
-
 export type WidgetSpec =
   | {
       type: "choice";
@@ -238,18 +227,23 @@ export type WidgetSpec =
       options: string[];
       targetField: string;
       widgetId: string;
+      // Set by the store when the user submits. Persisted in localStorage
+      // so reloads don't re-arm the widget for a second submission.
+      submittedValue?: string | null;
     }
   | {
       type: "confirm";
       question: string;
       onConfirmTool?: string;
       widgetId: string;
+      submittedValue?: string | null;
     }
   | {
       type: "date";
       question: string;
       targetField: string;
       widgetId: string;
+      submittedValue?: string | null;
     };
 
 export type Message =
@@ -257,12 +251,64 @@ export type Message =
   | { id: string; role: "agent"; text: string; widgets?: WidgetSpec[]; live?: boolean }
   | { id: string; role: "system"; text: string };
 
-export type PendingMessage = {
-  id: string;
-  role: "user" | "agent";
-  text: string;
-  via?: "text" | "voice";
+// ---- Session snapshot pushed by the backend (state-machine rewrite) ----
+
+export type SessionStateName =
+  | "exploring"
+  | "confirming_match"
+  | "filling"
+  | "reviewing"
+  | "delivered"
+  | "redirected";
+
+export type PendingWidget = {
+  widget_id: string;
+  type: "choice" | "confirm" | "date";
+  question: string;
+  target_field?: string | null;
+  options: string[];
 };
+
+export type SessionSnapshot = {
+  id: string;
+  citizen_id: string;
+  state: SessionStateName;
+  active_document_id: string | null;
+  scenario_id: string | null;
+  step_index: number | null;
+  pending_widgets: PendingWidget[];
+  /** Monotonic per-process counter from the backend. The store drops
+   * any snapshot whose seq is lower than the last applied one. */
+  seq?: number;
+};
+
+// Frontend events pushed by tools. The store reacts to these directly
+// (e.g. document_opened → navigate to /r/<id>; widget_proposed → render
+// inline widget; redirect → show redirect card).
+export type FrontendEvent =
+  | { type: "document_opened"; document_id: string; procedure_id: string }
+  | {
+      type: "widget_proposed";
+      widget_id: string;
+      widget_type: "choice" | "confirm" | "date";
+      question: string;
+      options: string[];
+      target_field: string | null;
+    }
+  | { type: "field_updated"; document_id: string; name: string; value: unknown }
+  | {
+      type: "document_delivered";
+      document_id: string;
+      pdf_url: string;
+      delivery: "save" | "send" | "print";
+      ref_number: string;
+    }
+  | { type: "redirect"; target: string; name: string; url: string }
+  | {
+      type: "lookup_returned";
+      matches: LookupMatch[];
+      scenario_plan: ScenarioPlan | null;
+    };
 
 export type VoiceStatus =
   | "idle"

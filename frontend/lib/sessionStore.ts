@@ -2,20 +2,16 @@
 
 import { create } from "zustand";
 import { api } from "./api";
-import {
-  allRequiredFilled,
-  computeInitialRightPaneFrom,
-} from "./rightPaneState";
 import { streamChat, type StreamChatToolCall } from "./sseChat";
 import type {
   Citizen,
   Document,
+  FrontendEvent,
   LookupMatch,
   Message,
-  PendingMessage,
   Procedure,
-  RightPaneState,
   ScenarioPlan,
+  SessionSnapshot,
   VoiceStatus,
   WidgetSpec,
 } from "./types";
@@ -65,17 +61,13 @@ function pushPath(path: string) {
 }
 
 export interface SessionState {
+  // Identity + working set
   citizen: Citizen | null;
   activeDocId: string | null;
   document: Document | null;
   procedure: Procedure | null;
   conversationId: string | null;
   messages: Message[];
-  /** In-progress user turn, rendered as a live-updating bubble. */
-  pendingUser: PendingMessage | null;
-  /** In-progress agent turn, rendered as a live-updating bubble. */
-  pendingAgent: PendingMessage | null;
-  rightPane: RightPaneState;
   voiceStatus: VoiceStatus;
   drawerOpen: boolean;
   profileMenuOpen: boolean;
@@ -83,33 +75,72 @@ export interface SessionState {
   scenarioPlan: ScenarioPlan | null;
   lookupMatches: LookupMatch[];
 
+  // The backend session — single source of truth for agent state.
+  session: SessionSnapshot | null;
+
+  // Actions
   hydrateCitizen(): Promise<void>;
   startProcedure(procedureId: string): Promise<void>;
   loadDocument(docId: string): Promise<void>;
   openScenarioPlan(scenarioId: string): Promise<void>;
   sendText(text: string, opts?: { viaWs?: boolean }): Promise<void>;
-  applyToolResult(
-    toolName: string,
-    args: Record<string, unknown>,
-    result: unknown,
-  ): Promise<void>;
+  /** Abort the in-flight chat turn. Safe to call when no turn is running. */
+  abortCurrentTurn(): void;
+  /** Submit a previously-proposed widget's answer.
+   *
+   * Bypasses Gemini for the trivial "Da/Nu/option/date" case: the backend
+   * resolves the pending widget, runs set_field if appropriate, persists,
+   * and returns a fresh snapshot. The widget's spec is marked
+   * `submittedValue` so reloads don't re-arm it. */
+  submitWidget(widgetSpec: WidgetSpec, value: string): Promise<void>;
   appendMessage(m: Message): void;
-  upsertPendingUser(text: string, via?: "text" | "voice"): void;
-  upsertPendingAgent(text: string): void;
-  finalizePendingUser(): void;
-  finalizePendingAgent(widgets?: WidgetSpec[]): void;
-  clearPending(): void;
-  /** Live messages stream their content in-place (e.g., voice transcripts). */
+
+  /** Live messages stream their content in-place — used by both text
+   * streaming and voice transcripts so the two paths feel identical. */
   beginLiveMessage(role: "user" | "agent"): string;
   updateLiveMessage(id: string, text: string): void;
   finalizeLiveMessage(id: string, text: string): void;
-  transitionRightPane(next: RightPaneState): void;
+
+  /** Backend session snapshot subscription. */
+  setSession(snapshot: SessionSnapshot): void;
+
+  /** Structured frontend events emitted by tools (document_opened,
+   * widget_proposed, field_updated, document_delivered, lookup_returned,
+   * redirect). The store is the single dispatcher for UI side-effects. */
+  handleFrontendEvent(event: FrontendEvent): Promise<void>;
+
   setVoiceStatus(s: VoiceStatus): void;
   openDrawer(): void;
   closeDrawer(): void;
   toggleProfileMenu(): void;
   closeProfileMenu(): void;
   reset(): void;
+}
+
+// Out-of-band ref so we don't try to store the AbortController in zustand
+// state (it's not serializable and triggers needless re-renders).
+let _currentAbort: AbortController | null = null;
+
+// Helper: optimistically toggle a widget's submittedValue in the messages
+// array (and persist). Passing `null` rolls back a prior submission on
+// error. Shared between submitWidget's two branches and its catch block.
+function _markWidgetSubmitted(
+  get: () => SessionState,
+  set: (partial: Partial<SessionState>) => void,
+  activeDocId: string | null,
+  widgetId: string,
+  value: string | null,
+) {
+  const messages = get().messages;
+  const next = messages.map((m) => {
+    if (m.role !== "agent" || !m.widgets) return m;
+    const updated = m.widgets.map((w) =>
+      w.widgetId === widgetId ? { ...w, submittedValue: value } : w,
+    );
+    return { ...m, widgets: updated };
+  });
+  set({ messages: next });
+  if (activeDocId) saveMessages(activeDocId, next);
 }
 
 export const useSessionStore = create<SessionState>((set, get) => ({
@@ -119,15 +150,142 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   procedure: null,
   conversationId: null,
   messages: [],
-  pendingUser: null,
-  pendingAgent: null,
-  rightPane: { kind: "welcome" },
   voiceStatus: "idle",
   drawerOpen: false,
   profileMenuOpen: false,
   sending: false,
   scenarioPlan: null,
   lookupMatches: [],
+  session: null,
+
+  setSession(snapshot) {
+    const current = get().session;
+    // Drop stale snapshots if seq goes backwards — defense against
+    // out-of-order delivery on reconnects or future buffered transports.
+    if (
+      current &&
+      typeof current.seq === "number" &&
+      typeof snapshot.seq === "number" &&
+      snapshot.seq < current.seq &&
+      current.id === snapshot.id
+    ) {
+      return;
+    }
+    set({ session: snapshot });
+  },
+
+  async handleFrontendEvent(event) {
+    switch (event.type) {
+      case "document_opened": {
+        try {
+          await get().loadDocument(event.document_id);
+        } catch (err) {
+          const detail = err instanceof Error ? err.message : "necunoscută";
+          get().appendMessage({
+            id: makeId(),
+            role: "system",
+            text: `Nu am putut deschide documentul: ${detail}`,
+          });
+        }
+        return;
+      }
+      case "widget_proposed": {
+        const spec: WidgetSpec =
+          event.widget_type === "choice"
+            ? {
+                type: "choice",
+                question: event.question,
+                options: event.options,
+                targetField: event.target_field ?? "",
+                widgetId: event.widget_id,
+              }
+            : event.widget_type === "date"
+              ? {
+                  type: "date",
+                  question: event.question,
+                  targetField: event.target_field ?? "",
+                  widgetId: event.widget_id,
+                }
+              : {
+                  type: "confirm",
+                  question: event.question,
+                  widgetId: event.widget_id,
+                };
+        const messages = get().messages;
+        // Attach the widget to the most recent agent message, or create one.
+        let realIdx = -1;
+        for (let i = messages.length - 1; i >= 0; i--) {
+          if (messages[i]?.role === "agent") {
+            realIdx = i;
+            break;
+          }
+        }
+        if (realIdx === -1) {
+          get().appendMessage({
+            id: makeId(),
+            role: "agent",
+            text: event.question,
+            widgets: [spec],
+          });
+          return;
+        }
+        const target = messages[realIdx];
+        if (!target || target.role !== "agent") return;
+        const next: Message = {
+          id: target.id,
+          role: "agent",
+          text: target.text,
+          widgets: [...(target.widgets ?? []), spec],
+          live: target.live,
+        };
+        const newMessages = [...messages];
+        newMessages[realIdx] = next;
+        const { activeDocId } = get();
+        if (activeDocId) saveMessages(activeDocId, newMessages);
+        set({ messages: newMessages });
+        return;
+      }
+      case "field_updated": {
+        // Optimistic local fields update so the UI reflects the change
+        // before the next snapshot arrives.
+        const { document } = get();
+        if (!document || document.id !== event.document_id) return;
+        const newFields = {
+          ...(document.fields ?? {}),
+          [event.name]: event.value,
+        };
+        set({ document: { ...document, fields: newFields } });
+        return;
+      }
+      case "document_delivered": {
+        // The right pane derives "delivered" from session.state. We just
+        // need to refresh the doc so ref_number / pdf_url land in the
+        // document object for the DonePane to read.
+        try {
+          const fresh = await api.getDocument(event.document_id);
+          set({ document: fresh });
+        } catch {
+          // best effort
+        }
+        return;
+      }
+      case "redirect": {
+        get().appendMessage({
+          id: makeId(),
+          role: "system",
+          text: `Această cerere se face la ${event.name}. Vezi ${event.url}.`,
+        });
+        return;
+      }
+      case "lookup_returned": {
+        set({
+          lookupMatches: event.matches,
+          scenarioPlan: event.scenario_plan,
+        });
+        return;
+      }
+    }
+  },
 
   async hydrateCitizen() {
     const c = await api.getCitizenMe();
@@ -150,9 +308,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       procedure,
       conversationId: null,
       messages,
-      pendingUser: null,
-      pendingAgent: null,
-      rightPane: { kind: "guide", procedureId },
       drawerOpen: false,
     });
     pushPath(`/r/${doc.id}`);
@@ -163,7 +318,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       const plan = await api.getScenarioPlan(scenarioId);
       set({
         scenarioPlan: plan,
-        rightPane: { kind: "plan", scenarioId },
         drawerOpen: false,
       });
       pushPath(`/p/${scenarioId}`);
@@ -188,9 +342,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       procedure,
       conversationId,
       messages,
-      pendingUser: null,
-      pendingAgent: null,
-      rightPane: computeInitialRightPaneFrom(doc, procedure),
       drawerOpen: false,
     });
     pushPath(`/r/${docId}`);
@@ -206,13 +357,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     };
     get().appendMessage(userMsg);
     if (opts?.viaWs) {
-      // Voice WS active — agent reply arrives via outputTranscription deltas.
+      // Voice WS active — agent reply arrives via the bridge's
+      // outputTranscription deltas → live messages.
       return;
     }
     set({ sending: true });
-    const pendingId = makeId();
-    set({ pendingAgent: { id: pendingId, role: "agent", text: "" } });
+    const liveId = get().beginLiveMessage("agent");
     const collectedToolCalls: StreamChatToolCall[] = [];
+    let finalText = "";
+    // Replace any stale controller from a prior turn that never cleared.
+    if (_currentAbort) _currentAbort.abort();
+    _currentAbort = new AbortController();
+    const signal = _currentAbort.signal;
     try {
       await streamChat(
         {
@@ -228,109 +384,70 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             }
           },
           onDelta: (full) => {
-            const cur = get().pendingAgent;
-            if (!cur || cur.id !== pendingId) return;
-            set({ pendingAgent: { ...cur, text: full } });
+            get().updateLiveMessage(liveId, full);
           },
           onToolCall: (call) => {
             collectedToolCalls.push(call);
           },
-          onToolResult: async (name, output) => {
-            const call = collectedToolCalls.find((c) => c.name === name);
-            await get().applyToolResult(name, call?.arguments ?? {}, output);
+          onToolResult: (name, _output, error) => {
+            if (error) {
+              get().appendMessage({
+                id: makeId(),
+                role: "system",
+                text: `A apărut o eroare la pasul „${name}": ${error}`,
+              });
+            }
+          },
+          onSessionSnapshot: (snapshot) => {
+            get().setSession(snapshot);
+          },
+          onFrontendEvent: (event) => {
+            void get().handleFrontendEvent(event);
           },
           onDone: (final) => {
-            const widgets = deriveWidgets(final.tool_calls);
-            const agentMsg: Message = {
-              id: makeId(),
-              role: "agent",
-              text: final.message,
-              widgets: widgets.length ? widgets : undefined,
-            };
-            set({ pendingAgent: null });
-            get().appendMessage(agentMsg);
-            if (final.conversation_id && final.conversation_id !== conversationId) {
+            finalText = final.message;
+            get().finalizeLiveMessage(liveId, finalText);
+            if (
+              final.conversation_id &&
+              final.conversation_id !== conversationId
+            ) {
               set({ conversationId: final.conversation_id });
               if (activeDocId) saveConvId(activeDocId, final.conversation_id);
             }
           },
           onError: (err) => {
             const detail = err instanceof Error ? err.message : "necunoscută";
-            set({ pendingAgent: null });
-            get().appendMessage({
-              id: makeId(),
-              role: "system",
-              text: `Eroare: ${detail}`,
-            });
+            // AbortError is the user's own intent; don't shout an error bubble.
+            const aborted =
+              err instanceof Error &&
+              (err.name === "AbortError" || detail.includes("aborted"));
+            get().finalizeLiveMessage(liveId, finalText || "");
+            if (!aborted) {
+              get().appendMessage({
+                id: makeId(),
+                role: "system",
+                text: `Eroare: ${detail}`,
+              });
+            }
           },
         },
+        signal,
       );
     } catch (err) {
-      // streamChat re-throws on fetch / parse errors after invoking onError —
-      // onError has already pushed the system bubble, so we just clean up.
-      void err;
+      void err; // onError already pushed a system bubble + finalized
     } finally {
-      set({ sending: false, pendingAgent: null });
+      // If onDone never fired (mid-stream abort), make sure the live
+      // message is finalized so it stops showing the streaming caret.
+      get().finalizeLiveMessage(liveId, finalText || "");
+      if (_currentAbort?.signal === signal) _currentAbort = null;
+      set({ sending: false });
     }
   },
 
-  async applyToolResult(name, args, _result) {
-    const { activeDocId, procedure } = get();
-    switch (name) {
-      case "set_field":
-      case "generate_pdf":
-      case "deliver": {
-        if (!activeDocId || !procedure) return;
-        const fresh = await api.getDocument(activeDocId).catch(() => null);
-        if (!fresh) return;
-        set({ document: fresh });
-        const computed = computeInitialRightPaneFrom(fresh, procedure);
-        if (name === "set_field" && computed.kind === "filling") {
-          const fieldName =
-            (args.name as string | undefined) ?? undefined;
-          set({ rightPane: { kind: "filling", activeField: fieldName } });
-        } else {
-          set({ rightPane: computed });
-        }
-        if (
-          name === "set_field" &&
-          allRequiredFilled(procedure, fresh.fields)
-        ) {
-          set({ rightPane: { kind: "review" } });
-        }
-        break;
-      }
-      case "lookup_procedure": {
-        const res = _result as
-          | {
-              scenario_plan?: ScenarioPlan | null;
-              matches?: LookupMatch[];
-            }
-          | undefined;
-        const sp = res?.scenario_plan ?? null;
-        const matches = res?.matches ?? [];
-        if (sp && !activeDocId) {
-          set({
-            scenarioPlan: sp,
-            lookupMatches: matches,
-            rightPane: { kind: "plan", scenarioId: sp.scenario_id },
-          });
-          pushPath(`/p/${sp.scenario_id}`);
-        } else if (matches.length > 0 && !activeDocId) {
-          set({
-            lookupMatches: matches,
-            rightPane: { kind: "matches" },
-          });
-        }
-        break;
-      }
-      case "find_redirect":
-      case "set_reminder":
-      case "propose_widget":
-        // No store mutation — widgets surface through messages already.
-        break;
-      default:
-        break;
+  abortCurrentTurn() {
+    if (_currentAbort) {
+      _currentAbort.abort();
+      _currentAbort = null;
     }
   },
 
@@ -341,38 +458,68 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (id) saveMessages(id, next);
   },
 
-  upsertPendingUser(text, via = "voice") {
-    const cur = get().pendingUser;
-    if (cur) {
-      set({ pendingUser: { ...cur, text, via } });
-    } else {
-      set({
-        pendingUser: { id: makeId(), role: "user", text, via },
-      });
+  async submitWidget(widgetSpec, value) {
+    const { conversationId, activeDocId } = get();
+    if (!conversationId) {
+      // No active conversation — fall back to plain text so the agent
+      // hears the answer in its first turn (sendText appends the bubble).
+      _markWidgetSubmitted(get, set, activeDocId, widgetSpec.widgetId, value);
+      void get().sendText(value);
+      return;
     }
-  },
 
-  upsertPendingAgent(text) {
-    const cur = get().pendingAgent;
-    if (cur) {
-      set({ pendingAgent: { ...cur, text } });
-    } else {
-      set({
-        pendingAgent: { id: makeId(), role: "agent", text },
+    // Optimistically mark the widget submitted so the UI disables it
+    // immediately — protects against double-click.
+    _markWidgetSubmitted(get, set, activeDocId, widgetSpec.widgetId, value);
+
+    try {
+      const res = await api.submitWidget({
+        conversation_id: conversationId,
+        widget_id: widgetSpec.widgetId,
+        value,
       });
+      get().setSession(res.snapshot);
+
+      if (res.requires_chat_followup) {
+        // Confirm widget without a target_field — the agent must run a
+        // turn to decide what to do (typically start_procedure). sendText
+        // appends the user bubble + streams the agent's response, so we
+        // don't append a user bubble ourselves here.
+        await get().sendText(value);
+        return;
+      }
+
+      // Direct set_field path: append the user bubble and process any
+      // side-effect events from the dispatcher (field_updated, etc.).
+      get().appendMessage({
+        id: makeId(),
+        role: "user",
+        text: value,
+        via: "text",
+      });
+      for (const ev of res.events) {
+        if (ev.kind === "frontend_event" && ev.event) {
+          void get().handleFrontendEvent(
+            ev.event as unknown as FrontendEvent,
+          );
+        } else if (ev.kind === "tool_result" && ev.error) {
+          get().appendMessage({
+            id: makeId(),
+            role: "system",
+            text: `Eroare la trimiterea răspunsului: ${ev.error}`,
+          });
+        }
+      }
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "necunoscută";
+      get().appendMessage({
+        id: makeId(),
+        role: "system",
+        text: `Nu am putut trimite răspunsul: ${detail}`,
+      });
+      // Roll back the optimistic submittedValue so user can retry.
+      _markWidgetSubmitted(get, set, activeDocId, widgetSpec.widgetId, null);
     }
-  },
-
-  finalizePendingUser() {
-    set({ pendingUser: null });
-  },
-
-  finalizePendingAgent(_widgets) {
-    set({ pendingAgent: null });
-  },
-
-  clearPending() {
-    set({ pendingUser: null, pendingAgent: null });
   },
 
   beginLiveMessage(role) {
@@ -411,10 +558,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     });
   },
 
-  transitionRightPane(next) {
-    set({ rightPane: next });
-  },
-
   setVoiceStatus(s) {
     set({ voiceStatus: s });
   },
@@ -439,54 +582,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       procedure: null,
       conversationId: null,
       messages: [],
-      pendingUser: null,
-      pendingAgent: null,
-      rightPane: { kind: "welcome" },
       drawerOpen: false,
       profileMenuOpen: false,
       scenarioPlan: null,
       lookupMatches: [],
+      session: null,
     });
     pushPath("/");
   },
 }));
-
-function deriveWidgets(
-  toolCalls:
-    | { name: string; arguments: Record<string, unknown> }[]
-    | undefined,
-): WidgetSpec[] {
-  if (!toolCalls) return [];
-  const out: WidgetSpec[] = [];
-  for (const tc of toolCalls) {
-    if (tc.name !== "propose_widget") continue;
-    const a = tc.arguments;
-    const type = a.type as WidgetSpec["type"] | undefined;
-    const question = (a.question as string | undefined) ?? "";
-    const widgetId = Math.random().toString(36).slice(2);
-    if (type === "choice") {
-      out.push({
-        type: "choice",
-        question,
-        options: (a.options as string[] | undefined) ?? [],
-        targetField: (a.target_field as string | undefined) ?? "",
-        widgetId,
-      });
-    } else if (type === "confirm") {
-      out.push({
-        type: "confirm",
-        question,
-        onConfirmTool: a.on_confirm_tool as string | undefined,
-        widgetId,
-      });
-    } else if (type === "date") {
-      out.push({
-        type: "date",
-        question,
-        targetField: (a.target_field as string | undefined) ?? "",
-        widgetId,
-      });
-    }
-  }
-  return out;
-}

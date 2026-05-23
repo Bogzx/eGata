@@ -9,24 +9,63 @@ import {
   type PlayerHandle,
   type RecorderHandle,
 } from "./audioWorklet";
-import { VoiceWs, voiceWsUrl } from "./voiceWs";
-import {
-  VoiceAgentMicDeniedError,
-  type ToolCallHandler,
-  type VoiceAgentHook,
-  type VoiceAgentStartOpts,
-  type VoiceAgentState,
-} from "./useVoiceAgent";
+import type { VoicePreferences } from "./types";
+import { VoiceWs, type VoiceWsToolCall, voiceWsUrl } from "./voiceWs";
 
 const LOG = (...args: unknown[]) =>
   console.log("[civicai:voice-bridge]", ...args);
 const ERR = (...args: unknown[]) =>
   console.error("[civicai:voice-bridge]", ...args);
 
+// ---- Voice hook surface (was previously in useVoiceAgent.ts; now lives
+// here since the bridge is the only voice path).
+
+export type VoiceAgentState =
+  | "idle"
+  | "connecting"
+  | "listening"
+  | "speaking"
+  | "error";
+
+export type ToolCallHandler = (
+  name: string,
+  args: Record<string, unknown>,
+) => Promise<Record<string, unknown>>;
+
+export type VoiceAgentToolCall = {
+  name: string;
+  args: Record<string, unknown>;
+};
+
+export type VoiceAgentStartOpts = {
+  documentId?: string;
+  preferences?: VoicePreferences;
+  onUserDelta?: (text: string) => void;
+  onAgentDelta?: (text: string) => void;
+  onUserMessage?: (text: string) => void;
+  onAgentMessage?: (text: string, toolCalls: VoiceAgentToolCall[]) => void;
+};
+
+export type VoiceAgentHook = {
+  state: VoiceAgentState;
+  start: (opts: VoiceAgentStartOpts) => Promise<void>;
+  stop: () => void;
+  sendText: (text: string) => Promise<void>;
+  registerToolHandler: (handler: ToolCallHandler) => void;
+};
+
+export class VoiceAgentMicDeniedError extends Error {
+  constructor() {
+    super("Microphone permission denied — fall back to text chat.");
+    this.name = "VoiceAgentMicDeniedError";
+  }
+}
+
 /**
- * Drop-in replacement for useVoiceAgent that talks to the backend
- * /agent/voice/ws bridge instead of opening a browser-direct WS to
- * Gemini. Same hook surface — swappable behind NEXT_PUBLIC_VOICE_BRIDGE.
+ * The voice hook. Talks to the backend /agent/voice/ws bridge,
+ * pipes mic chunks up, agent audio down, transcripts straight to the
+ * sessionStore's live-message lifecycle, and snapshot frames straight to
+ * sessionStore.session.
  */
 export function useVoiceAgentBridge(): VoiceAgentHook {
   const [state, setState] = useState<VoiceAgentState>("idle");
@@ -93,6 +132,12 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
         const ws = new VoiceWs({
           onReady: (convId) => {
             LOG("ready", convId);
+            // If the bridge picked up a stored conv_id, this is a no-op.
+            // If the backend minted a fresh one, capture it so subsequent
+            // text turns and voice reconnects target the same conversation.
+            if (convId && useSessionStore.getState().conversationId !== convId) {
+              useSessionStore.setState({ conversationId: convId });
+            }
             setState("listening");
           },
           onUserDelta: (text) => {
@@ -147,6 +192,12 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
               _result: output,
             }).catch(() => undefined);
           },
+          onSessionSnapshot: (snapshot) => {
+            store().setSession(snapshot);
+          },
+          onFrontendEvent: (event) => {
+            void store().handleFrontendEvent(event);
+          },
           onAudio: (pcm) => {
             playerRef.current?.feed(pcm);
           },
@@ -167,9 +218,14 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
         wsRef.current = ws;
 
         await ws.connect(voiceWsUrl());
+        // Reuse the existing conversation_id from the store so a voice
+        // reconnect picks up the text-chat history instead of getting a
+        // fresh `conv_*` minted server-side and an amnesic agent.
+        const existingConvId = useSessionStore.getState().conversationId;
         ws.sendStart({
           token: sess.access_token,
           documentId: opts.documentId,
+          conversationId: existingConvId ?? undefined,
           preferences: {
             simpleLanguage: opts.preferences?.simple_language,
             voiceOnly: opts.preferences?.voice_only,

@@ -11,8 +11,9 @@ type Props = {
 };
 
 export function DateWidget({ spec, onSubmit }: Props) {
-  const [value, setValue] = useState("");
-  const [done, setDone] = useState(false);
+  const [value, setValue] = useState(spec.submittedValue ?? "");
+  const [doneLocal, setDoneLocal] = useState(false);
+  const done = doneLocal || (spec.submittedValue !== null && spec.submittedValue !== undefined);
   return (
     <div
       className="rounded-lg border bg-background/60 p-3"
@@ -32,7 +33,8 @@ export function DateWidget({ spec, onSubmit }: Props) {
           size="sm"
           disabled={done || !value}
           onClick={() => {
-            setDone(true);
+            if (done || !value) return;
+            setDoneLocal(true);
             onSubmit(value);
           }}
         >

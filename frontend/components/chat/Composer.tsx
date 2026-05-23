@@ -12,6 +12,7 @@ type Props = {
 export function Composer({ onSendText, onStartVoice, onStopVoice }: Props) {
   const [draft, setDraft] = useState("");
   const sending = useSessionStore((s) => s.sending);
+  const abortCurrentTurn = useSessionStore((s) => s.abortCurrentTurn);
   const voiceStatus = useSessionStore((s) => s.voiceStatus);
   const fieldId = useId();
 
@@ -121,26 +122,49 @@ export function Composer({ onSendText, onStartVoice, onStopVoice }: Props) {
           )}
         </button>
 
-        <button
-          type="submit"
-          className="composer-send"
-          disabled={sending || draft.trim().length === 0}
-          aria-label="Trimite mesajul"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            aria-hidden="true"
-            focusable="false"
+        {sending ? (
+          <button
+            type="button"
+            className="composer-send"
+            onClick={() => abortCurrentTurn()}
+            aria-label="Oprește răspunsul"
+            title="Oprește răspunsul"
           >
-            <path d="M22 2L11 13" />
-            <path d="M22 2l-7 20-4-9-9-4z" />
-          </svg>
-        </button>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <rect x="6" y="6" width="12" height="12" rx="1.5" />
+            </svg>
+          </button>
+        ) : (
+          <button
+            type="submit"
+            className="composer-send"
+            disabled={draft.trim().length === 0}
+            aria-label="Trimite mesajul"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M22 2L11 13" />
+              <path d="M22 2l-7 20-4-9-9-4z" />
+            </svg>
+          </button>
+        )}
       </div>
     </form>
   );

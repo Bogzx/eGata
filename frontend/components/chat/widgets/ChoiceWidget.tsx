@@ -10,7 +10,11 @@ type Props = {
 };
 
 export function ChoiceWidget({ spec, onSubmit }: Props) {
+  // submittedValue is persisted in the store. Local state guards against
+  // double-click between submit and the next render.
   const [picked, setPicked] = useState<string | null>(null);
+  const submitted = spec.submittedValue ?? picked;
+  const isDisabled = submitted !== null && submitted !== undefined;
   return (
     <div
       className="rounded-lg border bg-background/60 p-3"
@@ -22,10 +26,11 @@ export function ChoiceWidget({ spec, onSubmit }: Props) {
           <Button
             key={opt}
             type="button"
-            variant={picked === opt ? "default" : "outline"}
+            variant={submitted === opt ? "default" : "outline"}
             size="sm"
-            disabled={picked !== null}
+            disabled={isDisabled}
             onClick={() => {
+              if (isDisabled) return;
               setPicked(opt);
               onSubmit(opt);
             }}
