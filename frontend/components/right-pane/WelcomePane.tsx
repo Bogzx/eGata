@@ -13,10 +13,6 @@ export function WelcomePane() {
         <br />
         <span className="hello-soft">Cu ce te pot ajuta astăzi?</span>
       </h2>
-      <p className="welcome-sub">
-        Spune-mi în cuvinte simple ce ai nevoie. Eu îți spun ce acte îți trebuie
-        — și le completez cu tine.
-      </p>
     </div>
   );
 }
