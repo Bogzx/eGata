@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OtpInput } from "@/components/OtpInput";
 import { api, ApiError } from "@/lib/api";
 import { setSession } from "@/lib/session";
+import { getGhiseuPref } from "@/lib/ghiseuPref";
 import { t } from "@/lib/i18n";
 
 function OtpForm() {
@@ -20,7 +21,7 @@ function OtpForm() {
     try {
       const session = await api.otp({ challenge_id: challengeId, code });
       setSession(session);
-      router.push("/");
+      router.push(getGhiseuPref() ? "/ghiseu" : "/");
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         setError(t("otp.error"));
