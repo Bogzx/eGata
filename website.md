@@ -33,7 +33,7 @@ WAM
 Educational Partners
 UBB Cluj
 UTCN
-Transylvania Angels Network
+Transylvania Angels Network 
 About Digital Romania
 The vision: a unified national platform where every interaction with the state is fast, simple, and 100% digital.
 
