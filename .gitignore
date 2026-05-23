@@ -75,3 +75,4 @@ backend/uvicorn.log
 
 # Superpowers brainstorm visual companion
 .superpowers/
+/.playwright-mcp

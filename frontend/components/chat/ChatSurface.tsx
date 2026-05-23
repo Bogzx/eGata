@@ -15,6 +15,7 @@ import {
   VoiceAgentMicDeniedError,
   useVoiceAgent,
 } from "@/lib/useVoiceAgent";
+import { useVoiceAgentBridge } from "@/lib/useVoiceAgentBridge";
 import { AnimatedBackground } from "./AnimatedBackground";
 import { ChatStream } from "./ChatStream";
 import { Composer } from "./Composer";
@@ -89,8 +90,19 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   const applyToolResult = useSessionStore((s) => s.applyToolResult);
   const reset = useSessionStore((s) => s.reset);
   const rightPaneKind = useSessionStore((s) => s.rightPane.kind);
+  const hasMessages = useSessionStore((s) => s.messages.length > 0);
+  const hasPendingUser = useSessionStore((s) => s.pendingUser !== null);
+  const hasPendingAgent = useSessionStore((s) => s.pendingAgent !== null);
 
-  const voice = useVoiceAgent();
+  // Choose between the legacy direct-to-Gemini WS hook and the backend
+  // bridge based on a build-time env flag. The value is inlined by Next,
+  // so the conditional resolves at module-init time and React's
+  // rules-of-hooks (stable order across renders) are satisfied.
+  const useVoiceHook =
+    process.env.NEXT_PUBLIC_VOICE_BRIDGE === "1"
+      ? useVoiceAgentBridge
+      : useVoiceAgent;
+  const voice = useVoiceHook();
   const voiceStartedRef = useRef(false);
 
   // Auth gate.
@@ -263,9 +275,10 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
     return <p className="p-6 text-muted-foreground">Se încarcă...</p>;
   }
 
-  const engaged = rightPaneKind !== "welcome";
+  const hasConversation = hasMessages || hasPendingUser || hasPendingAgent;
+  const engaged = rightPaneKind !== "welcome" || hasConversation;
   const hideRightPane = voiceOnly;
-  const showRight = engaged && !hideRightPane;
+  const showRight = rightPaneKind !== "welcome" && !hideRightPane;
 
   const voiceActive =
     voice.state === "listening" ||
