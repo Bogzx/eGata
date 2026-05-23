@@ -1,0 +1,28 @@
+{
+  "id": "inregistrare-casatorie",
+  "title": "Înregistrare căsătorie",
+  "description": "Depunerea declarației pentru oficierea căsătoriei civile.",
+  "scope": "primarie",
+  "category": "stare-civila",
+  "synonyms": ["casatorie", "act casatorie", "oficiere casatorie"],
+  "sample_queries": [
+    "vreau să mă căsătoresc",
+    "cum depun actele pentru căsătorie"
+  ],
+  "acte_necesare": [
+    { "denumire": "Declarație de căsătorie (depusă cu 10 zile înainte)", "emitent": "primarie" },
+    { "denumire": "Cărți de identitate ambii soți (originale + copii)", "emitent": "user" },
+    { "denumire": "Certificate naștere ambii soți (originale + copii)", "emitent": "user", "format": "original" },
+    { "denumire": "Certificate medicale prenupțiale", "emitent_id": "spital-medic", "format": "original", "observatie": "Pentru ambii soți, max 14 zile vechime" },
+    { "denumire": "Sentință divorț definitivă sau certificat deces fost soț", "emitent_id": "instanta", "obligatoriu": false, "observatie": "Doar pentru recăsătoriți" },
+    { "denumire": "Convenție matrimonială", "emitent_id": "notariat", "obligatoriu": false, "observatie": "Doar dacă regim diferit de comunitate" }
+  ],
+  "fields": [
+    { "name": "nume_complet_solicitant", "label": "Nume complet solicitant", "source": "profile", "required": true },
+    { "name": "cnp_solicitant",          "label": "CNP solicitant",          "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "nume_partener",           "label": "Nume partener",           "source": "ask",     "required": true },
+    { "name": "data_propusa",            "label": "Data propusă",            "source": "ask",     "required": true }
+  ],
+  "template": "inregistrare-casatorie.tex",
+  "next_steps": []
+}
