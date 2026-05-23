@@ -27,7 +27,6 @@ def _phone_session_id() -> str:
     return secrets.token_urlsafe(8)
 
 from fastapi import APIRouter, Request, Response, WebSocket, WebSocketDisconnect
-from google import genai
 from google.genai import types as genai_types
 
 from app.agent_tools import ToolContext, dispatch
@@ -113,7 +112,9 @@ async def _run_phone_gemini_session(
     stop_event: asyncio.Event,
 ) -> None:
     settings = get_settings()
-    client = genai.Client(api_key=settings.gemini_api_key)
+    # Reuse the process-wide cached client. See app/gemini.py.
+    from app.gemini import get_genai_client
+    client = get_genai_client()
 
     # Phone agent runs an ephemeral in-memory Session in EXPLORING — no
     # document creation, no persistence, no DB writes. Tool dispatch goes
@@ -258,14 +259,10 @@ async def twilio_media_stream(ws: WebSocket) -> None:
                 try:
                     inbound.put_nowait(pcm)
                 except asyncio.QueueFull:
-                    try:
-                        _ = inbound.get_nowait()
-                    except asyncio.QueueEmpty:
-                        pass
-                    try:
-                        inbound.put_nowait(pcm)
-                    except asyncio.QueueFull:
-                        pass
+                    # Drop the NEW frame, not the oldest — preserves
+                    # playback continuity of buffered audio. See the same
+                    # change in agent_voice.py for the rationale.
+                    log.debug("phone inbound queue full — dropping new frame")
             elif frame.event == "stop":
                 log.info("Twilio stream stopped")
                 break

@@ -61,9 +61,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_cors_origins = [o.strip() for o in settings.allow_origins.split(",") if o.strip()]
+if not _cors_origins:
+    # No origins means no allowed callers — fail loud rather than fall back
+    # to "*" (which is incompatible with allow_credentials=True anyway and
+    # would silently expose the API to any caller).
+    raise RuntimeError(
+        "ALLOW_ORIGINS is empty. Configure at least one origin "
+        "(comma-separated). Wildcard '*' is not supported when credentials "
+        "are sent — set ALLOW_ORIGINS to your real frontend origin(s)."
+    )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.allow_origins.split(",")] or ["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

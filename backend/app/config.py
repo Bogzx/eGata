@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     twilio_verify_service_sid: str = Field(default="")
     twilio_phone_number: str = Field(default="")
     mock_otp: bool = Field(default=True)
+    # Delivery-SMS kill switch. Defaults to None so it tracks mock_otp
+    # (the legacy behavior — `MOCK_OTP=1` doubled as the SMS kill). Set
+    # MOCK_SMS=0 explicitly in production along with MOCK_OTP=0; or set
+    # MOCK_SMS=1 alone to keep OTP-via-Twilio while skipping deliveries.
+    mock_sms: bool | None = Field(default=None)
 
     gemini_api_key: str = Field(default="")
     gemini_model: str = Field(default="gemini-2.5-flash")
