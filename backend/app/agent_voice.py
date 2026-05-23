@@ -580,10 +580,20 @@ class VoiceBridgeSession:
                 )
 
             # Persist into session.history so a reconnect re-seeds the
-            # same synthetic context the live session just absorbed.
+            # same synthetic context the live session just absorbed. The
+            # DB write is immediate (not deferred to disconnect-time) so
+            # a mid-call drop doesn't lose the resolved widget — the
+            # widget was popped from pending_widgets in memory and the
+            # DB must reflect that even if the WS dies right now.
             self.db_session.history.append(
                 {"role": "user", "parts": [{"text": synthetic_text}]}
             )
+            try:
+                update_session(self.db_session)
+            except Exception:
+                log.exception(
+                    "update_session after widget target_field set failed"
+                )
             return
 
         # No target_field: the answer IS the user's turn. Forward to Live
@@ -605,6 +615,12 @@ class VoiceBridgeSession:
         self.db_session.history.append(
             {"role": "user", "parts": [{"text": prompt}]}
         )
+        # Same reasoning as the target_field branch: persist now so the
+        # popped widget + appended history aren't lost on disconnect.
+        try:
+            update_session(self.db_session)
+        except Exception:
+            log.exception("update_session after widget signal failed")
 
         # Snapshot so frontend sees pending_widgets shrink.
         await self.send_json(
