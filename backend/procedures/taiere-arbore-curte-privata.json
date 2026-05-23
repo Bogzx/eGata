@@ -1,0 +1,34 @@
+{
+  "id": "taiere-arbore-curte-privata",
+  "title": "Aviz tăiere arbore din curte privată",
+  "description": "Cerere pentru eliberarea AVIZULUI de doborâre a unuia sau mai multor arbori situați în curte privată — Direcția Ecologie Urbană și Spații Verzi, Primăria Cluj-Napoca.",
+  "scope": "primarie",
+  "category": "ecologie-spatii-verzi",
+  "synonyms": ["taiere copac", "doborare arbore", "aviz copac", "arbore uscat curte", "tai arbore", "scot copac curte"],
+  "sample_queries": [
+    "am un copac uscat în curte și vreau să-l tai",
+    "cum obțin aviz pentru doborare arbore",
+    "vreau să tai un arbore periculos de pe terenul meu",
+    "trebuie să scot un copac din grădină"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere AVIZ doborâre arbori curte privată", "emitent": "primarie" },
+    { "denumire": "Copie după Extrasul de Carte Funciară (max 3 luni)", "emitent_id": "ocpi-ancpi", "format": "original" },
+    { "denumire": "Documente fotografice pentru fiecare arbore", "emitent": "user" },
+    { "denumire": "Cupon de pensie", "emitent_id": "casa-pensii", "obligatoriu": false, "observatie": "Doar dacă solicitantul este pensionar" },
+    { "denumire": "Acord coproprietari (notarial)", "emitent_id": "notariat", "obligatoriu": false, "observatie": "Dacă terenul are mai mulți coproprietari" }
+  ],
+  "fields": [
+    { "name": "nume_complet",   "label": "Nume complet / Denumire SC",   "source": "profile",         "required": true },
+    { "name": "adresa",         "label": "Adresa / Sediul",               "source": "id_scan|profile", "required": true },
+    { "name": "telefon",        "label": "Telefon",                       "source": "profile",         "required": true },
+    { "name": "numar_arbori",   "label": "Numărul de arbori",             "source": "ask",             "required": true, "suggest_default": "1" },
+    { "name": "strada_arbori",  "label": "Strada unde sunt arborii",      "source": "id_scan|profile", "required": true },
+    { "name": "nr_arbori",      "label": "Număr stradă",                  "source": "id_scan|profile", "required": true },
+    { "name": "email",          "label": "Email pentru comunicare",       "source": "profile",         "required": false }
+  ],
+  "template": "taiere-arbore-curte-privata.tex",
+  "next_steps": [
+    { "kind": "in_scope_procedure", "procedure_id": "aviz-principiu-constructii", "title": "Aviz lucrări viitoare (dacă tai copacul pentru o construcție)", "applies_if": "intent_to_build == true" }
+  ]
+}
