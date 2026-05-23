@@ -1,0 +1,26 @@
+{
+  "id": "actualizare-date-contribuabil",
+  "title": "Actualizare date contribuabil (DITL)",
+  "description": "Cerere pentru actualizarea datelor personale ale contribuabilului în baza de date DITL (adresă, schimbare nume etc.).",
+  "scope": "primarie",
+  "category": "fiscalitate-locala",
+  "synonyms": ["schimbare date fiscale", "actualizare adresă fiscală", "modificare contribuabil", "491.001"],
+  "sample_queries": [
+    "vreau să-mi schimb adresa fiscală",
+    "am numele nou pe buletin",
+    "actualizare date contribuabil DITL"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere tipizată (Cod 491.001)", "emitent": "primarie" },
+    { "denumire": "CI cu datele actualizate", "emitent": "user", "format": "original" },
+    { "denumire": "Document care justifică modificarea (certificat căsătorie / hotărâre)", "emitent": "user", "obligatoriu": false }
+  ],
+  "fields": [
+    { "name": "nume_complet", "label": "Nume complet nou", "source": "profile", "required": true },
+    { "name": "cnp", "label": "CNP", "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "tip_modificare", "label": "Tip modificare", "source": "ask", "options": ["schimbare nume", "schimbare adresă", "alte date"], "required": true },
+    { "name": "date_actualizate", "label": "Date noi", "source": "ask", "required": true }
+  ],
+  "template": "actualizare-date-contribuabil.tex",
+  "next_steps": []
+}

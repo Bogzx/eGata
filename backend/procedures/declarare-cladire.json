@@ -1,0 +1,38 @@
+{
+  "id": "declarare-cladire",
+  "title": "Declarare clădire (ITL-001)",
+  "description": "Declarația fiscală pentru o clădire nou dobândită sau radierea unei clădiri vândute. Trebuie depusă în 30 zile de la dobândire/înstrăinare.",
+  "scope": "primarie",
+  "category": "fiscalitate-locala",
+  "synonyms": ["declarare imobil", "declarare proprietate", "ITL-001", "radiere clădire", "declarare apartament"],
+  "sample_queries": [
+    "am cumpărat un apartament",
+    "trebuie să declar o casă la primărie",
+    "vreau să radiez o clădire vândută",
+    "ITL-001 declarare clădire",
+    "am vândut casa, ce fac la primărie"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere ITL-001 (formular național OMFP 1985/2016)", "emitent": "primarie" },
+    { "denumire": "CI", "emitent": "user", "format": "original" },
+    { "denumire": "Act dobândire (contract V-C / certificat moștenitor)", "emitent_id": "notariat", "format": "original" },
+    { "denumire": "Extras carte funciară (max 30 zile)", "emitent_id": "ocpi-ancpi", "format": "original" },
+    { "denumire": "Documentație cadastrală (suprafețe utile, plan)", "emitent_id": "ocpi-ancpi", "obligatoriu": false },
+    { "denumire": "Raport evaluare ANEVAR (pentru nerezidențial)", "emitent_id": "anevar", "obligatoriu": false }
+  ],
+  "fields": [
+    { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
+    { "name": "cnp", "label": "CNP", "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "adresa_imobil", "label": "Adresa imobil", "source": "ask", "required": true },
+    { "name": "nr_cadastral", "label": "Număr cadastral", "source": "ask", "required": true },
+    { "name": "suprafata", "label": "Suprafață utilă (m²)", "source": "ask", "required": true },
+    { "name": "data_dobandirii", "label": "Data dobândirii", "source": "ask", "required": true },
+    { "name": "cota_proprietate", "label": "Cotă proprietate (%)", "source": "ask", "required": true, "suggest_default": "100" },
+    { "name": "tip_operatiune", "label": "Tip operațiune", "source": "ask", "options": ["dobândire", "radiere/scoatere"], "required": true }
+  ],
+  "template": "declarare-cladire.tex",
+  "next_steps": [
+    { "kind": "external_redirect", "redirect_target": "ghiseul.ro", "deadline_days": 90, "title": "Plata impozit pe clădire" },
+    { "kind": "in_scope_procedure", "procedure_id": "certificat-fiscal", "title": "Generează certificat atestare fiscală după declarare" }
+  ]
+}

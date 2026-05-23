@@ -1,0 +1,27 @@
+{
+  "id": "prelungire-certificat-urbanism",
+  "title": "Prelungire certificat de urbanism",
+  "description": "Prelungirea valabilității unui certificat de urbanism înainte de expirare. Se poate face o singură dată, pentru max 12 luni.",
+  "scope": "primarie",
+  "category": "urbanism-constructii",
+  "synonyms": ["prelungire CU", "extindere certificat urbanism", "prelungire 431.002"],
+  "sample_queries": [
+    "vreau să prelungesc CU",
+    "expiră certificatul de urbanism",
+    "extindere termen certificat urbanism"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere tipizată (Cod 431.002)", "emitent": "primarie" },
+    { "denumire": "Certificat urbanism original", "emitent": "user", "format": "original" },
+    { "denumire": "Chitanță plată taxă prelungire", "emitent": "extern" }
+  ],
+  "fields": [
+    { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
+    { "name": "cnp", "label": "CNP", "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "nr_cu_initial", "label": "Număr CU inițial", "source": "ask", "required": true },
+    { "name": "data_emitere_cu", "label": "Data emiterii CU", "source": "ask", "required": true },
+    { "name": "motiv_prelungire", "label": "Motivul prelungirii", "source": "ask", "required": true }
+  ],
+  "template": "prelungire-certificat-urbanism.tex",
+  "next_steps": []
+}

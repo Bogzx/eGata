@@ -1,0 +1,28 @@
+{
+  "id": "restituire-sume-fiscale",
+  "title": "Restituire sume nedatorate (PJ/PF)",
+  "description": "Cerere pentru restituirea sumelor plătite în plus la bugetul local (impozite, taxe).",
+  "scope": "primarie",
+  "category": "fiscalitate-locala",
+  "synonyms": ["restituire impozit", "restituire DITL", "sume plătite în plus", "DITL-002"],
+  "sample_queries": [
+    "vreau restituire sume plătite în plus",
+    "restituire impozit clădiri",
+    "DITL-002 restituire"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere DITL-002", "emitent": "primarie" },
+    { "denumire": "CI sau CUI", "emitent": "user", "format": "original" },
+    { "denumire": "Document justificativ plată (chitanță / OP)", "emitent": "user", "format": "original" },
+    { "denumire": "IBAN cont bancar", "emitent_id": "banca", "observatie": "Pentru virament restituire" }
+  ],
+  "fields": [
+    { "name": "nume_complet", "label": "Nume complet sau denumire PJ", "source": "ask", "required": true },
+    { "name": "cnp_cui", "label": "CNP / CUI", "source": "ask", "required": true },
+    { "name": "iban", "label": "IBAN cont restituire", "source": "ask", "required": true },
+    { "name": "suma_restituire", "label": "Sumă de restituit (RON)", "source": "ask", "required": true },
+    { "name": "tip_plata", "label": "Tipul plății", "source": "ask", "required": true }
+  ],
+  "template": "restituire-sume-fiscale.tex",
+  "next_steps": []
+}

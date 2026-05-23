@@ -1,0 +1,29 @@
+{
+  "id": "transport-urban-dizabilitati",
+  "title": "Transport urban gratuit persoane cu handicap",
+  "description": "Abonament transport urban gratuit (CTP Cluj) pentru persoane cu handicap. Se reînnoiește anual.",
+  "scope": "primarie",
+  "category": "dizabilitati",
+  "synonyms": ["transport gratuit handicap", "abonament CTP dizabilități", "transport urban handicap", "802.014"],
+  "sample_queries": [
+    "vreau transport gratuit pentru handicap",
+    "abonament CTP persoană cu dizabilități",
+    "transport urban gratuit dizabilități"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere tipizată (Cod 802.014)", "emitent": "primarie" },
+    { "denumire": "Certificat de încadrare în grad de handicap", "emitent_id": "dgaspc", "format": "original" },
+    { "denumire": "CI titular sau însoțitor", "emitent": "user", "format": "original" },
+    { "denumire": "Fotografie tip legitimație", "emitent": "extern", "observatie": "Fotostudio (gratuit cu certificat handicap)" }
+  ],
+  "fields": [
+    { "name": "nume_titular", "label": "Nume titular", "source": "ask", "required": true },
+    { "name": "cnp_titular", "label": "CNP titular", "source": "ask", "required": true, "redact_in_voice": true },
+    { "name": "grad_handicap", "label": "Grad handicap", "source": "ask", "options": ["grav", "accentuat", "mediu"], "required": true },
+    { "name": "tip_abonament", "label": "Tip abonament", "source": "ask", "options": ["nominal cu fotografie", "nenominal pentru însoțitor"], "required": true }
+  ],
+  "template": "transport-urban-dizabilitati.tex",
+  "next_steps": [
+    { "kind": "in_scope_procedure", "procedure_id": "card-parcare-dizabilitati", "title": "Card parcare gratuit" }
+  ]
+}

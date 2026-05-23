@@ -1,0 +1,29 @@
+{
+  "id": "prelungire-autorizatie-construire",
+  "title": "Prelungire autorizație construire / desființare",
+  "description": "Prelungirea valabilității unei autorizații de construire (AC) sau desființare (AD) când lucrările nu s-au finalizat în termenul inițial.",
+  "scope": "primarie",
+  "category": "urbanism-constructii",
+  "synonyms": ["prelungire AC", "extindere autorizatie", "extindere AC AD", "432.002"],
+  "sample_queries": [
+    "vreau prelungire autorizație construire",
+    "extindere termen AC",
+    "nu am terminat lucrările în termen"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere tipizată (Cod 432.002)", "emitent": "primarie" },
+    { "denumire": "Autorizația de construire originală", "emitent": "user", "format": "original" },
+    { "denumire": "Justificare neexecutare în termen", "emitent": "user" },
+    { "denumire": "Proces verbal dirigentă șantier (stadiu lucrări)", "emitent_id": "diriginte-santier", "obligatoriu": false },
+    { "denumire": "Chitanță plată taxă prelungire", "emitent": "extern" }
+  ],
+  "fields": [
+    { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
+    { "name": "cnp", "label": "CNP", "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "nr_ac", "label": "Număr AC/AD", "source": "ask", "required": true },
+    { "name": "data_ac", "label": "Data emiterii AC/AD", "source": "ask", "required": true },
+    { "name": "motiv_intarziere", "label": "Motivul întârzierii lucrărilor", "source": "ask", "required": true }
+  ],
+  "template": "prelungire-autorizatie-construire.tex",
+  "next_steps": []
+}

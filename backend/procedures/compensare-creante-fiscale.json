@@ -1,0 +1,27 @@
+{
+  "id": "compensare-creante-fiscale",
+  "title": "Compensare creanțe fiscale (PJ)",
+  "description": "Cerere pentru compensarea creanțelor fiscale ale persoanei juridice — folosirea unei plăți în plus ca să acopere alte datorii.",
+  "scope": "primarie",
+  "category": "fiscalitate-locala",
+  "synonyms": ["compensare DITL", "compensare impozite", "creante fiscale PJ", "DITL-001"],
+  "sample_queries": [
+    "vreau compensare creanțe fiscale",
+    "am plătit în plus impozit",
+    "compensare PJ DITL"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere DITL-001", "emitent": "primarie" },
+    { "denumire": "CUI / Certificat înregistrare societate", "emitent_id": "onrc", "format": "original" },
+    { "denumire": "Document justificativ creanță (chitanță / ordin plată)", "emitent": "user" },
+    { "denumire": "Împuternicire notarială (dacă altcineva)", "emitent_id": "notariat", "obligatoriu": false }
+  ],
+  "fields": [
+    { "name": "denumire_pj", "label": "Denumire persoană juridică", "source": "ask", "required": true },
+    { "name": "cui", "label": "CUI/CIF", "source": "ask", "required": true },
+    { "name": "suma_compensare", "label": "Sumă de compensat (RON)", "source": "ask", "required": true },
+    { "name": "tip_creanta", "label": "Tipul creanței", "source": "ask", "required": true }
+  ],
+  "template": "compensare-creante-fiscale.tex",
+  "next_steps": []
+}
