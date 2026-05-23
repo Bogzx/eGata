@@ -1,5 +1,10 @@
 // Captures mic audio at AudioContext rate, resamples to 16 kHz PCM16,
-// posts ArrayBuffer chunks (~100 ms each) to the main thread.
+// posts ArrayBuffer chunks (~200 ms each) to the main thread.
+//
+// Chunk size guideline (Gemini Live):
+//   - Too small (<100 ms) → VAD gets noisy, may split words.
+//   - Too big (>500 ms) → end-of-turn detection lags.
+//   - 200 ms (3200 samples @ 16 kHz) is the sweet spot.
 class PCMRecorderProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
@@ -7,7 +12,7 @@ class PCMRecorderProcessor extends AudioWorkletProcessor {
     this.sourceRate = sampleRate; // AudioContext sample rate (often 48000)
     this.ratio = this.sourceRate / this.targetRate;
     this.acc = [];
-    this.chunkSamples = 1600; // 100 ms at 16 kHz
+    this.chunkSamples = 3200; // 200 ms at 16 kHz
     this._pos = 0;
   }
 
