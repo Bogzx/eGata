@@ -1,0 +1,25 @@
+{
+  "id": "sc-vanzare-apartament",
+  "title": "Vânzare apartament",
+  "description": "Plan complet pentru vânzarea unui apartament: certificat fiscal, certificat de urbanism (dacă e cazul), pași externi la notar.",
+  "summary_for_rag": "Plan pentru cetățeanul care vinde un apartament. La primărie: certificat fiscal pentru atestare lipsă datorii, eventual certificat de urbanism. Pași externi: notar pentru contractul autentificat, OCPI pentru extras carte funciară, auditor energetic pentru certificat de performanță, ANAF pentru declarare venit din vânzare.",
+  "synonyms": ["vânzare apartament", "vând locuință", "vând casă", "vânzare imobil"],
+  "sample_queries": [
+    "vând apartamentul",
+    "vreau să-mi vând locuința",
+    "ce acte îmi trebuie ca să vând un apartament",
+    "vânzare casă acte"
+  ],
+  "complexitate": "complex",
+  "termen_total": "1-2 luni",
+  "applies_if": null,
+  "in_scope_steps": [
+    { "ordine": 1, "procedure_id": "certificat-fiscal", "deadline_days": null, "note": "Certificat de atestare fiscală — confirmă că nu există restanțe la impozite." }
+  ],
+  "external_steps": [
+    { "ordine": 0, "institutie_id": "ocpi-ancpi",        "obligatoriu": true, "note": "Extras carte funciară actualizat (max 30 zile)." },
+    { "ordine": 0, "institutie_id": "auditor-energetic", "obligatoriu": true, "note": "Certificat de performanță energetică (vânzătorul furnizează)." },
+    { "ordine": 0, "institutie_id": "notariat-public",   "obligatoriu": true, "note": "Autentificarea contractului V-C." },
+    { "ordine": 0, "institutie_id": "anaf",              "obligatoriu": false, "note": "Declarare venit din vânzare imobil (dacă deținut sub 3 ani)." }
+  ]
+}
