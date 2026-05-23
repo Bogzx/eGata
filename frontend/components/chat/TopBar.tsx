@@ -39,12 +39,7 @@ function Logo({ onHome }: { onHome: () => void }) {
   );
 }
 
-type Props = {
-  voiceOn?: boolean;
-  onToggleVoice?: () => void;
-};
-
-export function TopBar({ voiceOn = false, onToggleVoice }: Props) {
+export function TopBar() {
   const citizen = useSessionStore((s) => s.citizen);
   const openDrawer = useSessionStore((s) => s.openDrawer);
   const toggleProfile = useSessionStore((s) => s.toggleProfileMenu);
@@ -107,34 +102,6 @@ export function TopBar({ voiceOn = false, onToggleVoice }: Props) {
             </span>
           ) : null}
         </button>
-
-        {onToggleVoice ? (
-          <button
-            type="button"
-            className={"chip chip-icon " + (voiceOn ? "is-active" : "")}
-            onClick={onToggleVoice}
-            aria-pressed={voiceOn}
-            aria-label={
-              voiceOn
-                ? "Oprește asistentul vocal"
-                : "Pornește asistentul vocal"
-            }
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <rect x="9" y="3" width="6" height="12" rx="3" />
-              <path d="M5 11a7 7 0 0014 0M12 18v3" />
-            </svg>
-          </button>
-        ) : null}
 
         <button
           type="button"
