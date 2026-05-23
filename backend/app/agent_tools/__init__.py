@@ -9,14 +9,22 @@ the dispatcher folds back into the session before snapshotting.
 
 Tool inventory (SP2 collapses the old 7-tool surface to 6 cleaner ones):
 
-  exploring         confirming_match    filling         reviewing       delivered       redirected
+  exploring         confirming_match    filling         reviewing       delivered         redirected
   ─────────────────────────────────────────────────────────────────────────────────────────────────
   lookup_procedure  lookup_procedure                                    lookup_procedure  lookup_procedure
-                    start_procedure
-                                        set_field       set_field
+  list_procedures   list_procedures                                     list_procedures   list_procedures
+                    start_procedure                                     start_procedure
                     propose_widget      propose_widget
+                                        set_field       set_field
                                                         complete_document
-  find_redirect     find_redirect       find_redirect   find_redirect   find_redirect   find_redirect
+  find_redirect     find_redirect                                       find_redirect     find_redirect
+
+`find_redirect` is intentionally OFF during FILLING/REVIEWING: a mid-fill
+mention ("vreau și impozit cândva") must not flip the session to
+REDIRECTED and abandon the draft. The agent can still reply with text
+about the right institution; it just can't fire the tool that mutates
+state. Same logic for `lookup_procedure` — no procedure switch mid-fill;
+the user has to explicitly abandon first.
 
 The dispatcher is `dispatch(session, name, args, ctx)`. It validates
 state, validates args (via Pydantic), executes, and returns the result

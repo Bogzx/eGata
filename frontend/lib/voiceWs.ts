@@ -99,6 +99,17 @@ export class VoiceWs {
     this.send({ type: "text", text });
   }
 
+  /** Submit a previously-proposed widget's answer through the live session.
+   *
+   * The bridge resolves the widget server-side (popping it off
+   * `session.pending_widgets`), dispatches `set_field` if the widget had a
+   * `target_field`, and injects a synthetic note into Gemini Live's
+   * context so the model knows the field was answered without us having
+   * to bounce through the HTTP /widget-result endpoint. */
+  sendWidgetSubmission(widgetId: string, value: unknown): void {
+    this.send({ type: "widget_submission", widget_id: widgetId, value });
+  }
+
   sendInterrupt(): void {
     this.send({ type: "interrupt" });
   }
@@ -120,8 +131,12 @@ export class VoiceWs {
 
   private send(obj: Record<string, unknown>): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      ERR("send before open — dropping", obj);
-      return;
+      // Throw, do NOT silently drop: ChatSurface.onSendText catches this
+      // and falls back to /agent/chat/stream SSE. If we returned, the
+      // user's text would vanish without any visible failure (bubble
+      // appears locally, agent never sees it).
+      ERR("send on non-OPEN ws — throwing for SSE fallback", obj);
+      throw new Error("WS not open");
     }
     this.ws.send(JSON.stringify(obj));
   }
