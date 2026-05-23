@@ -32,9 +32,8 @@ function deriveWidgetsFromVoice(toolCalls: AgentToolCall[]): WidgetSpec[] {
     const a = tc.args;
     const type = a.type as WidgetSpec["type"] | undefined;
     const question = (a.question as string | undefined) ?? "";
-    const widgetId =
-      (a.widget_id as string | undefined) ??
-      Math.random().toString(36).slice(2);
+    // widgetId is UI-only — the model never sees one, so always generate.
+    const widgetId = Math.random().toString(36).slice(2);
     if (type === "choice") {
       out.push({
         type: "choice",
@@ -80,6 +79,10 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   const openScenarioPlan = useSessionStore((s) => s.openScenarioPlan);
   const sendText = useSessionStore((s) => s.sendText);
   const appendMessage = useSessionStore((s) => s.appendMessage);
+  const upsertPendingUser = useSessionStore((s) => s.upsertPendingUser);
+  const upsertPendingAgent = useSessionStore((s) => s.upsertPendingAgent);
+  const finalizePendingUser = useSessionStore((s) => s.finalizePendingUser);
+  const finalizePendingAgent = useSessionStore((s) => s.finalizePendingAgent);
   const setVoiceStatus = useSessionStore((s) => s.setVoiceStatus);
   const applyToolResult = useSessionStore((s) => s.applyToolResult);
   const reset = useSessionStore((s) => s.reset);
@@ -147,8 +150,18 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
     });
   }, [voice, applyToolResult]);
 
-  // Callbacks the voice session fires when a TURN is finalized — not per delta.
+  // Per-delta callbacks → live-updating pending bubbles.
+  function handleVoiceUserDelta(text: string) {
+    upsertPendingUser(text, "voice");
+  }
+
+  function handleVoiceAgentDelta(text: string) {
+    upsertPendingAgent(text);
+  }
+
+  // Finalized turn callbacks — replace pending with a permanent message.
   function handleVoiceUserMessage(text: string) {
+    finalizePendingUser();
     appendMessage({
       id: makeMsgId(),
       role: "user",
@@ -159,6 +172,7 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
 
   function handleVoiceAgentMessage(text: string, toolCalls: AgentToolCall[]) {
     const widgets = deriveWidgetsFromVoice(toolCalls);
+    finalizePendingAgent();
     appendMessage({
       id: makeMsgId(),
       role: "agent",
@@ -175,6 +189,8 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
       .start({
         documentId: activeDocId ?? undefined,
         preferences: { simple_language: simpleLanguage, voice_only: voiceOnly },
+        onUserDelta: handleVoiceUserDelta,
+        onAgentDelta: handleVoiceAgentDelta,
         onUserMessage: handleVoiceUserMessage,
         onAgentMessage: handleVoiceAgentMessage,
       })
@@ -198,6 +214,8 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
       await voice.start({
         documentId: useSessionStore.getState().activeDocId ?? undefined,
         preferences: { simple_language: simpleLanguage, voice_only: voiceOnly },
+        onUserDelta: handleVoiceUserDelta,
+        onAgentDelta: handleVoiceAgentDelta,
         onUserMessage: handleVoiceUserMessage,
         onAgentMessage: handleVoiceAgentMessage,
       });
@@ -218,9 +236,11 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
 
   async function onSendText(t: string) {
     // If a voice WS is active, push text into the live session so the agent
-    // hears it; otherwise hit /agent/chat. Either way, the message bubble is
-    // appended (voice path appends via WS callback, text path via store).
+    // hears it; otherwise hit /agent/chat/stream. Either way the user bubble
+    // is appended (voice path appends here, text path via store.sendText).
     if (voice.state === "listening" || voice.state === "speaking") {
+      // Discard any stale voice partial — the user has switched to typing.
+      finalizePendingUser();
       await voice.sendText(t);
       appendMessage({
         id: makeMsgId(),
