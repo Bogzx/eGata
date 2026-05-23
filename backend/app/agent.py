@@ -94,8 +94,16 @@ async def _stream_turn(
     Wrapped in session_lock(conversation_id) so concurrent turns on the
     same conversation (voice + text, two tabs, reload-during-stream)
     serialize instead of racing on session.history overwrites.
+
+    On the first turn `req.conversation_id` is None — locking on the literal
+    None then serialises EVERY citizen's first turn across the whole demo,
+    which is what was making the chat feel "stuck" under any concurrent
+    load. Fall back to a per-citizen lock key so a fresh conversation only
+    blocks other fresh conversations from the SAME citizen (a normal user
+    can't have two simultaneous new sessions anyway).
     """
-    async with session_lock(req.conversation_id):
+    lock_key = req.conversation_id or f"citizen:{citizen_id}:new"
+    async with session_lock(lock_key):
         session = _resolve_session(req, citizen_id)
         citizen = fetch_citizen_by_id(citizen_id)
         citizen_attrs = citizen.get("attributes") or {}
@@ -273,7 +281,9 @@ async def chat(
     req: AgentChatRequest,
     citizen_id: UUID = Depends(current_citizen_id),
 ) -> AgentChatResponse:
-    async with session_lock(req.conversation_id):
+    # Per-citizen fallback on first turn — see _stream_turn for details.
+    lock_key = req.conversation_id or f"citizen:{citizen_id}:new"
+    async with session_lock(lock_key):
         session = _resolve_session(req, citizen_id)
         citizen = fetch_citizen_by_id(citizen_id)
         citizen_attrs = citizen.get("attributes") or {}
