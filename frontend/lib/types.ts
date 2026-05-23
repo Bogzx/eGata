@@ -155,3 +155,47 @@ export type ChatResponse = {
   message: string;
   tool_calls: ChatToolCall[];
 };
+
+// ---- Chat-first redesign types ----
+
+export type RightPaneState =
+  | { kind: "welcome" }
+  | { kind: "guide"; procedureId: string }
+  | { kind: "filling"; activeField?: string }
+  | { kind: "review" }
+  | { kind: "pdf"; url: string }
+  | { kind: "delivery" }
+  | { kind: "done"; refNumber: string };
+
+export type WidgetSpec =
+  | {
+      type: "choice";
+      question: string;
+      options: string[];
+      targetField: string;
+      widgetId: string;
+    }
+  | {
+      type: "confirm";
+      question: string;
+      onConfirmTool?: string;
+      widgetId: string;
+    }
+  | {
+      type: "date";
+      question: string;
+      targetField: string;
+      widgetId: string;
+    };
+
+export type Message =
+  | { id: string; role: "user"; text: string; via: "text" | "voice" }
+  | { id: string; role: "agent"; text: string; widgets?: WidgetSpec[] }
+  | { id: string; role: "system"; text: string };
+
+export type VoiceStatus =
+  | "idle"
+  | "connecting"
+  | "listening"
+  | "speaking"
+  | "error";
