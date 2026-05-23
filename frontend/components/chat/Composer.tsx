@@ -21,6 +21,10 @@ export function Composer({ onSendText, onStartVoice, onStopVoice }: Props) {
     voiceStatus === "speaking" ||
     voiceStatus === "connecting";
 
+  // Mic pill collapses (label slides out) as soon as the user types or
+  // when voice is already active — keeps the composer tidy mid-conversation.
+  const micCompact = draft.length > 0 || voiceActive;
+
   async function submit() {
     const t = draft.trim();
     if (!t || sending) return;
@@ -43,26 +47,6 @@ export function Composer({ onSendText, onStartVoice, onStopVoice }: Props) {
       aria-label="Trimite un mesaj asistentului"
     >
       <div className="composer-shell">
-        <button
-          type="button"
-          className="composer-attach"
-          aria-label="Atașează fișier"
-          tabIndex={-1}
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path d="M21.4 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 014.95 4.95l-9.2 9.19a2 2 0 11-2.83-2.83l8.49-8.49" />
-          </svg>
-        </button>
-
         <label htmlFor={fieldId} className="sr-only">
           Scrie un mesaj pentru asistent
         </label>
@@ -91,6 +75,7 @@ export function Composer({ onSendText, onStartVoice, onStopVoice }: Props) {
             voiceActive ? "Oprește microfonul" : "Pornește microfonul"
           }
           title={voiceActive ? "Oprește microfonul" : "Pornește microfonul"}
+          data-compact={micCompact ? "true" : "false"}
         >
           {voiceActive ? (
             <svg
@@ -120,6 +105,9 @@ export function Composer({ onSendText, onStartVoice, onStopVoice }: Props) {
               <path d="M5 11a7 7 0 0014 0M12 18v3" />
             </svg>
           )}
+          <span className="composer-mic-label" aria-hidden="true">
+            Vorbește
+          </span>
         </button>
 
         {sending ? (

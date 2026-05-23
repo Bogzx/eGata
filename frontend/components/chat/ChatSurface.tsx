@@ -195,16 +195,6 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
     (activeDocId !== null ||
       (sessionState !== null && sessionState !== "exploring"));
 
-  const voiceActive =
-    voice.state === "listening" ||
-    voice.state === "speaking" ||
-    voice.state === "connecting";
-
-  function toggleVoice() {
-    if (voiceActive) stopVoice();
-    else void startVoice();
-  }
-
   return (
     <div
       className="civic-root"
@@ -249,40 +239,6 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
               onStartVoice={startVoice}
               onStopVoice={stopVoice}
             />
-            {!engaged ? (
-              <div className="voice-mode-row">
-                <button
-                  type="button"
-                  className={
-                    "voice-mode-btn " + (voiceActive ? "is-on" : "")
-                  }
-                  onClick={toggleVoice}
-                  aria-pressed={voiceActive}
-                  aria-label={
-                    voiceActive
-                      ? "Oprește modul vocal"
-                      : "Pornește modul vocal"
-                  }
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                    focusable="false"
-                  >
-                    <rect x="9" y="3" width="6" height="12" rx="3" />
-                    <path d="M5 11a7 7 0 0014 0M12 18v3" />
-                  </svg>
-                  <span>{voiceActive ? "Oprește vocal" : "Mod vocal"}</span>
-                </button>
-              </div>
-            ) : null}
           </section>
 
           {showRight ? (
