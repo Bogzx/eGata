@@ -1,7 +1,6 @@
 import { http, HttpResponse } from "msw";
 import {
   andrei,
-  deliveredDoc,
   draftDoc,
   elena,
   knownProcedures,
@@ -39,7 +38,6 @@ const challengeTokenStore = new Map<string, string>();
 
 const documents = new Map<string, Document>();
 documents.set(draftDoc.id, { ...draftDoc });
-documents.set(deliveredDoc.id, { ...deliveredDoc });
 
 const reminders = new Map<string, Reminder>();
 seededReminders.forEach((r) => reminders.set(r.id, { ...r }));
@@ -113,45 +111,9 @@ export const handlers = [
         redirect_candidate: null,
       });
     }
-    if (q.includes("venit") || q.includes("adeverin")) {
-      return HttpResponse.json({
-        matches: [{ procedure_id: "adeverinta-venit", title: "Adeverință de venit", score: 0.9 }],
-        redirect_candidate: null,
-      });
-    }
     if (q.includes("certificat fiscal") || q.includes("atestare fiscal") || q.includes("datorii")) {
       return HttpResponse.json({
         matches: [{ procedure_id: "certificat-fiscal", title: "Certificat fiscal", score: 0.86 }],
-        redirect_candidate: null,
-      });
-    }
-    if (q.includes("naster") || q.includes("certificat de nast")) {
-      return HttpResponse.json({
-        matches: [
-          {
-            procedure_id: "certificat-nastere-copie",
-            title: "Copie certificat de naștere",
-            score: 0.85,
-          },
-        ],
-        redirect_candidate: null,
-      });
-    }
-    if (q.includes("căsător") || q.includes("casator")) {
-      return HttpResponse.json({
-        matches: [
-          {
-            procedure_id: "inregistrare-casatorie",
-            title: "Înregistrare căsătorie",
-            score: 0.87,
-          },
-        ],
-        redirect_candidate: null,
-      });
-    }
-    if (q.includes("ajutor social") || q.includes("venit minim")) {
-      return HttpResponse.json({
-        matches: [{ procedure_id: "ajutor-social", title: "Ajutor social", score: 0.84 }],
         redirect_candidate: null,
       });
     }
