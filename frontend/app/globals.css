@@ -8,6 +8,11 @@
 
 @layer base {
   :root {
+    /* Responsive breakpoint tokens (used in human-readable comments,
+       not in @media — @media cannot consume CSS custom properties). */
+    --bp-mobile: 640px;
+    --bp-tablet: 1024px;
+
     /* CivicAI palette */
     --c-dark: #1F6F5F;
     --c-mid: #2FA084;
@@ -177,7 +182,8 @@ html.large-text {
 
 .civic-root {
   position: relative;
-  height: 100vh;
+  height: 100vh;        /* fallback for older browsers */
+  height: 100dvh;       /* dynamic viewport — accounts for mobile URL bar */
   width: 100%;
   overflow: hidden;
   isolation: isolate;
@@ -1385,25 +1391,7 @@ html.large-text {
   justify-content: flex-end;
 }
 
-/* responsive */
-@media (max-width: 980px) {
-  .civic-main.is-engaged {
-    grid-template-columns: 1fr;
-  }
-  .civic-right {
-    display: none;
-  }
-  .topbar {
-    padding: 14px 18px;
-  }
-  .civic-main {
-    padding: 0 18px 16px;
-  }
-  .suggest-grid {
-    grid-template-columns: 1fr;
-  }
-  .doc-detail {
-    right: 0;
-    z-index: 3;
-  }
-}
+/* =====================================================================
+   Responsive — mobile (≤640px) and tablet (641-1024px). Desktop stays
+   as-is above. New rules are appended by task.
+   ===================================================================== */
