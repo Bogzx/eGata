@@ -19,6 +19,7 @@ import base64
 import json
 import logging
 import secrets
+import time
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
@@ -143,9 +144,16 @@ async def _run_phone_gemini_session(
         ),
     )
 
+    log.info(
+        "twilio_gemini: connecting model=%s voice=%s lang=ro-RO session=%s",
+        settings.gemini_voice_model,
+        settings.gemini_voice_name,
+        phone_session.id,
+    )
     async with client.aio.live.connect(
         model=settings.gemini_voice_model, config=config
     ) as session:
+        log.info("twilio_gemini: connected session=%s", phone_session.id)
 
         async def pump_inbound() -> None:
             while not stop_event.is_set():
@@ -159,8 +167,12 @@ async def _run_phone_gemini_session(
                         )
                     )
                 except Exception:
-                    log.exception("send_realtime_input failed")
+                    log.exception(
+                        "twilio_gemini: send_realtime_input failed session=%s",
+                        phone_session.id,
+                    )
                     break
+            log.info("twilio_gemini: inbound pump stopped session=%s", phone_session.id)
 
         async def pump_outbound() -> None:
             async for response in session.receive():
@@ -169,14 +181,21 @@ async def _run_phone_gemini_session(
                         mulaw = pcm16_24k_to_mulaw_8k(response.data)
                         await send_to_twilio(mulaw)
                     except Exception:
-                        log.exception("audio out failed")
+                        log.exception(
+                            "twilio_gemini: audio out failed session=%s",
+                            phone_session.id,
+                        )
                 tc = getattr(response, "tool_call", None)
                 if tc and getattr(tc, "function_calls", None):
                     fr_parts: list[genai_types.FunctionResponse] = []
                     for fc in tc.function_calls:
                         call_id = getattr(fc, "id", None)
                         if fc.name not in PHONE_TOOL_ALLOWLIST:
-                            log.warning("Phone agent tried disallowed tool %s", fc.name)
+                            log.warning(
+                                "twilio_gemini: phone tried disallowed tool=%s session=%s",
+                                fc.name,
+                                phone_session.id,
+                            )
                             fr_parts.append(
                                 genai_types.FunctionResponse(
                                     id=call_id,
@@ -186,6 +205,12 @@ async def _run_phone_gemini_session(
                             )
                             continue
                         args = dict(fc.args) if fc.args else {}
+                        log.info(
+                            "twilio_gemini: tool_call session=%s name=%s args=%r",
+                            phone_session.id,
+                            fc.name,
+                            args,
+                        )
                         result = await dispatch(
                             phone_session, fc.name, args, phone_ctx
                         )
@@ -204,10 +229,17 @@ async def _run_phone_gemini_session(
                     try:
                         await session.send_tool_response(function_responses=fr_parts)
                     except Exception:
-                        log.exception("send_tool_response failed")
+                        log.exception(
+                            "twilio_gemini: send_tool_response failed session=%s",
+                            phone_session.id,
+                        )
                 sc = getattr(response, "server_content", None)
                 if sc and getattr(sc, "interrupted", False):
-                    log.debug("Phone agent interrupted (barge-in)")
+                    log.info(
+                        "twilio_gemini: barge-in (interrupted) session=%s",
+                        phone_session.id,
+                    )
+            log.info("twilio_gemini: outbound pump stopped session=%s", phone_session.id)
 
         await asyncio.gather(pump_inbound(), pump_outbound())
 
@@ -217,17 +249,45 @@ async def _run_phone_gemini_session(
 
 @router.websocket("/voice/twilio")
 async def twilio_media_stream(ws: WebSocket) -> None:
+    client = f"{ws.client.host}:{ws.client.port}" if ws.client else "-"
+    log.info("twilio_ws: accept from=%s", client)
     await ws.accept()
-    log.info("Twilio Media Stream connected")
 
     inbound: asyncio.Queue[bytes | None] = asyncio.Queue(maxsize=200)
     stop_event = asyncio.Event()
     stream_sid_holder: dict[str, str] = {}
+    # Counters flushed every ~3s so we can see whether mulaw frames are
+    # actually arriving without a per-frame log line drowning everything.
+    counters = {"in_frames": 0, "in_bytes": 0, "out_frames": 0, "out_bytes": 0}
+    last_log = [time.perf_counter()]
+
+    def maybe_log_counters() -> None:
+        now = time.perf_counter()
+        if now - last_log[0] < 3.0:
+            return
+        if not any(counters.values()):
+            return
+        log.info(
+            "twilio_ws: audio sid=%s in_frames=%d in_bytes=%d out_frames=%d out_bytes=%d",
+            stream_sid_holder.get("sid", "-"),
+            counters["in_frames"],
+            counters["in_bytes"],
+            counters["out_frames"],
+            counters["out_bytes"],
+        )
+        counters["in_frames"] = 0
+        counters["in_bytes"] = 0
+        counters["out_frames"] = 0
+        counters["out_bytes"] = 0
+        last_log[0] = now
 
     async def send_to_twilio(mulaw_bytes: bytes) -> None:
         sid = stream_sid_holder.get("sid")
         if not sid:
             return
+        counters["out_frames"] += 1
+        counters["out_bytes"] += len(mulaw_bytes)
+        maybe_log_counters()
         try:
             await ws.send_text(
                 json.dumps(
@@ -239,12 +299,13 @@ async def twilio_media_stream(ws: WebSocket) -> None:
                 )
             )
         except Exception:
-            log.exception("Failed sending audio to Twilio")
+            log.exception("twilio_ws: send audio failed sid=%s", sid)
 
     gemini_task = asyncio.create_task(
         _run_phone_gemini_session(inbound, send_to_twilio, stop_event)
     )
 
+    started = time.perf_counter()
     try:
         while True:
             raw = await ws.receive_text()
@@ -252,12 +313,23 @@ async def twilio_media_stream(ws: WebSocket) -> None:
             frame = parse_twilio_frame(msg)
             if frame.event == "start" and frame.stream_sid:
                 stream_sid_holder["sid"] = frame.stream_sid
-                log.info("Twilio stream started %s", frame.stream_sid)
+                log.info(
+                    "twilio_ws: stream started sid=%s payload=%s",
+                    frame.stream_sid,
+                    msg.get("start"),
+                )
             elif frame.event == "media" and frame.audio_mulaw:
+                counters["in_frames"] += 1
+                counters["in_bytes"] += len(frame.audio_mulaw)
+                maybe_log_counters()
                 pcm = mulaw_to_pcm16_16k(frame.audio_mulaw)
                 try:
                     inbound.put_nowait(pcm)
                 except asyncio.QueueFull:
+                    log.warning(
+                        "twilio_ws: inbound queue full sid=%s, dropping oldest",
+                        stream_sid_holder.get("sid", "-"),
+                    )
                     try:
                         _ = inbound.get_nowait()
                     except asyncio.QueueEmpty:
@@ -267,11 +339,28 @@ async def twilio_media_stream(ws: WebSocket) -> None:
                     except asyncio.QueueFull:
                         pass
             elif frame.event == "stop":
-                log.info("Twilio stream stopped")
+                log.info(
+                    "twilio_ws: stream stopped sid=%s",
+                    stream_sid_holder.get("sid", "-"),
+                )
                 break
+            else:
+                log.debug(
+                    "twilio_ws: event=%s sid=%s",
+                    frame.event,
+                    frame.stream_sid,
+                )
     except WebSocketDisconnect:
-        log.info("Twilio WS disconnected")
+        log.info(
+            "twilio_ws: client disconnect sid=%s",
+            stream_sid_holder.get("sid", "-"),
+        )
     finally:
+        log.info(
+            "twilio_ws: close sid=%s duration_s=%.1f",
+            stream_sid_holder.get("sid", "-"),
+            time.perf_counter() - started,
+        )
         stop_event.set()
         try:
             inbound.put_nowait(None)
@@ -319,11 +408,29 @@ def _bridge_is_healthy() -> bool:
 
 
 @router.post("/voice/twilio/webhook")
-async def twilio_voice_webhook(request: Request) -> Response:  # noqa: ARG001
+async def twilio_voice_webhook(request: Request) -> Response:
+    # Twilio posts form fields like From, To, CallSid; log them so we can
+    # diagnose "Twilio dialed in but nothing happened" against the call log.
+    try:
+        form = await request.form()
+        log.info(
+            "twilio_webhook: incoming CallSid=%s From=%s To=%s",
+            form.get("CallSid"),
+            form.get("From"),
+            form.get("To"),
+        )
+    except Exception:
+        log.exception("twilio_webhook: form parse failed")
     if not _bridge_is_healthy():
+        log.warning(
+            "twilio_webhook: bridge unhealthy (gemini_key=%s bridge_url=%s) - returning fallback TwiML",
+            bool(get_settings().gemini_api_key),
+            bool(get_settings().twilio_bridge_public_url),
+        )
         return Response(content=_TWIML_FALLBACK, media_type="application/xml")
     settings = get_settings()
     ws_url = settings.twilio_bridge_public_url
+    log.info("twilio_webhook: returning bridge TwiML ws_url=%s", ws_url)
     return Response(
         content=_TWIML_BRIDGE.format(ws_url=ws_url),
         media_type="application/xml",

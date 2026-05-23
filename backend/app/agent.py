@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from collections.abc import AsyncIterator
 from typing import Any
 from uuid import UUID
@@ -63,8 +64,18 @@ def _resolve_session(req: AgentChatRequest, citizen_id: UUID) -> Session:
     state-machine world; SP5's UI deletes that path in favor of the
     agent calling start_procedure.
     """
+    is_new = req.conversation_id is None
     session = fetch_or_create_session(
         str(citizen_id), session_id=req.conversation_id
+    )
+    log.info(
+        "session: %s conv=%s citizen=%s state=%s doc=%s history_turns=%d",
+        "created" if is_new else "loaded",
+        session.id,
+        citizen_id,
+        session.state.value,
+        session.active_document_id,
+        len(session.history),
     )
     if req.document_id and not session.active_document_id:
         session.active_document_id = str(req.document_id)
@@ -73,6 +84,11 @@ def _resolve_session(req: AgentChatRequest, citizen_id: UUID) -> Session:
         if session.state != SessionState.FILLING:
             try:
                 transition(session, SessionState.FILLING)
+                log.info(
+                    "session: doc-injection conv=%s doc=%s -> FILLING",
+                    session.id,
+                    req.document_id,
+                )
             except IllegalTransitionError:
                 log.warning(
                     "legacy doc-injection: illegal %s -> FILLING, leaving state alone",
@@ -103,6 +119,16 @@ async def _stream_turn(
     can't have two simultaneous new sessions anyway).
     """
     lock_key = req.conversation_id or f"citizen:{citizen_id}:new"
+    log.info(
+        "chat_stream: in citizen=%s conv=%s doc=%s msg=%r prefs=%s",
+        citizen_id,
+        req.conversation_id,
+        req.document_id,
+        (req.message or "")[:120],
+        req.preferences.model_dump() if req.preferences else None,
+    )
+    started = time.perf_counter()
+    event_counts: dict[str, int] = {}
     async with session_lock(lock_key):
         session = _resolve_session(req, citizen_id)
         citizen = fetch_citizen_by_id(citizen_id)
@@ -118,15 +144,23 @@ async def _stream_turn(
                 voice_only=bool(prefs and prefs.voice_only),
                 citizen_attrs=citizen_attrs,
             ):
+                event_counts[ev.kind] = event_counts.get(ev.kind, 0) + 1
                 yield _sse(ev.kind, ev.data)
         except Exception as e:  # noqa: BLE001
-            log.exception("session_engine.step crashed")
+            log.exception("session_engine.step crashed conv=%s", session.id)
             yield _sse("error", {"detail": str(e)})
         finally:
             try:
                 update_session(session)
             except Exception:
-                log.exception("session persist failed")
+                log.exception("session persist failed conv=%s", session.id)
+            log.info(
+                "chat_stream: out conv=%s duration_ms=%.0f events=%s state=%s",
+                session.id,
+                (time.perf_counter() - started) * 1000,
+                event_counts,
+                session.state.value,
+            )
 
 
 # ---- streaming endpoint ----
@@ -185,19 +219,44 @@ async def widget_result(
     answer in context), persist, and return the updated snapshot plus any
     side-effect events.
     """
+    log.info(
+        "widget_result: in citizen=%s conv=%s widget=%s value=%r",
+        citizen_id,
+        req.conversation_id,
+        req.widget_id,
+        req.value,
+    )
     async with session_lock(req.conversation_id):
         session = fetch_or_create_session(
             str(citizen_id), session_id=req.conversation_id
         )
         if session.citizen_id != str(citizen_id):
+            log.warning(
+                "widget_result: forbidden conv=%s owner=%s requester=%s",
+                req.conversation_id,
+                session.citizen_id,
+                citizen_id,
+            )
             raise HTTPException(status_code=403, detail="Not your session")
 
         widget = session.resolve_pending_widget(req.widget_id)
         if widget is None:
+            log.warning(
+                "widget_result: not pending conv=%s widget=%s (already resolved?)",
+                req.conversation_id,
+                req.widget_id,
+            )
             raise HTTPException(
                 status_code=404,
                 detail=f"Widget {req.widget_id!r} not pending (already resolved?)",
             )
+        log.info(
+            "widget_result: resolved conv=%s widget=%s type=%s target_field=%s",
+            session.id,
+            req.widget_id,
+            widget.type,
+            widget.target_field,
+        )
 
         events: list[WidgetResultEvent] = []
         user_visible = (
@@ -283,6 +342,14 @@ async def chat(
 ) -> AgentChatResponse:
     # Per-citizen fallback on first turn — see _stream_turn for details.
     lock_key = req.conversation_id or f"citizen:{citizen_id}:new"
+    log.info(
+        "chat: in citizen=%s conv=%s doc=%s msg=%r",
+        citizen_id,
+        req.conversation_id,
+        req.document_id,
+        (req.message or "")[:120],
+    )
+    started = time.perf_counter()
     async with session_lock(lock_key):
         session = _resolve_session(req, citizen_id)
         citizen = fetch_citizen_by_id(citizen_id)
@@ -310,11 +377,23 @@ async def chat(
                 elif ev.kind == "done":
                     final_message = ev.data.get("message") or final_message
                 elif ev.kind == "error":
+                    log.error(
+                        "chat: agent error conv=%s detail=%r",
+                        session.id,
+                        ev.data.get("detail"),
+                    )
                     raise HTTPException(
                         status_code=502, detail=ev.data.get("detail") or "Agent error"
                     )
         finally:
             update_session(session)
+            log.info(
+                "chat: out conv=%s duration_ms=%.0f tool_calls=%d final_len=%d",
+                session.id,
+                (time.perf_counter() - started) * 1000,
+                len(tool_calls),
+                len(final_message),
+            )
 
     return AgentChatResponse(
         conversation_id=session.id,
