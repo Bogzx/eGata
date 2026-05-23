@@ -51,8 +51,28 @@ class Settings(BaseSettings):
     # "gpt-4o-transcribe-diarize", "azure-fast-transcription", "azure-speech",
     # "mai-transcribe-1". VoiceLive maps the chosen value to whatever STT
     # backend Azure has wired up on the resource.
-    azure_voicelive_transcription_model: str = Field(default="whisper-1")
+    #
+    # We default to gpt-4o-mini-transcribe (not whisper-1) because whisper-1
+    # only emits one final COMPLETED event with the full transcript — the
+    # user's bubble pops in fully-formed at end-of-utterance. The gpt-4o
+    # transcribe models stream partials via
+    # CONVERSATION_ITEM_INPUT_AUDIO_TRANSCRIPTION_DELTA, which we forward as
+    # `user_delta` frames so the bubble fills word-by-word while they speak.
+    azure_voicelive_transcription_model: str = Field(default="gpt-4o-mini-transcribe")
     azure_voicelive_transcription_language: str = Field(default="ro")
+
+    # Azure Speech Service — used in PARALLEL to VoiceLive for true
+    # streaming user transcripts. VoiceLive's input_audio_transcription
+    # only emits a COMPLETED event (no DELTA partials) under all currently
+    # supported API versions / models, so the user bubble pops in
+    # fully-formed at end-of-utterance instead of filling word-by-word.
+    # The classic Speech SDK opens its own WebSocket and fires a
+    # `recognizing` event for every partial token, which we forward to
+    # the browser as user_delta frames. The same Foundry key works for
+    # both VoiceLive and Speech; only the region differs.
+    azure_speech_key: str = Field(default="")
+    azure_speech_region: str = Field(default="swedencentral")
+    azure_speech_language: str = Field(default="ro-RO")
 
     embedding_dim: int = Field(default=768)
 

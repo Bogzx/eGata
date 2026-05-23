@@ -9,7 +9,7 @@ services:
       - ./backend/.env
     environment:
       PORT: "8000"
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
