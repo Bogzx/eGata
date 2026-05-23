@@ -104,4 +104,26 @@ export const api = {
     message: string;
     preferences?: VoicePreferences;
   }) => request<ChatResponse>("/agent/chat", { method: "POST", body: b }),
+
+  createVoiceSession: (b: {
+    document_id?: string;
+    preferences?: VoicePreferences;
+  }) =>
+    request<VoiceSessionResponse>("/voice/session", {
+      method: "POST",
+      body: b,
+    }),
+};
+
+export type VoiceSessionResponse = {
+  session_id: string;
+  gemini_api_key: string;
+  gemini_model: string;
+  gemini_voice: string;
+  system_prompt: string;
+  tool_jwt: string;
+  tool_base_url: string;
+  tool_names: string[];
+  citizen_context: Record<string, unknown>;
+  document_context: Record<string, unknown> | null;
 };

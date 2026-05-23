@@ -27,13 +27,20 @@ class Settings(BaseSettings):
     mock_otp: bool = Field(default=True)
 
     gemini_api_key: str = Field(default="")
+    gemini_model: str = Field(default="gemini-2.5-flash")
+    gemini_voice_model: str = Field(default="gemini-2.5-flash-native-audio-latest")
+    gemini_voice_name: str = Field(default="Aoede")
     openai_api_key: str = Field(default="")
 
     jwt_signing_secret: str = Field(...)
     jwt_algorithm: str = Field(default="HS256")
     jwt_expires_seconds: int = Field(default=86400)
+    jwt_audience: str = Field(default="civicai-tools")
+    jwt_issuer: str = Field(default="civicai-voice")
 
     allow_origins: str = Field(default="*")
+    public_base_url: str = Field(default="http://localhost:8000")
+    twilio_bridge_public_url: str = Field(default="")
 
     ledger_genesis_hash: str = Field(default="0x" + "0" * 64)
 
