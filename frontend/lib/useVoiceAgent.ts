@@ -1,9 +1,22 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api } from "./api";
 import type { VoicePreferences } from "./types";
+import { GeminiLiveSession, type FunctionDecl } from "./gemini-live";
+import {
+  startMicRecorder,
+  startPlayer,
+  type PlayerHandle,
+  type RecorderHandle,
+} from "./audioWorklet";
 
-export type VoiceAgentState = "idle" | "connecting" | "listening" | "speaking" | "error";
+export type VoiceAgentState =
+  | "idle"
+  | "connecting"
+  | "listening"
+  | "speaking"
+  | "error";
 
 export type ToolCallHandler = (
   name: string,
@@ -25,33 +38,248 @@ export type VoiceAgentHook = {
   lastAgentMessage: string;
 };
 
+export class VoiceAgentMicDeniedError extends Error {
+  constructor() {
+    super("Microphone permission denied — fall back to text chat.");
+    this.name = "VoiceAgentMicDeniedError";
+  }
+}
+
+// JSON-Schema parameter shapes per tool name, in sync with backend Python tool
+// signatures. Gemini Live needs explicit declarations to emit function-calls.
+const TOOL_SCHEMAS: Record<string, FunctionDecl> = {
+  lookup_procedure: {
+    name: "lookup_procedure",
+    description:
+      "Find the best primărie procedure for a free-text Romanian query.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "User's plain-language need.",
+        },
+      },
+      required: ["query"],
+    },
+  },
+  set_field: {
+    name: "set_field",
+    description: "Set a single form field on the active document.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        value: { type: "string" },
+      },
+      required: ["name", "value"],
+    },
+  },
+  generate_pdf: {
+    name: "generate_pdf",
+    description: "Compile the active document to PDF.",
+    parameters: { type: "object", properties: {} },
+  },
+  deliver: {
+    name: "deliver",
+    description: "Finalize document. delivery ∈ {save, send, print}.",
+    parameters: {
+      type: "object",
+      properties: {
+        delivery: { type: "string", enum: ["save", "send", "print"] },
+      },
+      required: ["delivery"],
+    },
+  },
+  find_redirect: {
+    name: "find_redirect",
+    description:
+      "Decide if a query is out of primărie scope (ANAF/CNAS/DRPCIV).",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string" },
+        target: { type: "string" },
+      },
+      required: ["query"],
+    },
+  },
+  set_reminder: {
+    name: "set_reminder",
+    description:
+      "Create a proactive reminder (rare; only on explicit citizen request).",
+    parameters: {
+      type: "object",
+      properties: {
+        kind: {
+          type: "string",
+          enum: ["in_scope_procedure", "external_redirect"],
+        },
+        title: { type: "string" },
+        procedure_id: { type: "string" },
+        redirect_target: { type: "string" },
+        deadline_days: { type: "number" },
+      },
+      required: ["kind", "title"],
+    },
+  },
+};
+
 export function useVoiceAgent(): VoiceAgentHook {
-  const start = useCallback(async () => {
-    throw new Error("Voice not yet implemented (Plan 3 wires Gemini Live).");
+  const [state, setState] = useState<VoiceAgentState>("idle");
+  const [lastTranscript, setLastTranscript] = useState("");
+  const [lastAgentMessage, setLastAgentMessage] = useState("");
+
+  const sessionRef = useRef<GeminiLiveSession | null>(null);
+  const recorderRef = useRef<RecorderHandle | null>(null);
+  const playerRef = useRef<PlayerHandle | null>(null);
+  const userToolHandlerRef = useRef<ToolCallHandler | null>(null);
+  const tokenRef = useRef<{ jwt: string; baseUrl: string } | null>(null);
+
+  const registerToolHandler = useCallback((handler: ToolCallHandler) => {
+    userToolHandlerRef.current = handler;
   }, []);
+
+  const dispatchTool = useCallback(
+    async (
+      name: string,
+      args: Record<string, unknown>,
+    ): Promise<Record<string, unknown>> => {
+      const tok = tokenRef.current;
+      if (!tok) throw new Error("No tool JWT — session not started");
+      const resp = await fetch(`${tok.baseUrl}/${name}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${tok.jwt}`,
+        },
+        body: JSON.stringify(args),
+      });
+      if (!resp.ok) {
+        const detail = await resp.text();
+        throw new Error(`Tool ${name} failed (${resp.status}): ${detail}`);
+      }
+      const result = (await resp.json()) as Record<string, unknown>;
+      // Fire-and-forget UI notification so components can refresh document.
+      try {
+        await userToolHandlerRef.current?.(name, { ...args, _result: result });
+      } catch {
+        /* swallow UI errors */
+      }
+      return result;
+    },
+    [],
+  );
 
   const stop = useCallback(() => {
-    // no-op stub
+    sessionRef.current?.close();
+    recorderRef.current?.stop();
+    playerRef.current?.stop();
+    sessionRef.current = null;
+    recorderRef.current = null;
+    playerRef.current = null;
+    tokenRef.current = null;
+    setState("idle");
   }, []);
 
-  const sendText = useCallback(async (_text: string) => {
-    // no-op stub; Plan 3 forwards text to the Gemini Live session.
-  }, []);
+  const start: VoiceAgentHook["start"] = useCallback(
+    async (opts) => {
+      try {
+        setState("connecting");
 
-  const registerToolHandler = useCallback((_handler: ToolCallHandler) => {
-    // no-op stub
-  }, []);
+        const session = await api.createVoiceSession({
+          document_id: opts.documentId,
+          preferences: opts.preferences,
+        });
+        tokenRef.current = {
+          jwt: session.tool_jwt,
+          baseUrl: session.tool_base_url,
+        };
 
-  return useMemo(
-    () => ({
-      state: "idle" as VoiceAgentState,
-      start,
-      stop,
-      sendText,
-      registerToolHandler,
-      lastTranscript: "",
-      lastAgentMessage: "",
-    }),
-    [start, stop, sendText, registerToolHandler],
+        const declarations: FunctionDecl[] = session.tool_names
+          .map((n) => TOOL_SCHEMAS[n])
+          .filter((d): d is FunctionDecl => Boolean(d));
+
+        const player = await startPlayer();
+        playerRef.current = player;
+
+        const gemini = new GeminiLiveSession({
+          apiKey: session.gemini_api_key,
+          model: session.gemini_model,
+          voiceName: session.gemini_voice,
+          systemPrompt: session.system_prompt,
+          functionDeclarations: declarations,
+          onAgentAudio: (pcm) => {
+            setState("speaking");
+            player.feed(pcm);
+          },
+          onAgentText: (text) => {
+            setLastAgentMessage(text);
+            opts.onAgentMessage?.(text);
+          },
+          onUserTranscript: (text) => {
+            setLastTranscript(text);
+            opts.onTranscript?.(text);
+            setState("listening");
+          },
+          onInterrupted: () => {
+            player.flush();
+            setState("listening");
+          },
+          onToolCall: dispatchTool,
+          onError: (err) => {
+            console.error("[useVoiceAgent] Gemini error", err);
+            setState("error");
+          },
+        });
+        sessionRef.current = gemini;
+        await gemini.connect();
+
+        let recorder: RecorderHandle;
+        try {
+          recorder = await startMicRecorder((chunk) => {
+            gemini.sendAudio(chunk);
+          });
+        } catch (micErr) {
+          console.warn("[useVoiceAgent] Mic denied; text fallback", micErr);
+          setState("error");
+          // Keep WS open so caller can fall back to text-only via sendText.
+          throw new VoiceAgentMicDeniedError();
+        }
+        recorderRef.current = recorder;
+
+        setState("listening");
+      } catch (err) {
+        if (!(err instanceof VoiceAgentMicDeniedError)) {
+          stop();
+        }
+        setState("error");
+        throw err;
+      }
+    },
+    [dispatchTool, stop],
   );
+
+  const sendText: VoiceAgentHook["sendText"] = useCallback(async (text) => {
+    if (!sessionRef.current) {
+      throw new Error("Voice session not started; call start() first.");
+    }
+    sessionRef.current.sendText(text);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stop();
+    };
+  }, [stop]);
+
+  return {
+    state,
+    start,
+    stop,
+    sendText,
+    registerToolHandler,
+    lastTranscript,
+    lastAgentMessage,
+  };
 }

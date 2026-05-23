@@ -12,13 +12,25 @@ type Props = {
   messages: ChatMessage[];
   onMessagesChange: (m: ChatMessage[]) => void;
   preferences?: VoicePreferences;
+  /** Called whenever the agent emits a write-side tool-call so the parent can refresh state. */
+  onDocumentSideEffect?: (
+    toolName: string,
+    args: Record<string, unknown>,
+  ) => void;
 };
+
+const DOC_SIDE_EFFECT_TOOLS = new Set([
+  "set_field",
+  "deliver",
+  "generate_pdf",
+]);
 
 export function ChatPanel({
   documentId,
   messages,
   onMessagesChange,
   preferences,
+  onDocumentSideEffect,
 }: Props) {
   const [draft, setDraft] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -48,6 +60,12 @@ export function ChatPanel({
         tool_calls: r.tool_calls,
       };
       onMessagesChange([...next, agentMsg]);
+      // Surface document-mutating tool calls so the parent can refetch.
+      for (const tc of r.tool_calls ?? []) {
+        if (DOC_SIDE_EFFECT_TOOLS.has(tc.name)) {
+          onDocumentSideEffect?.(tc.name, tc.arguments);
+        }
+      }
     } catch (e) {
       if (e instanceof ApiError) setError(t("common.error"));
       else throw e;
