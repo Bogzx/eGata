@@ -337,6 +337,12 @@ async def step(
             contents.append(
                 genai_types.Content(role="model", parts=accumulated_parts)
             )
+            # Re-fold contents into session.history so a mid-loop crash (a
+            # Gemini stream failure after this iter but before the final
+            # branch) doesn't lose the model's reply or its function-call
+            # request. The transport's finally-block update_session() will
+            # commit whatever is in session.history at the time.
+            session.history = [_content_to_dict(c) for c in contents]
 
         if accumulated_function_calls:
             # Carry the iter's user-visible text into the running transcript
@@ -378,6 +384,10 @@ async def step(
                     )
                 )
             contents.append(genai_types.Content(role="user", parts=tool_response_parts))
+            # Same reason as the post-model-content fold above: a crash on
+            # the next iteration's Gemini call must not lose the tool
+            # responses we already collected.
+            session.history = [_content_to_dict(c) for c in contents]
             continue
 
         # Text-only turn: model is done.
