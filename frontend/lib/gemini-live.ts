@@ -136,11 +136,21 @@ export class GeminiLiveSession {
               parts: [{ text: this.opts.systemPrompt }],
             },
             tools: [{ functionDeclarations: this.opts.functionDeclarations }],
+            // Tighter VAD so background noise / clicks don't trigger ghost
+            // turns the STT then mis-recognizes as English/Arabic/Russian.
             realtimeInputConfig: {
-              automaticActivityDetection: { disabled: false },
+              automaticActivityDetection: {
+                disabled: false,
+                startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
+                endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
+                prefixPaddingMs: 200,
+                silenceDurationMs: 1200,
+              },
             },
-            inputAudioTranscription: {},
-            outputAudioTranscription: {},
+            // Pin user-side STT to Romanian. Gemini Live's auto-detect drifts
+            // when audio is quiet/noisy.
+            inputAudioTranscription: { languageCode: "ro-RO" },
+            outputAudioTranscription: { languageCode: "ro-RO" },
           },
         };
         ws.send(JSON.stringify(setup));
