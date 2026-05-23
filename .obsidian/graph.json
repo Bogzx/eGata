@@ -1,0 +1,29 @@
+{
+  "collapse-filter": false,
+  "search": "",
+  "showTags": false,
+  "showAttachments": false,
+  "hideUnresolved": false,
+  "showOrphans": true,
+  "collapse-color-groups": false,
+  "colorGroups": [
+    { "query": "path:wiki/modules",      "color": { "a": 1, "rgb": 5230335 } },
+    { "query": "path:wiki/components",   "color": { "a": 1, "rgb": 12944320 } },
+    { "query": "path:wiki/flows",        "color": { "a": 1, "rgb": 14474922 } },
+    { "query": "path:wiki/decisions",    "color": { "a": 1, "rgb": 13537656 } },
+    { "query": "path:wiki/dependencies", "color": { "a": 1, "rgb": 6986581 } },
+    { "query": "path:wiki/contracts",    "color": { "a": 1, "rgb": 13724009 } }
+  ],
+  "collapse-display": true,
+  "showArrow": true,
+  "textFadeMultiplier": 0,
+  "nodeSizeMultiplier": 1.1,
+  "lineSizeMultiplier": 1,
+  "collapse-forces": false,
+  "centerStrength": 0.518,
+  "repelStrength": 12,
+  "linkStrength": 1,
+  "linkDistance": 250,
+  "scale": 1,
+  "close": true
+}
