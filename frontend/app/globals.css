@@ -1471,4 +1471,24 @@ html.large-text {
   .civic-root[data-mobile-view="doc"]  .civic-left  { display: none; }
   .civic-root[data-mobile-view="doc"]  .civic-right { display: flex; }
   .civic-root[data-mobile-view="doc"]  .composer    { display: none; }
+
+  /* ---- TopBar ---- */
+  .topbar {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+  .chip {
+    padding: 8px;
+    gap: 6px;
+  }
+  .chip .chip-text {
+    display: none;
+  }
+  .brand-sub {
+    display: none;
+  }
+  .brand-mark {
+    width: 32px;
+    height: 32px;
+  }
 }

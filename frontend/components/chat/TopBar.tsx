@@ -99,7 +99,7 @@ export function TopBar({ voiceOn = false, onToggleVoice }: Props) {
           >
             <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
           </svg>
-          <span>Documentele mele</span>
+          <span className="chip-text">Documentele mele</span>
           {docCount != null && docCount > 0 ? (
             <span className="chip-badge" aria-hidden="true">
               {docCount}
@@ -145,7 +145,7 @@ export function TopBar({ voiceOn = false, onToggleVoice }: Props) {
           <span className="avatar" aria-hidden="true">
             {initial}
           </span>
-          <span>{profileLabel}</span>
+          <span className="chip-text">{profileLabel}</span>
           <svg
             width="12"
             height="12"
