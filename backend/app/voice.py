@@ -148,6 +148,7 @@ def create_voice_session(
                 f.model_dump() for f in (proc.fields if proc else []) if f.required
             ],
             "all_fields": [f.model_dump() for f in (proc.fields if proc else [])],
+            "acte_necesare": [a.model_dump() for a in (proc.acte_necesare if proc else [])],
         }
 
     system_prompt = build_system_prompt(
@@ -171,6 +172,13 @@ def create_voice_session(
         )
         preamble_parts.append(f"Câmpuri completate: {document_context['fields']}")
         preamble_parts.append(f"Câmpuri obligatorii rămase: {missing}")
+        acte = document_context.get("acte_necesare") or []
+        if acte:
+            preamble_parts.append("Acte fizice necesare:")
+            for a in acte:
+                flag = "" if a.get("obligatoriu", True) else " (opțional)"
+                note = f" — {a['observatie']}" if a.get("observatie") else ""
+                preamble_parts.append(f"  • {a['denumire']}{flag}{note}")
 
     full_prompt = system_prompt + "\n".join(preamble_parts)
 

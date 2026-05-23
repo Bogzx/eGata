@@ -45,14 +45,17 @@ def test_cosine_similarity() -> None:
     assert cosine_similarity([1.0, 1.0], [1.0, 0.0]) == pytest.approx(0.7071, abs=1e-3)
 
 
-def test_registry_loads_seven_procedures() -> None:
+def test_registry_loads_core_procedures() -> None:
+    """The original 7 must remain — newer ones can be added freely."""
     from app.procedures import get_registry
     reg = get_registry()
-    assert set(reg.keys()) == {
+    core = {
         "schimbare-domiciliu", "adeverinta-venit", "certificat-fiscal",
         "certificat-nastere-copie", "inregistrare-casatorie", "ajutor-social",
         "preschimbare-ci",
     }
+    assert core.issubset(set(reg.keys()))
+    assert len(reg) >= len(core)
 
 
 def test_registry_validates_against_pydantic_model() -> None:

@@ -24,6 +24,16 @@ export type CitizenAttributes = {
   };
 };
 
+export type ActNecesar = {
+  denumire: string;
+  emitent?: string;
+  emitent_id?: string;
+  format?: string;
+  observatie?: string;
+  obligatoriu?: boolean;
+  alternative?: string[];
+};
+
 export type Procedure = {
   id: string;
   title: string;
@@ -32,6 +42,7 @@ export type Procedure = {
   category: string;
   synonyms: string[];
   sample_queries: string[];
+  acte_necesare?: ActNecesar[];
   fields: ProcedureField[];
   template: string;
   next_steps: NextStep[];
