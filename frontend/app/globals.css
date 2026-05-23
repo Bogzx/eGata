@@ -1450,6 +1450,11 @@ html.large-text {
   .topbar {
     padding: 14px 18px;
   }
+
+  /* ---- Drawer (tablet) ---- */
+  .drawer {
+    width: min(440px, 88vw);
+  }
 }
 
 /* ============ Mobile (≤640px) ============ */
@@ -1502,6 +1507,20 @@ html.large-text {
   .composer-input {
     font-size: 16px; /* prevent iOS zoom-on-focus */
   }
+
+  /* ---- Drawer (mobile) ---- */
+  .drawer {
+    width: 100vw;
+  }
+  .drawer-head {
+    padding: 16px 18px;
+  }
+  .drawer-body {
+    padding: 10px;
+  }
+  .doc-row {
+    padding: 12px;
+  }
 }
 
 /* ============ Touch targets on coarse pointers ============ */
@@ -1514,5 +1533,14 @@ html.large-text {
   }
   .composer-attach {
     padding: 12px;
+  }
+}
+
+/* ============ Drawer + doc-detail responsive ============ */
+
+@media (max-width: 1024px) {
+  .doc-detail {
+    right: 0;
+    z-index: 3;          /* slides on top of the drawer */
   }
 }
