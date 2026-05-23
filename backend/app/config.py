@@ -42,8 +42,20 @@ class Settings(BaseSettings):
     # is broken-by-browser anyway (Chrome refuses the combo) and would let
     # any origin in the wild send credentialed requests. Prod MUST set
     # ALLOW_ORIGINS to an explicit comma-separated allow list.
+    #
+    # Includes :3030 and :3001 alongside :3000 because the Next.js dev
+    # server falls through to the next free port whenever 3000 is in use
+    # (and the demo machine routinely has something on 3000). Before this,
+    # every API call from a non-3000 dev server was blocked by the browser
+    # at the preflight check and the chat just sat on "Se încarcă..."
+    # forever — the same symptom as a broken auth token, which is what
+    # the user noticed when voice messages "couldn't even send".
     allow_origins: str = Field(
-        default="http://localhost:3000,http://127.0.0.1:3000"
+        default=(
+            "http://localhost:3000,http://127.0.0.1:3000,"
+            "http://localhost:3001,http://127.0.0.1:3001,"
+            "http://localhost:3030,http://127.0.0.1:3030"
+        )
     )
     public_base_url: str = Field(default="http://localhost:8000")
     twilio_bridge_public_url: str = Field(default="")
