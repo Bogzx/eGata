@@ -15,7 +15,9 @@ import {
   VoiceAgentMicDeniedError,
   useVoiceAgent,
 } from "@/lib/useVoiceAgent";
-import { ChatPane } from "./ChatPane";
+import { AnimatedBackground } from "./AnimatedBackground";
+import { ChatStream } from "./ChatStream";
+import { Composer } from "./Composer";
 import { DocumentsDrawer } from "./DocumentsDrawer";
 import { ProfileMenu } from "./ProfileMenu";
 import { RightPane } from "./RightPane";
@@ -263,35 +265,65 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
 
   const engaged = rightPaneKind !== "welcome";
   const hideRightPane = voiceOnly;
+  const showRight = engaged && !hideRightPane;
 
-  const gridClass = hideRightPane
-    ? "grid h-full min-h-0 grid-cols-1 overflow-hidden"
-    : engaged
-      ? "grid h-full min-h-0 grid-cols-1 overflow-hidden md:grid-cols-[40%_60%]"
-      : "grid h-full min-h-0 grid-cols-1 overflow-hidden";
+  const voiceActive =
+    voice.state === "listening" ||
+    voice.state === "speaking" ||
+    voice.state === "connecting";
+
+  function toggleVoice() {
+    if (voiceActive) stopVoice();
+    else void startVoice();
+  }
 
   return (
     <div
+      className="civic-root"
       data-mode={engaged ? "engaged" : "idle"}
       data-kiosk={isKiosk ? "true" : "false"}
-      className="flex h-screen w-screen flex-col bg-background text-foreground"
     >
-      <TopBar />
-      <ProfileMenu />
+      <a className="skip-link" href="#civic-main">
+        Sări la conținut
+      </a>
+      <h1 className="sr-only">
+        CivicAI — asistent digital pentru primărie
+      </h1>
+
+      <AnimatedBackground variant={engaged ? "static" : "mesh"} />
+
+      <div className="civic-shell">
+        <TopBar voiceOn={voiceActive} onToggleVoice={toggleVoice} />
+        <ProfileMenu />
+        <main
+          id="civic-main"
+          className={"civic-main " + (showRight ? "is-engaged" : "is-idle")}
+        >
+          <section
+            className={"civic-left " + (engaged ? "engaged" : "idle")}
+            aria-label="Chat cu asistentul CivicAI"
+          >
+            {engaged ? (
+              <ChatStream onWidgetSubmit={onWidgetSubmit} />
+            ) : (
+              <RightPane />
+            )}
+            <Composer
+              onSendText={onSendText}
+              onStartVoice={startVoice}
+              onStopVoice={stopVoice}
+            />
+          </section>
+
+          {showRight ? (
+            <aside className="civic-right" aria-label="Previzualizare document">
+              <RightPane />
+            </aside>
+          ) : null}
+        </main>
+      </div>
+
       <DocumentsDrawer />
-      <main className={gridClass}>
-        <ChatPane
-          onWidgetSubmit={onWidgetSubmit}
-          onSendText={onSendText}
-          onStartVoice={startVoice}
-          onStopVoice={stopVoice}
-        />
-        {engaged && !hideRightPane ? (
-          <aside className="overflow-y-auto border-l" aria-label="Document">
-            <RightPane />
-          </aside>
-        ) : null}
-      </main>
     </div>
   );
 }
