@@ -31,13 +31,32 @@ async def execute(
     options: list[str] | None = None,
     target_field: str | None = None,
 ) -> ToolResult:
-    if type not in _ALLOWED_TYPES:
-        return ToolResult(error=f"Tip widget necunoscut {type!r}.")
+    # Soft-skip invalid widget configurations: the LLM occasionally proposes
+    # a `date` widget for free-form scheduling (no doc field to bind to) or
+    # a `choice` with <2 options. Surfacing the validation error as a chat
+    # pop-up breaks UX. Return an "ignored" output instead so the LLM
+    # falls back to a plain text question.
     opts = options or []
-    if type == "choice" and len(opts) < 2:
-        return ToolResult(error="Widget de tip 'choice' are nevoie de minim 2 opțiuni.")
-    if type == "date" and not target_field:
-        return ToolResult(error="Widget de tip 'date' are nevoie de target_field.")
+    invalid_reason: str | None = None
+    if type not in _ALLOWED_TYPES:
+        invalid_reason = f"tip widget necunoscut {type!r}"
+    elif type == "choice" and len(opts) < 2:
+        invalid_reason = "type='choice' are nevoie de minim 2 opțiuni"
+    elif type == "date" and not target_field:
+        invalid_reason = (
+            "type='date' are nevoie de target_field — folosit doar pentru "
+            "a completa un câmp de tip dată în documentul activ"
+        )
+    if invalid_reason is not None:
+        return ToolResult(
+            output={
+                "ignored": True,
+                "reason": (
+                    f"propose_widget skipped: {invalid_reason}. "
+                    "Pune întrebarea direct în chat (răspuns text liber)."
+                ),
+            }
+        )
 
     # target_field binds the widget answer to a document field via set_field.
     # set_field is only valid in FILLING/REVIEWING — there's no document to
@@ -109,7 +128,7 @@ register(
             },
             "required": ["type", "question"],
         },
-        valid_states={SessionState.FILLING, SessionState.CONFIRMING_MATCH},
+        valid_states={SessionState.FILLING, SessionState.CONFIRMING_MATCH, SessionState.REVIEWING},
         execute=execute,
     )
 )

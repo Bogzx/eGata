@@ -94,15 +94,23 @@ function MsgAgent({
           {text}
           {streaming && text.length > 0 ? <StreamingCaret /> : null}
         </div>
-        {widgets && widgets.length > 0 ? (
-          <div className="widget">
-            {widgets.map((w) => (
-              <div key={w.widgetId}>
-                {renderWidget(w, (v) => onWidgetSubmit(w, v))}
-              </div>
-            ))}
-          </div>
-        ) : null}
+        {widgets && widgets.length > 0 ? (() => {
+          // Hide widgets that have been answered (via click) or dismissed
+          // (user typed/spoke instead of clicking). submittedValue is the
+          // single source of truth — set by the store on submit OR by
+          // dismissPendingWidgets on user text input.
+          const active = widgets.filter((w) => !w.submittedValue);
+          if (active.length === 0) return null;
+          return (
+            <div className="widget">
+              {active.map((w) => (
+                <div key={w.widgetId}>
+                  {renderWidget(w, (v) => onWidgetSubmit(w, v))}
+                </div>
+              ))}
+            </div>
+          );
+        })() : null}
       </div>
     </div>
   );
