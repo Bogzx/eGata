@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-latex-extra \
     texlive-fonts-recommended \
     texlive-lang-european \
+    lmodern \
     curl \
     && rm -rf /var/lib/apt/lists/*
 

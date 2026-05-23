@@ -9,6 +9,12 @@
     "vreau o copie a certificatului de naștere",
     "mi-am pierdut certificatul de naștere"
   ],
+  "acte_necesare": [
+    { "denumire": "CI", "emitent": "user", "format": "original" },
+    { "denumire": "Cerere tipizată", "emitent": "primarie" },
+    { "denumire": "Împuternicire notarială", "emitent_id": "notariat", "obligatoriu": false, "observatie": "Doar dacă cererea se face de altă persoană (rudă)" },
+    { "denumire": "Chitanță plată taxă", "emitent": "extern", "observatie": "Plata la casierie primărie sau ghiseul.ro" }
+  ],
   "fields": [
     { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
     { "name": "cnp",          "label": "CNP",          "source": "profile", "required": true, "redact_in_voice": true },

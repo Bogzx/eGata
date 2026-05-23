@@ -10,6 +10,15 @@
     "vreau o carte de identitate nouă",
     "mi-am pierdut buletinul"
   ],
+  "acte_necesare": [
+    { "denumire": "Cerere Anexa 1", "emitent": "primarie" },
+    { "denumire": "CI veche", "emitent": "user", "obligatoriu": false, "observatie": "Dacă nu e pierdută sau deteriorată complet" },
+    { "denumire": "Certificat naștere", "emitent": "user", "format": "original" },
+    { "denumire": "Certificat căsătorie / hotărâre divorț", "emitent": "user", "obligatoriu": false },
+    { "denumire": "Document proprietate / Extras CF max 30 zile", "emitent_id": "ocpi-ancpi", "format": "original", "observatie": "Cu prezența proprietarului spațiului" },
+    { "denumire": "Anexa 7 — declarație pe propria răspundere", "emitent": "primarie", "obligatoriu": false, "observatie": "Doar dacă motivul e pierdere/furt" },
+    { "denumire": "Chitanță plată taxă (~38 EUR)", "emitent": "extern", "observatie": "Plata la casierie sau ghiseul.ro" }
+  ],
   "fields": [
     { "name": "nume_complet", "label": "Nume complet", "source": "profile", "required": true },
     { "name": "cnp",          "label": "CNP",          "source": "profile", "required": true, "redact_in_voice": true },
