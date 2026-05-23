@@ -18,16 +18,22 @@ import audioop
 import base64
 import json
 import logging
+import secrets
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
+
+
+def _phone_session_id() -> str:
+    return secrets.token_urlsafe(8)
 
 from fastapi import APIRouter, Request, Response, WebSocket, WebSocketDisconnect
 from google import genai
 from google.genai import types as genai_types
 
+from app.agent_tools import ToolContext, dispatch
 from app.config import get_settings
 from app.prompts import build_system_prompt
-from app.tools import REGISTRY, ToolContext
+from app.sessions import Session, SessionState
 
 router = APIRouter(tags=["twilio"])
 log = logging.getLogger("twilio_bridge")
@@ -108,7 +114,20 @@ async def _run_phone_gemini_session(
 ) -> None:
     settings = get_settings()
     client = genai.Client(api_key=settings.gemini_api_key)
-    phone_ctx = ToolContext(citizen_id="phone-anonymous", document_id=None)
+
+    # Phone agent runs an ephemeral in-memory Session in EXPLORING — no
+    # document creation, no persistence, no DB writes. Tool dispatch goes
+    # through the unified agent_tools.dispatch with a phone allowlist
+    # layered on top of state-gating.
+    phone_session = Session(
+        id=f"phone_{_phone_session_id()}",
+        citizen_id="phone-anonymous",
+        state=SessionState.EXPLORING,
+    )
+    phone_ctx = ToolContext(
+        citizen_id="phone-anonymous",
+        citizen_attributes={},
+    )
 
     config = genai_types.LiveConnectConfig(
         response_modalities=["AUDIO"],
@@ -155,46 +174,33 @@ async def _run_phone_gemini_session(
                 if tc and getattr(tc, "function_calls", None):
                     fr_parts: list[genai_types.FunctionResponse] = []
                     for fc in tc.function_calls:
+                        call_id = getattr(fc, "id", None)
                         if fc.name not in PHONE_TOOL_ALLOWLIST:
                             log.warning("Phone agent tried disallowed tool %s", fc.name)
                             fr_parts.append(
                                 genai_types.FunctionResponse(
-                                    id=getattr(fc, "id", None),
+                                    id=call_id,
                                     name=fc.name,
                                     response={"error": "tool_not_available_on_phone"},
                                 )
                             )
                             continue
-                        tool = REGISTRY.get(fc.name)
-                        if tool is None:
-                            fr_parts.append(
-                                genai_types.FunctionResponse(
-                                    id=getattr(fc, "id", None),
-                                    name=fc.name,
-                                    response={"error": "unknown_tool"},
-                                )
+                        args = dict(fc.args) if fc.args else {}
+                        result = await dispatch(
+                            phone_session, fc.name, args, phone_ctx
+                        )
+                        if result.error is not None:
+                            response_obj = {
+                                "error": result.error,
+                                "output": result.output,
+                            }
+                        else:
+                            response_obj = {"output": result.output}
+                        fr_parts.append(
+                            genai_types.FunctionResponse(
+                                id=call_id, name=fc.name, response=response_obj
                             )
-                            continue
-                        try:
-                            result = await tool(phone_ctx, **(dict(fc.args) if fc.args else {}))
-                            if hasattr(result, "model_dump"):
-                                result = result.model_dump(mode="json")
-                            fr_parts.append(
-                                genai_types.FunctionResponse(
-                                    id=getattr(fc, "id", None),
-                                    name=fc.name,
-                                    response={"output": result},
-                                )
-                            )
-                        except Exception as e:  # noqa: BLE001
-                            log.exception("Phone tool %s failed", fc.name)
-                            fr_parts.append(
-                                genai_types.FunctionResponse(
-                                    id=getattr(fc, "id", None),
-                                    name=fc.name,
-                                    response={"error": str(e)},
-                                )
-                            )
+                        )
                     try:
                         await session.send_tool_response(function_responses=fr_parts)
                     except Exception:
