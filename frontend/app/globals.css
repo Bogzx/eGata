@@ -756,21 +756,6 @@ html.large-text {
     0 0 0 3px rgba(47, 160, 132, 0.18),
     var(--shadow-card);
 }
-.composer-attach {
-  appearance: none;
-  background: transparent;
-  border: none;
-  padding: 8px;
-  color: var(--c-ink-soft);
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-}
-.composer-attach:hover {
-  background: rgba(47, 160, 132, 0.1);
-  color: var(--c-dark);
-}
 .composer-input {
   flex: 1;
   font: inherit;
@@ -790,7 +775,6 @@ html.large-text {
 .composer-input::placeholder {
   color: var(--c-ink-soft);
 }
-.composer-mic,
 .composer-send {
   appearance: none;
   border: none;
@@ -806,8 +790,51 @@ html.large-text {
   flex-shrink: 0;
 }
 .composer-mic {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  height: 38px;
+  padding: 0 14px 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   background: rgba(47, 160, 132, 0.12);
   color: var(--c-dark);
+  overflow: hidden;
+  flex-shrink: 0;
+  transition:
+    transform 0.15s ease,
+    background 0.2s ease,
+    padding 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
+    gap 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.composer-mic > svg {
+  flex-shrink: 0;
+}
+.composer-mic-label {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  max-width: 96px;
+  opacity: 1;
+  overflow: hidden;
+  transition:
+    max-width 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
+    opacity 0.2s ease 0.05s;
+}
+.composer-mic[data-compact="true"] {
+  width: 38px;
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+}
+.composer-mic[data-compact="true"] .composer-mic-label {
+  max-width: 0;
+  opacity: 0;
+  transition:
+    max-width 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
+    opacity 0.15s ease;
 }
 .composer-mic:hover {
   background: rgba(47, 160, 132, 0.22);
@@ -837,58 +864,6 @@ html.large-text {
 .composer-send:disabled {
   opacity: 0.45;
   cursor: not-allowed;
-}
-
-/* ============ Voice mode button (welcome state only) ============ */
-
-.voice-mode-row {
-  display: flex;
-  justify-content: center;
-  padding: 0 20px 12px;
-}
-.voice-mode-btn {
-  appearance: none;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--c-dark);
-  background: var(--c-card-solid);
-  border: 1px solid var(--c-line);
-  padding: 11px 22px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  box-shadow: var(--shadow-card);
-  transition:
-    transform 0.15s ease,
-    background 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease,
-    box-shadow 0.25s ease;
-}
-.voice-mode-btn:hover {
-  border-color: var(--c-mid);
-  background: color-mix(in oklab, var(--c-card-solid) 92%, var(--c-mid));
-  transform: translateY(-1px);
-  box-shadow: 0 10px 24px -14px rgba(31, 111, 95, 0.45);
-}
-.voice-mode-btn:active {
-  transform: scale(0.98);
-}
-.voice-mode-btn.is-on {
-  background: #c8504a;
-  color: white;
-  border-color: transparent;
-  animation: pulse-voice-btn 1.6s ease-in-out infinite;
-}
-.voice-mode-btn.is-on:hover {
-  background: color-mix(in oklab, #c8504a 92%, black);
-}
-@keyframes pulse-voice-btn {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(200, 80, 74, 0.45); }
-  50%      { box-shadow: 0 0 0 10px rgba(200, 80, 74, 0); }
 }
 
 /* ============ DocPane ============ */
@@ -1664,11 +1639,8 @@ html.large-text {
 @media (pointer: coarse) {
   .composer-mic,
   .composer-send {
-    width: 44px;
-    height: 44px;
-  }
-  .composer-attach {
-    padding: 12px;
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
