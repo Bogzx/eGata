@@ -6,6 +6,7 @@ import {
   useAccessibilityPrefs,
   useLargeTextClass,
 } from "@/lib/accessibilityStore";
+import type { AgentToolCall } from "@/lib/gemini-live";
 import { useKioskMode } from "@/lib/kioskMode";
 import { getSession } from "@/lib/session";
 import { useSessionStore } from "@/lib/sessionStore";
@@ -22,6 +23,43 @@ import { TopBar } from "./TopBar";
 
 function makeMsgId(): string {
   return Math.random().toString(36).slice(2, 11);
+}
+
+function deriveWidgetsFromVoice(toolCalls: AgentToolCall[]): WidgetSpec[] {
+  const out: WidgetSpec[] = [];
+  for (const tc of toolCalls) {
+    if (tc.name !== "propose_widget") continue;
+    const a = tc.args;
+    const type = a.type as WidgetSpec["type"] | undefined;
+    const question = (a.question as string | undefined) ?? "";
+    const widgetId =
+      (a.widget_id as string | undefined) ??
+      Math.random().toString(36).slice(2);
+    if (type === "choice") {
+      out.push({
+        type: "choice",
+        question,
+        options: (a.options as string[] | undefined) ?? [],
+        targetField: (a.target_field as string | undefined) ?? "",
+        widgetId,
+      });
+    } else if (type === "confirm") {
+      out.push({
+        type: "confirm",
+        question,
+        onConfirmTool: a.on_confirm_tool as string | undefined,
+        widgetId,
+      });
+    } else if (type === "date") {
+      out.push({
+        type: "date",
+        question,
+        targetField: (a.target_field as string | undefined) ?? "",
+        widgetId,
+      });
+    }
+  }
+  return out;
 }
 
 type Props = {
@@ -88,33 +126,6 @@ export function ChatSurface({ activeDocId }: Props) {
     setVoiceStatus(voice.state);
   }, [voice.state, setVoiceStatus]);
 
-  // Wire transcripts → chat messages.
-  const lastUserT = voice.lastTranscript;
-  const lastAgentT = voice.lastAgentMessage;
-  const prevUserT = useRef("");
-  const prevAgentT = useRef("");
-  useEffect(() => {
-    if (lastUserT && lastUserT !== prevUserT.current) {
-      appendMessage({
-        id: makeMsgId(),
-        role: "user",
-        text: lastUserT,
-        via: "voice",
-      });
-      prevUserT.current = lastUserT;
-    }
-  }, [lastUserT, appendMessage]);
-  useEffect(() => {
-    if (lastAgentT && lastAgentT !== prevAgentT.current) {
-      appendMessage({
-        id: makeMsgId(),
-        role: "agent",
-        text: lastAgentT,
-      });
-      prevAgentT.current = lastAgentT;
-    }
-  }, [lastAgentT, appendMessage]);
-
   // Tool dispatch path during voice — forward results into the store.
   useEffect(() => {
     voice.registerToolHandler(async (name, args) => {
@@ -127,6 +138,26 @@ export function ChatSurface({ activeDocId }: Props) {
     });
   }, [voice, applyToolResult]);
 
+  // Callbacks the voice session fires when a TURN is finalized — not per delta.
+  function handleVoiceUserMessage(text: string) {
+    appendMessage({
+      id: makeMsgId(),
+      role: "user",
+      text,
+      via: "voice",
+    });
+  }
+
+  function handleVoiceAgentMessage(text: string, toolCalls: AgentToolCall[]) {
+    const widgets = deriveWidgetsFromVoice(toolCalls);
+    appendMessage({
+      id: makeMsgId(),
+      role: "agent",
+      text,
+      widgets: widgets.length ? widgets : undefined,
+    });
+  }
+
   // Auto-start voice for voice_only users once citizen is hydrated.
   useEffect(() => {
     if (!voiceOnly || !citizen || voiceStartedRef.current) return;
@@ -135,6 +166,8 @@ export function ChatSurface({ activeDocId }: Props) {
       .start({
         documentId: activeDocId ?? undefined,
         preferences: { simple_language: simpleLanguage, voice_only: voiceOnly },
+        onUserMessage: handleVoiceUserMessage,
+        onAgentMessage: handleVoiceAgentMessage,
       })
       .catch((err) => {
         if (err instanceof VoiceAgentMicDeniedError) {
@@ -145,7 +178,10 @@ export function ChatSurface({ activeDocId }: Props) {
           });
         }
       });
-  }, [voiceOnly, citizen, activeDocId, simpleLanguage, voice, appendMessage]);
+    // We intentionally omit handleVoice* handlers from deps — they close over
+    // appendMessage which is stable via zustand, and we only want one start.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceOnly, citizen, activeDocId, simpleLanguage, voice]);
 
   async function startVoice() {
     if (!citizen) return;
@@ -153,6 +189,8 @@ export function ChatSurface({ activeDocId }: Props) {
       await voice.start({
         documentId: useSessionStore.getState().activeDocId ?? undefined,
         preferences: { simple_language: simpleLanguage, voice_only: voiceOnly },
+        onUserMessage: handleVoiceUserMessage,
+        onAgentMessage: handleVoiceAgentMessage,
       });
     } catch (err) {
       if (err instanceof VoiceAgentMicDeniedError) {
