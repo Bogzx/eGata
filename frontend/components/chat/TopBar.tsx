@@ -48,6 +48,7 @@ export function TopBar({ voiceOn = false, onToggleVoice }: Props) {
   const citizen = useSessionStore((s) => s.citizen);
   const openDrawer = useSessionStore((s) => s.openDrawer);
   const toggleProfile = useSessionStore((s) => s.toggleProfileMenu);
+  const profileMenuOpen = useSessionStore((s) => s.profileMenuOpen);
   const reset = useSessionStore((s) => s.reset);
   const isKiosk = useKioskMode();
 
@@ -140,6 +141,7 @@ export function TopBar({ voiceOn = false, onToggleVoice }: Props) {
           className="chip chip-user"
           onClick={toggleProfile}
           aria-haspopup="menu"
+          aria-expanded={profileMenuOpen}
           aria-label={`Profil ${profileLabel}`}
           data-profile-toggle
         >
@@ -148,6 +150,7 @@ export function TopBar({ voiceOn = false, onToggleVoice }: Props) {
           </span>
           <span className="chip-text">{profileLabel}</span>
           <svg
+            className="chip-caret"
             width="12"
             height="12"
             viewBox="0 0 24 24"
