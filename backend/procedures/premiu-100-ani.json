@@ -1,0 +1,38 @@
+{
+  "id": "premiu-100-ani",
+  "title": "Premiu 100 ani de viață",
+  "description": "Cerere pentru acordarea diplomei și premiului financiar de 2.000 lei net pentru persoanele care au împlinit 100 de ani și au domiciliul în municipiul Cluj-Napoca. Adresată Domnului Primar (cod 310.001).",
+  "scope": "primarie",
+  "category": "premii-evenimente",
+  "synonyms": ["100 ani", "centenar", "diploma centenar", "premiu varstnici", "longevitate"],
+  "sample_queries": [
+    "bunica mea împlinește 100 de ani — ce premiu îi pot cere?",
+    "cum cer premiul de 100 de ani de la primărie",
+    "am împlinit 100 de ani — vreau diploma de la primar"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere premiu 100 ani (cod 310.001)", "emitent": "primarie" },
+    { "denumire": "CI beneficiar", "emitent_id": "spclep-depabd", "format": "original" },
+    { "denumire": "Certificat de naștere beneficiar", "emitent_id": "stare-civila", "format": "original", "observatie": "Pentru atestarea vârstei de 100 ani" },
+    { "denumire": "Extras de cont bancar (IBAN) beneficiar", "emitent_id": "banca", "format": "copie", "observatie": "Pentru plata premiului de 2000 lei" },
+    { "denumire": "Procură specială (mandatar)", "emitent_id": "notariat", "obligatoriu": false, "observatie": "Doar dacă depune o rudă în numele beneficiarului" }
+  ],
+  "fields": [
+    { "name": "nume_complet",     "label": "Nume complet beneficiar",  "source": "id_scan|profile", "required": true },
+    { "name": "strada",           "label": "Strada (Cluj-Napoca)",     "source": "id_scan|profile", "required": true },
+    { "name": "numar_imobil",     "label": "Număr imobil",             "source": "id_scan|profile", "required": true },
+    { "name": "apartament",       "label": "Apartament",                "source": "id_scan|profile", "required": false },
+    { "name": "data_nasterii",    "label": "Data nașterii",             "source": "id_scan|profile", "required": true },
+    { "name": "loc_nastere",      "label": "Localitatea de naștere",    "source": "id_scan|profile", "required": true },
+    { "name": "judet_nastere",    "label": "Județul de naștere",        "source": "id_scan|profile", "required": true },
+    { "name": "ci_seria",         "label": "Seria CI",                  "source": "id_scan|profile", "required": true },
+    { "name": "ci_numar",         "label": "Număr CI",                  "source": "id_scan|profile", "required": true },
+    { "name": "cnp",              "label": "CNP",                       "source": "id_scan|profile", "required": true, "redact_in_voice": true },
+    { "name": "contact_nume",     "label": "Persoană de contact (rudă)","source": "ask",             "required": true, "observatie": "Numele unei rude apropiate" },
+    { "name": "contact_telefon",  "label": "Telefon persoană contact",  "source": "ask",             "required": true },
+    { "name": "contact_email",    "label": "Email persoană contact",    "source": "ask",             "required": false },
+    { "name": "telefon",          "label": "Telefon beneficiar",        "source": "profile",         "required": false }
+  ],
+  "template": "premiu-100-ani.tex",
+  "next_steps": []
+}
