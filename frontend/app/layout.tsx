@@ -1,7 +1,23 @@
 import type { Metadata } from "next";
+import { Onest, JetBrains_Mono } from "next/font/google";
 import { AccessGate } from "@/components/AccessGate";
 import { DemoResetButton } from "@/components/DemoResetButton";
+import { MockProvider } from "@/components/MockProvider";
 import "./globals.css";
+
+const onest = Onest({
+  subsets: ["latin", "latin-ext"],
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-civic-loaded",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  display: "swap",
+  variable: "--font-mono-loaded",
+});
 
 export const metadata: Metadata = {
   title: "CivicAI — Asistentul tău pentru primărie",
@@ -15,10 +31,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ro" suppressHydrationWarning>
-      <body className="min-h-screen bg-background font-sans text-foreground antialiased">
-        <AccessGate>{children}</AccessGate>
-        <DemoResetButton />
+    <html
+      lang="ro"
+      suppressHydrationWarning
+      className={`${onest.variable} ${jetbrainsMono.variable}`}
+    >
+      <body className="min-h-screen bg-background text-foreground antialiased">
+        <MockProvider>
+          <AccessGate>{children}</AccessGate>
+          <DemoResetButton />
+        </MockProvider>
       </body>
     </html>
   );

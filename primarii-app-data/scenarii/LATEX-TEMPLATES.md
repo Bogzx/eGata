@@ -1,14 +1,14 @@
 # LaTeX Templates — Index global
 
-Pentru fiecare formular al primăriei (24 total, în 5 scenarii) ai **2 fișiere**:
+Pentru fiecare formular al primăriei (34 total, în 10 scenarii) ai **2 fișiere**:
 
 | Fișier | Conținut |
 |--------|----------|
 | `<name>-source.pdf` | PDF-ul **ORIGINAL** al primăriei (descărcat de pe files.primariaclujnapoca.ro) |
 | `<name>-fillable.tex` | Variantă **LaTeX-nativă** cu fielduri marcate explicit (`\fillline`, `\fillbox`, `\checkboxempty`) — pentru auto-fill |
 
-**Restaurate / generate:** 2026-05-23
-**Total fișiere:** 24 surse PDF + 24 templates fillable .tex
+**Restaurate / generate:** 2026-05-23 (scenariile 1-5); 2026-05-23 (scenariile 6-10 adăugate)
+**Total fișiere:** 34 surse PDF + 34 templates fillable .tex
 
 ---
 
@@ -86,6 +86,36 @@ Pentru fiecare formular al primăriei (24 total, în 5 scenarii) ai **2 fișiere
 - `802.013-Cerere-indemnizatie-dizabilitati`
 - `802.012-Cerere-card-parcare-dizabilitati`
 - `802.014-Cerere-transport-urban-dizabilitati`
+- `Consimtamant-OUG-41-2016`
+
+### Scenariul 6 — Tăiere arbore curte privată 🟢
+`scenariu-6-taiere-arbore-curte-privata/`
+**Direcția Ecologie Urbană și Spații Verzi (cod barcode 460.007). Legea 24/2007.**
+- `Cerere-aviz-doborare-arbori-curte-privata`
+- `Consimtamant-OUG-41-2016`
+
+### Scenariul 7 — Eliberare plăcuță număr poștal 🟢
+`scenariu-7-placuta-numar-postal/`
+**Serviciul Siguranța Circulației (cod 446.011).**
+- `446011-Cerere-eliberare-placuta-numar-postal`
+- `Consimtamant-OUG-41-2016`
+
+### Scenariul 8 — Premiu 100 ani de viață 🟢
+`scenariu-8-premiu-100-ani/`
+**DEP – Premii (cod 310.001, barcode 313001). Adresat Domnului Primar. Premiu 2.000 RON net + diplomă.**
+- `310001-Cerere-premiere-100-ani`
+- `Consimtamant-OUG-41-2016`
+
+### Scenariul 9 — Tichete sociale „Alimente" 🟢
+`scenariu-9-tichete-alimente/`
+**DASM — Protecție Socială (cod 801.001). 500 lei/an pe tichete electronice. Termen limită: 27 noiembrie.**
+- `801001-Cerere-tichete-alimente`
+- `Consimtamant-OUG-41-2016`
+
+### Scenariul 10 — Sesizare teren cu ambrozia 🟢
+`scenariu-10-sesizare-ambrozia/`
+**Fond Funciar / Ecologie Urbană (cod 304.001). Legea 62/2018. Sesizare civică, gratuită.**
+- `304001-Sesizare-ambrozia`
 - `Consimtamant-OUG-41-2016`
 
 ---
