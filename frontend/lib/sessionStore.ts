@@ -10,6 +10,7 @@ import { streamChat, type StreamChatToolCall } from "./sseChat";
 import type {
   Citizen,
   Document,
+  LookupMatch,
   Message,
   PendingMessage,
   Procedure,
@@ -80,6 +81,7 @@ export interface SessionState {
   profileMenuOpen: boolean;
   sending: boolean;
   scenarioPlan: ScenarioPlan | null;
+  lookupMatches: LookupMatch[];
 
   hydrateCitizen(): Promise<void>;
   startProcedure(procedureId: string): Promise<void>;
@@ -121,6 +123,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   profileMenuOpen: false,
   sending: false,
   scenarioPlan: null,
+  lookupMatches: [],
 
   async hydrateCitizen() {
     const c = await api.getCitizenMe();
@@ -294,14 +297,26 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         break;
       }
       case "lookup_procedure": {
-        const res = _result as { scenario_plan?: ScenarioPlan | null } | undefined;
+        const res = _result as
+          | {
+              scenario_plan?: ScenarioPlan | null;
+              matches?: LookupMatch[];
+            }
+          | undefined;
         const sp = res?.scenario_plan ?? null;
+        const matches = res?.matches ?? [];
         if (sp && !activeDocId) {
           set({
             scenarioPlan: sp,
+            lookupMatches: matches,
             rightPane: { kind: "plan", scenarioId: sp.scenario_id },
           });
           pushPath(`/p/${sp.scenario_id}`);
+        } else if (matches.length > 0 && !activeDocId) {
+          set({
+            lookupMatches: matches,
+            rightPane: { kind: "matches" },
+          });
         }
         break;
       }
@@ -390,6 +405,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       drawerOpen: false,
       profileMenuOpen: false,
       scenarioPlan: null,
+      lookupMatches: [],
     });
     pushPath("/");
   },

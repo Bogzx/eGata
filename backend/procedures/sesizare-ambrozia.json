@@ -1,0 +1,45 @@
+{
+  "id": "sesizare-ambrozia",
+  "title": "Sesizare teren infestat cu ambrozia",
+  "description": "Sesizare cetățenească privind prezența speciei alergene ambrozia (Ambrosia artemisiifolia) pe un teren — Direcția Fond Funciar / Ecologie Urbană, Primăria Cluj-Napoca (cod 304.001, Legea 62/2018).",
+  "scope": "primarie",
+  "category": "ecologie-spatii-verzi",
+  "synonyms": ["ambrozia", "ambrozie", "buruiana alergenă", "sesizare teren ambrozia", "raportare ambrozia"],
+  "sample_queries": [
+    "am văzut ambrozia pe un teren — cum raportez",
+    "vreau să sesizez primăria despre ambrozia",
+    "există un teren plin de ambrozia lângă casa mea",
+    "vecinul nu taie ambrozia din curte"
+  ],
+  "acte_necesare": [
+    { "denumire": "Sesizare ambrozia (cod 304.001)", "emitent": "primarie" },
+    { "denumire": "Fotografii reprezentative", "emitent": "user", "observatie": "Trebuie să se vadă specia + zona afectată" }
+  ],
+  "fields": [
+    { "name": "nume_complet",     "label": "Nume complet sesizant",  "source": "id_scan|profile", "required": true },
+    { "name": "cnp",              "label": "CNP",                    "source": "id_scan|profile", "required": true, "redact_in_voice": true },
+    { "name": "localitate",       "label": "Localitate domiciliu",   "source": "id_scan|profile", "required": true, "suggest_default": "Cluj-Napoca" },
+    { "name": "strada",           "label": "Strada domiciliu",        "source": "id_scan|profile", "required": true },
+    { "name": "numar",            "label": "Număr",                   "source": "id_scan|profile", "required": true },
+    { "name": "bloc",             "label": "Bloc",                    "source": "id_scan|profile", "required": false },
+    { "name": "scara",            "label": "Scara",                   "source": "id_scan|profile", "required": false },
+    { "name": "etaj",             "label": "Etaj",                    "source": "id_scan|profile", "required": false },
+    { "name": "apartament",       "label": "Apartament",              "source": "id_scan|profile", "required": false },
+    { "name": "judet",            "label": "Județul",                 "source": "id_scan|profile", "required": true, "suggest_default": "Cluj" },
+    { "name": "ci_seria",         "label": "Seria CI",                "source": "id_scan|profile", "required": true },
+    { "name": "ci_numar",         "label": "Număr CI",                "source": "id_scan|profile", "required": true },
+    { "name": "ci_data_emitere",  "label": "Data emiterii CI",        "source": "id_scan|profile", "required": true },
+    { "name": "ci_emitent",       "label": "Emitent CI",              "source": "id_scan|profile", "required": true, "suggest_default": "SPCLEP Cluj-Napoca" },
+    { "name": "zona_descriere",   "label": "Descrierea zonei (stradă, nr., GPS)", "source": "ask", "required": true },
+    { "name": "numar_tufe",       "label": "Număr aproximativ tufe ambrozia", "source": "ask", "required": true, "suggest_default": "10-20" },
+    { "name": "suprafata_mp",     "label": "Suprafața afectată (mp)", "source": "ask", "required": true, "suggest_default": "50" },
+    { "name": "proprietar_teren", "label": "Proprietarul (dacă cunoscut)", "source": "ask", "required": false },
+    { "name": "alte_informatii",  "label": "Alte informații utile",   "source": "ask", "required": false },
+    { "name": "telefon",          "label": "Telefon",                 "source": "profile", "required": true },
+    { "name": "email",            "label": "Email",                   "source": "profile", "required": false }
+  ],
+  "template": "sesizare-ambrozia.tex",
+  "next_steps": [
+    { "kind": "external_redirect", "redirect_target": "Garda Națională de Mediu", "title": "Garda de Mediu este informată automat dacă proprietarul nu combate ambrozia până la 30 iunie" }
+  ]
+}

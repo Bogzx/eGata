@@ -27,7 +27,7 @@
     { "name": "tip_proprietate","label": "Tip proprietate","source": "ask",             "options": ["proprietar", "chiriaș", "găzduit"], "required": true },
     { "name": "motivul",        "label": "Motivul cererii","source": "ask",             "suggest_default": "Schimbare loc de muncă", "required": false }
   ],
-  "template": "schimbare-domiciliu.tex",
+  "template": "preschimbare-ci.tex",
   "next_steps": [
     { "kind": "in_scope_procedure", "procedure_id": "preschimbare-ci", "deadline_days": 15, "title": "Preschimbare carte de identitate" },
     { "kind": "external_redirect",  "redirect_target": "DRPCIV", "deadline_days": 30, "title": "Actualizare certificat înmatriculare auto", "applies_if": "owns_vehicle == true" },
