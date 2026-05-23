@@ -154,6 +154,11 @@ def _build_gemini_config(
             )
         ],
         temperature=0.7,
+        # Gemini 2.5 Flash defaults to "auto" thinking, which on some turns
+        # produces only thought=True parts that the SDK filters out, leaving
+        # us with an empty response (finish_reason=STOP, parts=[]). Disable
+        # it: we want direct tool calls + text, not chain-of-thought.
+        thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
     )
 
 
@@ -245,13 +250,49 @@ async def step(
             yield Event("error", {"detail": f"Agent error: {e}"})
             return
 
+        chunk_count = 0
+        part_count = 0
+        last_finish_reason = None
+        last_safety = None
+        log.warning(
+            "iter start: history_len=%d contents_len=%d",
+            len(session.history),
+            len(contents),
+        )
         async for chunk in stream:
+            chunk_count += 1
             candidate = chunk.candidates[0] if chunk.candidates else None
-            if candidate is None or candidate.content is None:
+            if candidate is None:
+                log.warning("chunk: no candidates")
                 continue
-            for p in candidate.content.parts or []:
+            last_finish_reason = getattr(candidate, "finish_reason", None)
+            last_safety = getattr(candidate, "safety_ratings", None)
+            content = candidate.content
+            if content is None:
+                log.warning(
+                    "chunk: candidate has no content (finish=%r)",
+                    last_finish_reason,
+                )
+                continue
+            parts = content.parts or []
+            if not parts:
+                log.warning(
+                    "chunk: content has no parts (role=%r finish=%r safety=%r)",
+                    getattr(content, "role", None),
+                    last_finish_reason,
+                    last_safety,
+                )
+            for p in parts:
+                part_count += 1
                 text = getattr(p, "text", None)
                 fc = getattr(p, "function_call", None)
+                thought_flag = getattr(p, "thought", None)
+                log.warning(
+                    "iter part: text=%r fc=%r thought=%r",
+                    (text[:80] + "...") if text and len(text) > 80 else text,
+                    fc.name if fc else None,
+                    thought_flag,
+                )
                 if text:
                     accumulated_text += text
                     accumulated_parts.append(p)
@@ -261,6 +302,14 @@ async def step(
                 if fc:
                     accumulated_function_calls.append(fc)
                     accumulated_parts.append(p)
+        log.warning(
+            "iter done: chunks=%d parts=%d text_len=%d fc_count=%d finish=%r",
+            chunk_count,
+            part_count,
+            len(accumulated_text),
+            len(accumulated_function_calls),
+            last_finish_reason,
+        )
 
         # Clean this iteration's text for history hygiene + transcript.
         iter_cleaned = strip_thinking(accumulated_text)
