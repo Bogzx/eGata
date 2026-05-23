@@ -206,8 +206,16 @@ function dispatchFrame(frame: ParsedFrame, h: StreamChatHandlers): void {
       return;
     }
     case "error": {
-      const p = payload as { detail?: string };
-      h.onError?.(new Error(p.detail || "unknown stream error"));
+      const p = payload as { code?: string; type?: string; detail?: string };
+      const err = new Error(p.detail || "unknown stream error");
+      // Attach structured fields so callers can branch on `code` instead
+      // of substring-matching the human-readable detail. Backend wire
+      // format: {code, type, detail} — see backend/app/agent.py and
+      // backend/app/session_engine.py error events.
+      const structured = err as Error & { code?: string; errorType?: string };
+      structured.code = p.code;
+      structured.errorType = p.type;
+      h.onError?.(structured);
       return;
     }
     default:

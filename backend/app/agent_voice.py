@@ -90,7 +90,6 @@ def _browser_function_declarations() -> list[dict[str, Any]]:
     permitted-tools list that changes mid-session.
     """
     return [t.function_declaration() for t in TOOLS_REGISTRY.values()]
-    return [t.function_declaration() for t in TOOLS_REGISTRY.values()]
 
 
 @dataclass
