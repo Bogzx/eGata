@@ -4,10 +4,10 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 
 export function DemoResetButton() {
-  if (process.env.NEXT_PUBLIC_DEMO_MODE !== "1") return null;
-
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  if (process.env.NEXT_PUBLIC_DEMO_MODE !== "1") return null;
 
   async function reset() {
     if (busy) return;
