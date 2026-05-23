@@ -15,6 +15,11 @@ import {
   type RecorderHandle,
 } from "./audioWorklet";
 
+const LOG = (...args: unknown[]) =>
+  console.log("[civicai:voice]", ...args);
+const ERR = (...args: unknown[]) =>
+  console.error("[civicai:voice]", ...args);
+
 export type VoiceAgentState =
   | "idle"
   | "connecting"
@@ -30,6 +35,10 @@ export type ToolCallHandler = (
 export type VoiceAgentStartOpts = {
   documentId?: string;
   preferences?: VoicePreferences;
+  /** Called on every partial with the full accumulated user transcript. */
+  onUserDelta?: (text: string) => void;
+  /** Called on every partial with the full accumulated agent transcript. */
+  onAgentDelta?: (text: string) => void;
   /** Called once per finalized user turn with the full transcript. */
   onUserMessage?: (text: string) => void;
   /** Called once per finalized agent turn with text + emitted tool calls. */
@@ -165,7 +174,11 @@ export function useVoiceAgent(): VoiceAgentHook {
       args: Record<string, unknown>,
     ): Promise<Record<string, unknown>> => {
       const tok = tokenRef.current;
-      if (!tok) throw new Error("No tool JWT — session not started");
+      if (!tok) {
+        ERR("dispatchTool", name, "but no JWT — session not started");
+        throw new Error("No tool JWT — session not started");
+      }
+      LOG("dispatchTool →", name, args);
       const resp = await fetch(`${tok.baseUrl}/${name}`, {
         method: "POST",
         headers: {
@@ -176,14 +189,15 @@ export function useVoiceAgent(): VoiceAgentHook {
       });
       if (!resp.ok) {
         const detail = await resp.text();
+        ERR("dispatchTool", name, "→", resp.status, detail);
         throw new Error(`Tool ${name} failed (${resp.status}): ${detail}`);
       }
       const result = (await resp.json()) as Record<string, unknown>;
-      // Fire-and-forget UI side-effect notification (e.g. refetch document).
+      LOG("dispatchTool", name, "← OK", result);
       try {
         await userToolHandlerRef.current?.(name, { ...args, _result: result });
-      } catch {
-        /* swallow UI errors */
+      } catch (e) {
+        ERR("UI side-effect handler threw", e);
       }
       return result;
     },
@@ -191,6 +205,7 @@ export function useVoiceAgent(): VoiceAgentHook {
   );
 
   const stop = useCallback(() => {
+    LOG("stop()");
     sessionRef.current?.close();
     recorderRef.current?.stop();
     playerRef.current?.stop();
@@ -204,11 +219,23 @@ export function useVoiceAgent(): VoiceAgentHook {
   const start: VoiceAgentHook["start"] = useCallback(
     async (opts) => {
       try {
+        LOG("start()", {
+          documentId: opts.documentId,
+          preferences: opts.preferences,
+        });
         setState("connecting");
 
         const session = await api.createVoiceSession({
           document_id: opts.documentId,
           preferences: opts.preferences,
+        });
+        LOG("createVoiceSession OK", {
+          session_id: session.session_id,
+          gemini_model: session.gemini_model,
+          gemini_voice: session.gemini_voice,
+          tool_names: session.tool_names,
+          tool_base_url: session.tool_base_url,
+          system_prompt_len: session.system_prompt.length,
         });
         tokenRef.current = {
           jwt: session.tool_jwt,
@@ -232,25 +259,40 @@ export function useVoiceAgent(): VoiceAgentHook {
             setState("speaking");
             player.feed(pcm);
           },
+          onUserDelta: (text) => {
+            opts.onUserDelta?.(text);
+          },
+          onAgentDelta: (text) => {
+            opts.onAgentDelta?.(text);
+          },
           onUserMessage: (text) => {
+            LOG("onUserMessage (finalized)", text);
             opts.onUserMessage?.(text);
             setState("listening");
           },
           onAgentMessage: (text, toolCalls) => {
+            LOG(
+              "onAgentMessage (finalized)",
+              text.slice(0, 120),
+              "tools:",
+              toolCalls.map((t) => t.name),
+            );
             opts.onAgentMessage?.(text, toolCalls);
           },
           onInterrupted: () => {
+            LOG("interrupted");
             player.flush();
             setState("listening");
           },
           onToolCall: dispatchTool,
           onError: (err) => {
-            console.error("[useVoiceAgent] Gemini error", err);
+            ERR("Gemini error", err);
             setState("error");
           },
         });
         sessionRef.current = gemini;
         await gemini.connect();
+        LOG("gemini.connect() returned — WS open");
 
         let recorder: RecorderHandle;
         try {
@@ -258,15 +300,16 @@ export function useVoiceAgent(): VoiceAgentHook {
             gemini.sendAudio(chunk);
           });
         } catch (micErr) {
-          console.warn("[useVoiceAgent] Mic denied; text fallback", micErr);
+          ERR("mic denied; text fallback", micErr);
           setState("error");
-          // Keep WS open so caller can fall back to text-only via sendText.
           throw new VoiceAgentMicDeniedError();
         }
         recorderRef.current = recorder;
 
+        LOG("listening — fully wired");
         setState("listening");
       } catch (err) {
+        ERR("start() failed", err);
         if (!(err instanceof VoiceAgentMicDeniedError)) {
           stop();
         }
