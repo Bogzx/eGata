@@ -80,15 +80,11 @@ Demo phone numbers in the seed are placeholders. Replace with real team-member n
 
 ## Procedures shipped
 
-Seven procedures in `backend/procedures/*.json`:
+All procedures live in `backend/procedures/*.json`. Headline flows:
 
 - `schimbare-domiciliu` — full flow (the headline demo)
-- `adeverinta-venit`
 - `preschimbare-ci`
 - `certificat-fiscal`
-- `certificat-nastere-copie`
-- `inregistrare-casatorie`
-- `ajutor-social`
 
 Each JSON file defines field schemas, the LaTeX template name, and `next_steps[]` for the proactive layer (Plan 4).
 

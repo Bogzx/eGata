@@ -215,12 +215,8 @@ Procedures are **declarative JSON files** in `backend/procedures/*.json`. Adding
 
 **Deep-demo procedure (1):** `schimbare-domiciliu` — complete LaTeX template, complete `next_steps`, validated end-to-end.
 
-**Known procedures (6, JSON-stubbed with title/description/sample_queries; agent can describe them and start the form but LaTeX template may be a stub):**
-- `adeverinta-venit` (adeverință pentru bancă)
+**Known procedures (2, JSON-stubbed with title/description/sample_queries; agent can describe them and start the form but LaTeX template may be a stub):**
 - `certificat-fiscal`
-- `certificat-nastere-copie`
-- `inregistrare-casatorie`
-- `ajutor-social`
 - `preschimbare-ci`
 
 **Redirect targets (recognized, agent hands off):**

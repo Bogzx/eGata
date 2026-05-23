@@ -41,15 +41,8 @@ insert into citizens (id, cnp, nume, prenume, data_nasterii, email, phone, attri
    'accessibility', jsonb_build_object('voice_only', true, 'simple_language', true, 'large_text', true)
  ));
 
--- Existing documents (1 finalized, 1 draft) for Maria
+-- Existing document (1 draft) for Maria
 insert into documents (id, citizen_id, procedure_id, status, fields, pdf_url, delivery, ref_number, created_at, delivered_at) values
-('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
- '11111111-1111-1111-1111-111111111111',
- 'adeverinta-venit', 'finalized',
- jsonb_build_object('nume_complet', 'Maria Ionescu', 'cnp', '2851014123456', 'banca', 'BCR'),
- 'https://example.supabase.co/storage/v1/object/public/pdfs/seed-adeverinta.pdf',
- 'send', 'CV-AAAA',
- now() - interval '2 hours', now() - interval '2 hours'),
 ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
  '11111111-1111-1111-1111-111111111111',
  'schimbare-domiciliu', 'draft',
@@ -65,7 +58,7 @@ insert into reminders (id, citizen_id, trigger_doc_id, kind, procedure_id, redir
  'Cartea de identitate expiră în 23 de zile — programează preschimbarea',
  current_date + interval '23 days', 'pending'),
 ('dddddddd-dddd-dddd-dddd-dddddddddddd',
- '11111111-1111-1111-1111-111111111111', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+ '11111111-1111-1111-1111-111111111111', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
  'external_redirect', null, 'DRPCIV',
  'După schimbarea domiciliului trebuie să-ți actualizezi certificatul de înmatriculare la DRPCIV',
  current_date + interval '30 days', 'pending');
