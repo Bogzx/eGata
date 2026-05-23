@@ -64,19 +64,17 @@ export function AccessibilityToggles() {
   return (
     <div className="flex flex-col gap-2.5">
       <Toggle
-        label="High contrast mode"
+        label="Mod contrast ridicat"
         checked={highContrast}
         onChange={(v) => set({ highContrast: v })}
       />
       <Toggle
-        label="Large text mode"
-        hint="Mărește textul mic — paragrafe, etichete, descrieri."
+        label="Mod text mare"
         checked={largeText}
         onChange={(v) => set({ largeText: v })}
       />
       <Toggle
-        label="Dyslexic mode"
-        hint="Spațiere și interlinie mai generoase pentru lectură mai ușoară."
+        label="Mod dislexic"
         checked={dyslexic}
         onChange={(v) => set({ dyslexic: v })}
       />

@@ -165,18 +165,102 @@ def _build_gemini_config(
 def _history_to_contents(
     history: list[dict[str, Any]],
 ) -> list[genai_types.Content]:
-    """Rehydrate persisted session.history into Gemini Content objects."""
+    """Rehydrate persisted session.history into Gemini Content objects.
+
+    Validation errors are logged WITH the underlying exception (the previous
+    version dropped the error silently, which made history-corruption bugs
+    invisible — a dropped model turn between two user turns silently broke
+    role alternation and Gemini rejected the whole conversation).
+    """
     out: list[genai_types.Content] = []
     for entry in history:
         try:
             out.append(genai_types.Content.model_validate(entry))
-        except Exception:
-            log.warning("could not rehydrate history entry: %r", entry)
+        except Exception as exc:  # noqa: BLE001
+            log.warning(
+                "history rehydrate failed; entry dropped: %s — entry=%r",
+                exc,
+                entry,
+            )
     return out
 
 
 def _content_to_dict(c: genai_types.Content) -> dict[str, Any]:
     return c.model_dump(mode="json", exclude_none=True)
+
+
+def _sanitize_history_for_gemini(
+    history: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Trim trailing orphan turns so Gemini gets a valid alternating history.
+
+    Why: `step()` persists the user turn into `session.history` BEFORE the
+    model has responded (so a mid-stream crash doesn't lose what the user
+    typed — see `test_history_persists_user_turn_before_model_responds`).
+    If the model call then fails, the persisted history ends with role=user.
+    On the NEXT turn we'd append another role=user — Gemini rejects
+    consecutive same-role turns and the chat appears stuck from turn 2 on.
+
+    The fix: when constructing Gemini `contents`, peel off trailing orphans:
+
+      - role=user with function_response parts → dropped silently
+        (agent-internal tool result the model never consumed; not user data)
+      - role=model with function_call parts → dropped silently
+        (agent-internal — dispatch was supposed to add a function_response
+        next but the turn died first)
+      - role=user with text parts → dropped from history BUT the text is
+        returned to the caller so it can be prepended to the new user
+        message (no data loss; the user's prior attempt rides along)
+      - role=model with only text → clean end-of-history, leave it
+
+    `session.history` itself is NOT mutated here — callers do that via the
+    normal `session.history = [_content_to_dict(c) for c in contents]`
+    write at end-of-step. That naturally drops the orphan on the next
+    successful commit.
+
+    Returns: (sanitized_history, leftover_user_text).
+    """
+    sanitized = list(history)
+    orphan_text_chronological_reversed: list[str] = []
+
+    while sanitized:
+        last = sanitized[-1]
+        role = last.get("role")
+        parts = last.get("parts") or []
+
+        if role == "user":
+            has_function_response = any(
+                isinstance(p, dict) and p.get("function_response") for p in parts
+            )
+            if has_function_response:
+                sanitized.pop()
+                continue
+            for p in parts:
+                if isinstance(p, dict):
+                    text = p.get("text")
+                    if isinstance(text, str) and text.strip():
+                        orphan_text_chronological_reversed.append(text)
+            sanitized.pop()
+            continue
+
+        if role == "model":
+            has_function_call = any(
+                isinstance(p, dict) and p.get("function_call") for p in parts
+            )
+            if has_function_call:
+                sanitized.pop()
+                continue
+            break
+
+        # Unknown role: bail conservatively.
+        break
+
+    leftover = (
+        "\n".join(reversed(orphan_text_chronological_reversed))
+        if orphan_text_chronological_reversed
+        else None
+    )
+    return sanitized, leftover
 
 
 # ---- the engine ----
@@ -203,16 +287,38 @@ async def step(
         except Exception:
             citizen_attrs = {}
 
-    contents = _history_to_contents(session.history) + [
+    # Strip trailing orphan turns from a previously-failed step before
+    # sending to Gemini. Without this, a turn that died after persisting the
+    # user message (see early-save below) leaves history ending in role=user;
+    # the next call would create user→user, which Gemini rejects — the
+    # chat would appear broken from message 2 onward. The leftover_text is
+    # the orphan user's typed message, merged into the current turn so the
+    # user's prior attempt isn't silently lost.
+    sanitized_history, leftover_text = _sanitize_history_for_gemini(session.history)
+    if len(sanitized_history) != len(session.history):
+        log.warning(
+            "session_engine: trimmed %d orphan turn(s) from prior failed step "
+            "(leftover_user_text=%s)",
+            len(session.history) - len(sanitized_history),
+            "yes" if leftover_text else "no",
+        )
+
+    effective_message = (
+        f"{leftover_text}\n\n{user_message}" if leftover_text else user_message
+    )
+
+    contents = _history_to_contents(sanitized_history) + [
         genai_types.Content(
-            role="user", parts=[genai_types.Part.from_text(text=user_message)]
+            role="user", parts=[genai_types.Part.from_text(text=effective_message)]
         )
     ]
 
     # Persist the user turn into session.history NOW so a mid-stream crash
     # (Gemini timeout, client disconnect, tool exception) doesn't lose it.
     # The transport's finally-block update_session() will commit this even
-    # if the iterator never reaches a terminal branch.
+    # if the iterator never reaches a terminal branch. Note: we write the
+    # SANITIZED prefix here, not the raw session.history — that's how the
+    # orphan from a previous failed step gets cleaned up on disk.
     session.history = [_content_to_dict(c) for c in contents]
 
     tool_calls_emitted: list[dict[str, Any]] = []
@@ -247,7 +353,17 @@ async def step(
             )
         except Exception as e:  # noqa: BLE001
             log.exception("Gemini generate_content_stream failed")
-            yield Event("error", {"detail": f"Agent error: {e}"})
+            # Structured error so the transport can pass `code` + `type`
+            # to the frontend; see agent.py:_stream_turn for the wire
+            # format.
+            yield Event(
+                "error",
+                {
+                    "code": "gemini_stream_failed",
+                    "type": type(e).__name__,
+                    "detail": f"Agent error: {e}",
+                },
+            )
             return
 
         chunk_count = 0
