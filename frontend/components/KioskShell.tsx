@@ -16,12 +16,12 @@ export function KioskShell({ children }: Props) {
 
   return (
     <div className="fixed inset-0 flex flex-col bg-background text-foreground">
-      <header className="flex items-center justify-between border-b px-8 py-4">
-        <h1 className="text-3xl font-bold">{t("app.title")}</h1>
+      <header className="flex items-center justify-between border-b px-4 py-3 sm:px-8 sm:py-4">
+        <h1 className="text-xl sm:text-3xl font-bold">{t("app.title")}</h1>
         <Button
           variant="outline"
           size="lg"
-          className="text-lg"
+          className="text-base sm:text-lg"
           onClick={() => setAccessibilityOpen((v) => !v)}
           aria-expanded={accessibilityOpen}
         >
@@ -29,11 +29,11 @@ export function KioskShell({ children }: Props) {
         </Button>
       </header>
       {accessibilityOpen ? (
-        <section className="border-b bg-muted/30 px-8 py-6">
+        <section className="border-b bg-muted/30 px-4 py-4 sm:px-8 sm:py-6">
           <AccessibilityToggles />
         </section>
       ) : null}
-      <main className="flex-1 overflow-auto px-8 py-8 [&_button]:min-h-[3rem] [&_input]:min-h-[3rem]">
+      <main className="flex-1 overflow-auto px-4 py-4 sm:px-8 sm:py-8 [&_button]:min-h-[3rem] [&_input]:min-h-[3rem]">
         {children}
       </main>
     </div>
