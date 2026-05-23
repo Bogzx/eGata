@@ -1,0 +1,931 @@
+{
+  "version": "1.0",
+  "data_extragere": "2026-05-23",
+  "primarie": "Cluj-Napoca",
+  "institutii": [
+    {
+      "id": "anaf",
+      "acronim": "ANAF",
+      "denumire": "Agenția Națională de Administrare Fiscală",
+      "tip": "centrală cu structuri locale",
+      "url": "https://www.anaf.ro",
+      "documente_emise": [
+        "Certificat de atestare fiscală (obligații buget de stat)",
+        "Cazier fiscal",
+        "Adeverință venituri (form. 230/300)",
+        "Istoric contribuții",
+        "Înregistrare contracte de închiriere",
+        "Certificate venituri PFA/dividende/chirii/drepturi de autor",
+        "Declarații vamale (export auto)"
+      ],
+      "folosit_pentru": "Aproape toate dosarele care implică venituri, transferuri imobiliare, certificate fiscale pentru locuință, închirieri, succesiuni"
+    },
+    {
+      "id": "ocpi-ancpi",
+      "acronim": "OCPI / ANCPI",
+      "denumire": "Oficiul de Cadastru și Publicitate Imobiliară Cluj / Agenția Națională de Cadastru și Publicitate Imobiliară",
+      "tip": "centrală cu structuri județene",
+      "url": "https://www.ancpi.ro",
+      "documente_emise": [
+        "Extras de carte funciară (max 30 zile)",
+        "Plan de situație vizat OCPI (sc. 1:500/1:2000)",
+        "Plan de încadrare în zonă vizat (sc. 1:5000/1:10000)",
+        "Plan parcelar vizat",
+        "Documentație cadastrală",
+        "Plan releveu",
+        "Autorizare persoane fizice/juridice pentru cadastru/topografie"
+      ],
+      "folosit_pentru": "Toate dosarele imobiliare: vânzări, moșteniri, AC, AD, certificate urbanism, înregistrări fiscale clădire/teren"
+    },
+    {
+      "id": "notariat",
+      "acronim": "Notar Public",
+      "denumire": "Birou Notarial / Camera Notarilor Publici Cluj",
+      "tip": "profesionist independent",
+      "url": "https://www.cnp-cluj.ro",
+      "documente_emise": [
+        "Contracte de vânzare-cumpărare (autentificate)",
+        "Contracte de donație",
+        "Certificat de moștenitor (succesiune)",
+        "Act de partaj",
+        "Împuterniciri (procuri speciale)",
+        "Declarații autentificate pe propria răspundere",
+        "Declarații de neproprietate (ANL)",
+        "Convenții matrimoniale",
+        "Acord vecini autentificat",
+        "Contracte de închiriere autentificate",
+        "Copii legalizate",
+        "Testamente"
+      ],
+      "folosit_pentru": "Orice procedură care implică transfer de proprietate, acorduri vecini, succesiuni, locuințe ANL, schimb nume, divorț administrativ"
+    },
+    {
+      "id": "onrc",
+      "acronim": "ONRC",
+      "denumire": "Oficiul Național al Registrului Comerțului (Tribunalul Cluj)",
+      "tip": "centrală cu structuri pe lângă tribunal",
+      "url": "https://www.onrc.ro",
+      "documente_emise": [
+        "Certificat de înregistrare societate (CUI/CIF)",
+        "Certificat constatator extins (cu activitățile autorizate pentru punctul de lucru)",
+        "Certificat de mențiuni",
+        "Furnizare de date",
+        "Documente fuziune/divizare/lichidare",
+        "Înregistrare ca transportator"
+      ],
+      "folosit_pentru": "Toate dosarele pentru PJ — autorizații funcționare, taxi, taxe locale, acorduri comerciale"
+    },
+    {
+      "id": "rar",
+      "acronim": "RAR",
+      "denumire": "Registrul Auto Român (Reprezentanța Cluj)",
+      "tip": "centrală cu reprezentanțe județene",
+      "url": "https://www.rarom.ro",
+      "documente_emise": [
+        "Cartea de identitate a vehiculului (CIV)",
+        "Număr REMTII (la vânzări-cumpărări auto)",
+        "Certificat de agreare pentru taxi",
+        "Omologare vehicule",
+        "ITP (Inspecție Tehnică Periodică)",
+        "Radieri auto"
+      ],
+      "folosit_pentru": "Declarații fiscale auto (ITL-005/006/007), autorizație taxi, înregistrare mopede/utilaje lente, service auto"
+    },
+    {
+      "id": "drpciv",
+      "acronim": "DRPCIV",
+      "denumire": "Direcția Regim Permise de Conducere și Înmatriculare Vehicule (sub IPJ)",
+      "tip": "centrală cu structuri județene",
+      "documente_emise": [
+        "Certificat de înmatriculare auto (talon)",
+        "Talon vehicul"
+      ],
+      "folosit_pentru": "Abonamente parcare, declarații VMI/ajutor încălzire, taxi"
+    },
+    {
+      "id": "ipj-politie",
+      "acronim": "IPJ Cluj / Poliția Română",
+      "denumire": "Inspectoratul de Poliție Județean Cluj (str. Decebal 24)",
+      "tip": "județeană",
+      "documente_emise": [
+        "Cazier judiciar",
+        "Declarație de furt (pentru radiere auto)",
+        "Aviz amplasare ecrane publicitare (Poliția Rutieră)",
+        "Constatări PV contravenții (Poliția Locală)",
+        "Confirmări decese violente"
+      ],
+      "folosit_pentru": "Angajare asistent personal, autorizație taxi, schimbare nume, declarație furt auto, intrare în legalitate construcție"
+    },
+    {
+      "id": "instanta",
+      "acronim": "Instanță / Tribunal / Judecătorie",
+      "denumire": "Instanțele judecătorești (Tribunalul Cluj, Judecătoria Cluj-Napoca, executor judecătoresc)",
+      "tip": "judecătorească",
+      "documente_emise": [
+        "Hotărâre judecătorească definitivă",
+        "Hotărâre divorț",
+        "Hotărâre schimbare nume judecătorească",
+        "Hotărâre stabilire/contestare paternitate",
+        "Hotărâre custodie minori",
+        "Hotărâre evacuare cu titlu executoriu",
+        "Titluri de proprietate",
+        "Hotărâri Registrul Asociațiilor și Fundațiilor (ONG)",
+        "Hotărâri victime trafic persoane (art. 210, 211, 264, 374 CP)",
+        "Hotărâri pensie alimentară",
+        "Procese verbale executare silită"
+      ],
+      "folosit_pentru": "Locuință socială/ANL, divorț, succesiuni, schimbare nume, intrare în legalitate, transcrieri loc de veci, ONG-uri"
+    },
+    {
+      "id": "parchet",
+      "acronim": "Parchet",
+      "denumire": "Parchetul de pe lângă Judecătoria Cluj-Napoca",
+      "tip": "judecătorească",
+      "documente_emise": [
+        "Autorizare înregistrare deces tardiv",
+        "Autorizare înregistrare decese violente"
+      ],
+      "folosit_pentru": "Înregistrare deces tardiv sau violent"
+    },
+    {
+      "id": "monitor-oficial",
+      "acronim": "MO",
+      "denumire": "Monitorul Oficial al României (Partea III)",
+      "tip": "centrală",
+      "url": "https://www.monitoruloficial.ro",
+      "documente_emise": [
+        "Publicare anunț schimbare nume (valabil max 1 an)"
+      ],
+      "folosit_pentru": "Schimbare nume pe cale administrativă (etapa I obligatorie)"
+    },
+    {
+      "id": "spital-medic",
+      "acronim": "Spital / Maternitate / Medic",
+      "denumire": "Unități medicale, medic curant, medic de familie, medic medicina muncii, psiholog autorizat",
+      "tip": "medical",
+      "documente_emise": [
+        "Certificat medical constatator al nașterii",
+        "Certificat medical constatator al decesului",
+        "Certificat medical 'apt pentru căsătorie' (valabil 30 zile)",
+        "Scrisoare medicală",
+        "Bilet de ieșire din spital",
+        "Referat medic specialist",
+        "Adeverință medicală 'apt pentru muncă' (medicina muncii)",
+        "Aviz psihologic",
+        "Certificat îmbălsămare (pentru transport mortuar)",
+        "Certificat aptitudine medicală"
+      ],
+      "folosit_pentru": "Naștere, deces, căsătorie, angajare asistent personal, indemnizație creșterea copilului, transport funerar"
+    },
+    {
+      "id": "scoala-univ",
+      "acronim": "Școli / Universități",
+      "denumire": "Școli, grădinițe, licee, UBB, UMF, UTCN și alte instituții de învățământ",
+      "tip": "educațional",
+      "documente_emise": [
+        "Adeverință de elev / student",
+        "Dovadă școlarizare (frecvență minim 50%)",
+        "Atestat bursă",
+        "Diplomă / certificat studii",
+        "Legitimație studentă"
+      ],
+      "folosit_pentru": "Alocații copii, VMI, ajutor încălzire, locuință socială/ANL, abonament parcare studenți, transport gratuit elevi"
+    },
+    {
+      "id": "angajator",
+      "acronim": "Angajator",
+      "denumire": "Angajatorul (orice societate)",
+      "tip": "privat",
+      "documente_emise": [
+        "Adeverință venit cu modelul DASM (ADEVERINTA-TIP)",
+        "Decizie suspendare/încetare/reluare CIM",
+        "Extras REVISAL",
+        "Adeverință vechime",
+        "Adeverință 'apt pentru muncă'",
+        "Cerere concediu CCC (depusă la angajator) cu nr. înregistrare"
+      ],
+      "folosit_pentru": "VMI, ajutor încălzire, alocații, indemnizație creștere copil, stimulent inserție, ANL, locuință socială, parcare studenți, taxi (manager transport)"
+    },
+    {
+      "id": "ajpis",
+      "acronim": "AJPIS Cluj",
+      "denumire": "Agenția Județeană pentru Plăți și Inspecție Socială Cluj (subordonată ANPIS)",
+      "tip": "județeană",
+      "url": "https://cluj.ajpis.ro",
+      "documente_emise": [
+        "Plata efectivă alocații / ICC / stimulent inserție / indemnizație handicap",
+        "Cupoane alocații",
+        "Decizii de stabilire/încetare drepturi",
+        "Atestate plată indemnizație handicap",
+        "Adeverințe beneficii"
+      ],
+      "folosit_pentru": "Alocații copii, ICC, stimulent inserție, indemnizație handicap, VMI, ajutor încălzire, locuință socială"
+    },
+    {
+      "id": "dgaspc",
+      "acronim": "DGASPC Cluj",
+      "denumire": "Direcția Generală de Asistență Socială și Protecția Copilului Cluj",
+      "tip": "județeană",
+      "url": "https://www.dgaspccluj.ro",
+      "documente_emise": [
+        "Certificat de încadrare în grad de handicap (grav/accentuat/mediu/ușor) + Anexa",
+        "Certificat de orientare școlară și profesională",
+        "Atestate ieșire din sistemul de protecție a copilului (tineri 18+)",
+        "Documente plasament / adopție"
+      ],
+      "folosit_pentru": "Indemnizație handicap, asistent personal, card parcare gratuit, transport gratuit PCD, locuință socială prioritar (tineri din sistem)"
+    },
+    {
+      "id": "casa-pensii",
+      "acronim": "CNPP / CJP Cluj",
+      "denumire": "Casa Județeană de Pensii Cluj (parte din Casa Națională Pensii Publice)",
+      "tip": "județeană",
+      "documente_emise": [
+        "Cupon de pensie",
+        "Decizie pensionare",
+        "Adeverință stagiu de cotizare",
+        "Certificat contribuții",
+        "Decizii pensie de invaliditate / urmaș",
+        "Bilete tratament balnear"
+      ],
+      "folosit_pentru": "VMI, ajutor încălzire, alocații, locuință socială, ANL, transport public pensionari"
+    },
+    {
+      "id": "cas",
+      "acronim": "CAS Cluj",
+      "denumire": "Casa de Asigurări de Sănătate Cluj",
+      "tip": "județeană",
+      "documente_emise": [
+        "Card de sănătate",
+        "Atestate calitate de asigurat",
+        "Adeverințe medicale specifice"
+      ],
+      "folosit_pentru": "Servicii medicale, ajutor încălzire (pentru pensionari)"
+    },
+    {
+      "id": "ajofm",
+      "acronim": "AJOFM Cluj",
+      "denumire": "Agenția Județeană pentru Ocuparea Forței de Muncă Cluj",
+      "tip": "județeană",
+      "documente_emise": [
+        "Carnet de șomer",
+        "Adeverință înregistrare șomer",
+        "Cupoane indemnizație șomaj",
+        "Atestate participare cursuri formare profesională"
+      ],
+      "folosit_pentru": "VMI, ajutor încălzire, tichete sociale, ajutor chirie"
+    },
+    {
+      "id": "itm",
+      "acronim": "ITM Cluj",
+      "denumire": "Inspectoratul Teritorial de Muncă Cluj",
+      "tip": "județeană",
+      "documente_emise": [
+        "Extras REVISAL",
+        "Certificate vechime în muncă",
+        "Dovezi încetare CIM"
+      ],
+      "folosit_pentru": "ANL, locuință socială (vechime în muncă)"
+    },
+    {
+      "id": "spclep-depabd",
+      "acronim": "SPCLEP / DEPABD",
+      "denumire": "Serviciul Public Comunitar Local de Evidență a Persoanelor / Direcția pentru Evidența Persoanelor și Administrarea Bazelor de Date",
+      "tip": "județeană (SPCLEP la nivel local, DEPABD central)",
+      "documente_emise": [
+        "Carte de identitate (CI)",
+        "Certificat reședință/domiciliu",
+        "Date din Registrul Național de Evidență a Persoanelor (RNEP)"
+      ],
+      "folosit_pentru": "Toate dosarele administrative (CI obligatorie); avize recunoaștere schimbări nume/divorțuri străine (DEPABD)"
+    },
+    {
+      "id": "dgp",
+      "acronim": "DGP",
+      "denumire": "Direcția Generală de Pașapoarte",
+      "tip": "centrală",
+      "documente_emise": [
+        "Pașaport românesc"
+      ],
+      "folosit_pentru": "Repatriere; pașaport (NU emis de primărie ci de Instituția Prefectului)"
+    },
+    {
+      "id": "anc",
+      "acronim": "ANC",
+      "denumire": "Autoritatea Națională pentru Cetățenie",
+      "tip": "centrală",
+      "url": "https://cetatenie.just.ro",
+      "documente_emise": [
+        "Certificat de dobândire / redobândire cetățenie română"
+      ],
+      "folosit_pentru": "CI pentru cetățeni naturalizați, transcrieri din străinătate"
+    },
+    {
+      "id": "igi",
+      "acronim": "IGI",
+      "denumire": "Inspectoratul General pentru Imigrări",
+      "tip": "centrală",
+      "documente_emise": [
+        "Permis de ședere (temporară/permanentă)",
+        "Carte de rezidență (cetățeni UE/SEE/Elveția)"
+      ],
+      "folosit_pentru": "CI repatriere; căsătorie cu cetățean străin"
+    },
+    {
+      "id": "depabd",
+      "acronim": "DEPABD",
+      "denumire": "Direcția pentru Evidența Persoanelor și Administrarea Bazelor de Date",
+      "tip": "centrală",
+      "documente_emise": [
+        "Avize recunoaștere schimbări nume",
+        "Avize recunoaștere divorțuri pronunțate în străinătate",
+        "Coordonare RNEP"
+      ],
+      "folosit_pentru": "Schimbare nume cu element străin, înscriere divorț străin"
+    },
+    {
+      "id": "djep-cluj",
+      "acronim": "DJEP Cluj",
+      "denumire": "Direcția Județeană de Evidență a Persoanelor Cluj",
+      "tip": "județeană",
+      "documente_emise": [
+        "Aviz favorabil înregistrare naștere tardivă",
+        "Aprobare schimbare nume pe cale administrativă (Etapa II)",
+        "Încasare taxă transcrieri 12 RON"
+      ],
+      "folosit_pentru": "Naștere tardivă, schimbare nume, transcrieri stare civilă"
+    },
+    {
+      "id": "consulat",
+      "acronim": "Misiune diplomatică / Consulat",
+      "denumire": "Misiune diplomatică / Consulat român în străinătate",
+      "tip": "centrală externă",
+      "documente_emise": [
+        "Procuri speciale",
+        "Declarații notariale",
+        "Legalizare documente pentru cetățeni români aflați în străinătate",
+        "Declarație gazduitor valabilă 6 luni"
+      ],
+      "folosit_pentru": "CI prin procură, transcrieri din străinătate, schimbare nume"
+    },
+    {
+      "id": "autoritate-straina",
+      "acronim": "Autorități străine",
+      "denumire": "Civil Registry / Court / autorități străine emitente",
+      "tip": "externă",
+      "documente_emise": [
+        "Certificate naștere/căsătorie/deces străine",
+        "Hotărâri divorț străine",
+        "Pașapoarte străine",
+        "Documente schimbare nume străine"
+      ],
+      "folosit_pentru": "Transcrieri toate; căsătorie cu străin; CI repatriere",
+      "observatie": "Necesită OBLIGATORIU apostilă Haga (state semnatare) SAU supralegalizare (state non-Haga) + traducere autentificată notarială"
+    },
+    {
+      "id": "mae",
+      "acronim": "MAE",
+      "denumire": "Ministerul Afacerilor Externe (român)",
+      "tip": "centrală",
+      "documente_emise": [
+        "Supralegalizare documente străine"
+      ],
+      "folosit_pentru": "Procesare documente străine pentru transcrieri și recunoaștere"
+    },
+    {
+      "id": "asociatia-proprietari",
+      "acronim": "Asociația de proprietari / locatari",
+      "denumire": "Asociația de proprietari sau de locatari a imobilului",
+      "tip": "privat",
+      "documente_emise": [
+        "Adeverință persoane la adresă",
+        "Atestat tolerat în spațiu",
+        "Cod proprietate",
+        "Cod abonat Termoficare",
+        "Acord asociație pentru anumite intervenții (recompartimentări, schimbare destinație)"
+      ],
+      "folosit_pentru": "VMI, ajutor încălzire, tichete sociale, locuință socială, AC modificări interioare, amplasare platformă subterană"
+    },
+    {
+      "id": "furnizori-utilitati",
+      "acronim": "Furnizori utilități",
+      "denumire": "Compania de Apă Someș, Delgaz Grid (E.ON), Electrica Distribuție Transilvania Nord, Termoficare Napoca, Telekom, RCS-RDS (Digi), Orange",
+      "tip": "operator privat",
+      "documente_emise": [
+        "Facturi utilități cu cod client / cod loc consum / cod abonat",
+        "Aviz tehnic racordare",
+        "Certificat racordare la rețea",
+        "Aviz deconectare"
+      ],
+      "folosit_pentru": "Ajutor încălzire (factură); AC/AD (avize utilități); branșamente"
+    },
+    {
+      "id": "ditl",
+      "acronim": "DITL Cluj",
+      "denumire": "Direcția Impozite și Taxe Locale a Primăriei Cluj-Napoca",
+      "tip": "primărie internă",
+      "documente_emise": [
+        "Certificat de atestare fiscală buget local (CAF)",
+        "Decizii de impunere taxe locale (ITL-008/009/011/013)",
+        "Adeverință scoatere din evidență sarcină ipotecară"
+      ],
+      "folosit_pentru": "VMI, ajutor încălzire, locuință socială, ANL, autorizație taxi, comerț — practic tot ce implică verificarea datoriilor la bugetul local"
+    },
+    {
+      "id": "isc",
+      "acronim": "ISC",
+      "denumire": "Inspectoratul de Stat în Construcții",
+      "tip": "centrală cu structuri județene",
+      "documente_emise": [
+        "Aviz ISC pentru construcții cat. importanță A/B",
+        "Atestat diriginte de șantier"
+      ],
+      "folosit_pentru": "AC blocuri colective, recepție lucrări (comisie obligatorie), cotă 0,1% + 0,7%"
+    },
+    {
+      "id": "isu",
+      "acronim": "ISU Cluj",
+      "denumire": "Inspectoratul pentru Situații de Urgență 'Avram Iancu' Cluj",
+      "tip": "județeană",
+      "documente_emise": [
+        "Aviz / autorizație securitate la incendiu (P.S.I.)",
+        "Scenariu securitate la incendiu",
+        "Proces-verbal constatare incendiu/calamitate"
+      ],
+      "folosit_pentru": "AC (toate), schimbare destinație, alimentație publică, ajutor de urgență"
+    },
+    {
+      "id": "apm",
+      "acronim": "APM Cluj",
+      "denumire": "Agenția pentru Protecția Mediului Cluj",
+      "tip": "județeană",
+      "documente_emise": [
+        "Aviz / acord de mediu",
+        "Autorizație de mediu",
+        "Decizie de încadrare",
+        "Aviz gestionare deșeuri",
+        "Lista operatorilor autorizați"
+      ],
+      "folosit_pentru": "AC/AD, comerț, alimentație publică, taxi service auto"
+    },
+    {
+      "id": "garda-mediu",
+      "acronim": "Garda Mediu",
+      "denumire": "Garda Națională de Mediu — Comisariatul Județean Cluj",
+      "tip": "județeană",
+      "documente_emise": [
+        "Sancțiuni nerespectare combatere ambrozia",
+        "Sancțiuni mediu"
+      ],
+      "folosit_pentru": "Control mediu"
+    },
+    {
+      "id": "dsp",
+      "acronim": "DSP Cluj",
+      "denumire": "Direcția de Sănătate Publică Cluj (fost Sanepid)",
+      "tip": "județeană",
+      "documente_emise": [
+        "Aviz sanitar pentru comerț / alimentație publică",
+        "Aviz transport cadavre umane",
+        "Aviz sanitar deshumare excepțională"
+      ],
+      "folosit_pentru": "Acord funcționare alimentație/comerț, AC schimbare destinație, deshumare, transport mortuar"
+    },
+    {
+      "id": "djc",
+      "acronim": "DJC Cluj",
+      "denumire": "Direcția Județeană pentru Cultură Cluj (Ministerul Culturii)",
+      "tip": "județeană",
+      "documente_emise": [
+        "Aviz pentru intervenții pe monumente istorice",
+        "Aviz pentru zone construite protejate (ZPR1/ZPR2)",
+        "Aviz lucrări în Cimitirul Central (monumente funerare istorice)"
+      ],
+      "folosit_pentru": "AC/AD în zone protejate, publicitate ZPR1/ZPR2, aviz lucru în cimitir"
+    },
+    {
+      "id": "min-cultura",
+      "acronim": "Ministerul Culturii",
+      "denumire": "Ministerul Culturii și Identității Naționale",
+      "tip": "centrală",
+      "documente_emise": [
+        "Aviz monumente istorice categoria A"
+      ],
+      "folosit_pentru": "AC/AD pe monumente istorice categoria A"
+    },
+    {
+      "id": "ape-romane",
+      "acronim": "Apele Române ABA Someș-Tisa",
+      "denumire": "Administrația Bazinală de Apă Someș-Tisa",
+      "tip": "regională",
+      "documente_emise": [
+        "Aviz pentru lucrări la cursuri de apă",
+        "Aviz gospodărirea apelor"
+      ],
+      "folosit_pentru": "AC în zone cu cursuri de apă, PUZ"
+    },
+    {
+      "id": "silvica",
+      "acronim": "Direcția Silvică",
+      "denumire": "Direcția Silvică Cluj (Romsilva)",
+      "tip": "județeană",
+      "documente_emise": [
+        "Aviz pentru terenuri în vecinătatea fondului forestier"
+      ],
+      "folosit_pentru": "AC în zone limitrofe fond forestier"
+    },
+    {
+      "id": "cfr",
+      "acronim": "CFR Infrastructură",
+      "denumire": "CFR Infrastructură / SNTFC",
+      "tip": "centrală",
+      "documente_emise": [
+        "Aviz pentru construcții în zona căii ferate"
+      ],
+      "folosit_pentru": "AC în zone cale ferată"
+    },
+    {
+      "id": "cnair",
+      "acronim": "CNAIR",
+      "denumire": "Compania Națională de Administrare a Infrastructurii Rutiere",
+      "tip": "centrală",
+      "documente_emise": [
+        "Aviz pentru zone drumuri naționale / autostrăzi",
+        "Autorizație libera trecere drumuri naționale"
+      ],
+      "folosit_pentru": "AC pe drumuri naționale, transport >35t"
+    },
+    {
+      "id": "aeroport",
+      "acronim": "Aeroportul Cluj",
+      "denumire": "Aeroportul Internațional Cluj (Avram Iancu)",
+      "tip": "regională",
+      "documente_emise": [
+        "Aviz pentru zone cu restricții aeroportuare (înălțimi)"
+      ],
+      "folosit_pentru": "AC în zone limitrofe aeroport"
+    },
+    {
+      "id": "mapn",
+      "acronim": "MApN",
+      "denumire": "Ministerul Apărării Naționale",
+      "tip": "centrală",
+      "documente_emise": [
+        "Livret militar / ordin recrutare (pentru persoane sub 60 ani)",
+        "Atestate veteran de război",
+        "Cupoane pensie militari (Case Pensii Sectoriale)"
+      ],
+      "folosit_pentru": "Declarare deces persoane sub 60 ani, locuință socială (veterani), ANL"
+    },
+    {
+      "id": "mj",
+      "acronim": "MJ",
+      "denumire": "Ministerul Justiției",
+      "tip": "centrală",
+      "documente_emise": [
+        "Atestate revoluționar (Legea 341/2004)"
+      ],
+      "folosit_pentru": "Locuință socială (revoluționari), atribuire spațiu cu altă destinație"
+    },
+    {
+      "id": "oar",
+      "acronim": "OAR Filiala Transilvania",
+      "denumire": "Ordinul Arhitecților din România — Filiala Transilvania",
+      "tip": "profesionist",
+      "url": "https://oar-tn.ro",
+      "documente_emise": [
+        "Drept de semnătură pentru DTAC",
+        "Ștampilă proiect",
+        "Tabel proiectanți obligatoriu",
+        "Calculează cota 0,5% din valoarea proiectului"
+      ],
+      "folosit_pentru": "Toate AC/AD"
+    },
+    {
+      "id": "rur",
+      "acronim": "RUR",
+      "denumire": "Registrul Urbaniștilor din România",
+      "tip": "profesionist",
+      "documente_emise": [
+        "Atestare urbaniști pentru elaborare PUZ/PUD/modificări PUG"
+      ],
+      "folosit_pentru": "Toate documentațiile de urbanism"
+    },
+    {
+      "id": "anevar",
+      "acronim": "ANEVAR",
+      "denumire": "Asociația Națională a Evaluatorilor Autorizați din România",
+      "tip": "profesionist",
+      "documente_emise": [
+        "Rapoarte de evaluare clădiri nerezidențiale/mixte"
+      ],
+      "folosit_pentru": "Impozit clădiri PJ (la 5 ani sau dobândire fără act recent)"
+    },
+    {
+      "id": "auditor-energetic",
+      "acronim": "Auditor energetic",
+      "denumire": "Auditor energetic atestat MDRT",
+      "tip": "profesionist",
+      "documente_emise": [
+        "Certificat de performanță energetică"
+      ],
+      "folosit_pentru": "Vânzare-cumpărare locuință, impozit clădiri, AC"
+    },
+    {
+      "id": "verificator-proiect",
+      "acronim": "Verificator de proiecte atestat MDRT",
+      "denumire": "Verificator de proiecte",
+      "tip": "profesionist",
+      "documente_emise": [
+        "Referate verificare proiect pe cerințele A1-A4 (rezistență), B1 (siguranță exploatare), C (siguranță incendiu), D (igienă/sănătate/mediu), E (economie energie), F (zgomot), Is (instalații)"
+      ],
+      "folosit_pentru": "AC (obligatoriu pe toate cerințele aplicabile)"
+    },
+    {
+      "id": "expert-tehnic",
+      "acronim": "Expert tehnic atestat MDRT",
+      "denumire": "Expert tehnic",
+      "tip": "profesionist",
+      "documente_emise": [
+        "Expertiză tehnică pentru construcții existente, intervenții la structuri"
+      ],
+      "folosit_pentru": "AC modificări structurale, intrare în legalitate, AD"
+    },
+    {
+      "id": "diriginte-santier",
+      "acronim": "Diriginte de șantier atestat ISC",
+      "denumire": "Diriginte de șantier",
+      "tip": "profesionist",
+      "documente_emise": [
+        "Supraveghere execuție lucrări",
+        "PV faze determinante",
+        "Cartea tehnică a construcției"
+      ],
+      "folosit_pentru": "Recepție lucrări, certificat atestare edificare"
+    },
+    {
+      "id": "geotehnician",
+      "acronim": "Geotehnician / Geolog atestat",
+      "denumire": "Geotehnician",
+      "tip": "profesionist",
+      "documente_emise": [
+        "Studiu geotehnic"
+      ],
+      "folosit_pentru": "AC (obligatoriu pentru proiect)"
+    },
+    {
+      "id": "traducator",
+      "acronim": "Traducător autorizat",
+      "denumire": "Traducător autorizat",
+      "tip": "profesionist",
+      "documente_emise": [
+        "Traduceri legalizate documente străine",
+        "Declarații de ortografiere (Art. 20 OG 41/2003)"
+      ],
+      "folosit_pentru": "Toate transcrierile din străinătate, schimbare nume, ortografiere"
+    },
+    {
+      "id": "arr",
+      "acronim": "ARR",
+      "denumire": "Autoritatea Rutieră Română — Agenția Cluj",
+      "tip": "județeană",
+      "documente_emise": [
+        "Atestat profesional taximetrist",
+        "Certificat competență profesională manager transport",
+        "Atestare profesională conducător auto"
+      ],
+      "folosit_pentru": "Autorizație taxi (prima/prelungire/modificare)"
+    },
+    {
+      "id": "ancom",
+      "acronim": "ANCOM",
+      "denumire": "Autoritatea Națională pentru Administrarea și Reglementarea în Comunicații",
+      "tip": "centrală",
+      "documente_emise": [
+        "Autorizare operatori comunicații electronice"
+      ],
+      "folosit_pentru": "Notificare lucrări fibră optică / telefonie pe domeniu public"
+    },
+    {
+      "id": "ctp-cluj",
+      "acronim": "CTP Cluj-Napoca",
+      "denumire": "Compania de Transport Public Cluj-Napoca SA",
+      "tip": "operator municipal",
+      "documente_emise": [
+        "Card transport, abonament",
+        "Aviz publicitate pe mijloace transport în comun"
+      ],
+      "folosit_pentru": "Transport public, publicitate pe vehicule transport"
+    },
+    {
+      "id": "supercom",
+      "acronim": "SUPERCOM SA",
+      "denumire": "Operator delegat salubrizare sector I + județean",
+      "tip": "operator municipal",
+      "url": "https://www.supercom.ro",
+      "documente_emise": [
+        "Contract salubrizare (obligatoriu)",
+        "Ridicare voluminoase / construcții",
+        "Colectare DEEE"
+      ],
+      "folosit_pentru": "Tot ce ține de deșeuri menajere și voluminoase"
+    },
+    {
+      "id": "brantner",
+      "acronim": "Brantner Servicii Ecologice SRL",
+      "denumire": "Operator salubrizare sector II Cluj-Napoca",
+      "tip": "operator municipal",
+      "documente_emise": [
+        "Contract salubrizare sector II (Gheorgheni, Mărăști, Iris, Bună Ziua etc.)",
+        "Salubrizare stradală sector II"
+      ],
+      "folosit_pentru": "Deșeuri menajere sector II"
+    },
+    {
+      "id": "radp",
+      "acronim": "RADP Cluj-Napoca",
+      "denumire": "Regia Autonomă a Domeniului Public Cluj",
+      "tip": "operator municipal",
+      "documente_emise": [
+        "Execuție lucrări spații verzi",
+        "Salubrizare punctuală cimitire",
+        "Demolare construcții ilegale (la dispoziția primarului)"
+      ],
+      "folosit_pentru": "Spații verzi, cimitire, intrare în legalitate"
+    },
+    {
+      "id": "anrsc",
+      "acronim": "ANRSC",
+      "denumire": "Autoritatea Națională de Reglementare pentru Serviciile Comunitare de Utilități Publice",
+      "tip": "centrală",
+      "documente_emise": [
+        "Licențiere autoritate de autorizare taxi (Primăria)"
+      ],
+      "folosit_pentru": "Cadru reglementar taxi"
+    },
+    {
+      "id": "dsvsa",
+      "acronim": "DSVSA Cluj",
+      "denumire": "Direcția Sanitar-Veterinară și pentru Siguranța Alimentelor Cluj",
+      "tip": "județeană",
+      "documente_emise": [
+        "Avize sanitar-veterinare pentru transport cadavre animale",
+        "Reglementări animale"
+      ],
+      "folosit_pentru": "Transport cadavre animale, programe sterilizare"
+    },
+    {
+      "id": "daj",
+      "acronim": "DAJ Cluj",
+      "denumire": "Direcția pentru Agricultură Județeană Cluj",
+      "tip": "județeană",
+      "documente_emise": [
+        "Avize fitosanitare",
+        "Consiliere combatere ambrozia"
+      ],
+      "folosit_pentru": "Aviz tăiere arbori (fitosanitar), sesizare ambrozia"
+    },
+    {
+      "id": "registratura-comert",
+      "acronim": "ONG/Servicii sociale acreditate",
+      "denumire": "ONG-uri și furnizori de servicii sociale acreditați (centre violență domestică, centre tineri, etc.)",
+      "tip": "privat acreditat",
+      "documente_emise": [
+        "Atestate calitate beneficiar victime violență",
+        "Atestate trafic persoane",
+        "Atestate fără adăpost"
+      ],
+      "folosit_pentru": "Ajutor chirie (categoria 3 victime violență), locuință socială prioritate, tichete sociale"
+    },
+    {
+      "id": "anre",
+      "acronim": "ANRE",
+      "denumire": "Autoritatea Națională de Reglementare în Energie",
+      "tip": "centrală",
+      "documente_emise": [
+        "Autorizare operatori instalare sisteme fotovoltaice"
+      ],
+      "folosit_pentru": "Reducere impozit clădiri cu fotovoltaice"
+    },
+    {
+      "id": "anr",
+      "acronim": "ANR",
+      "denumire": "Autoritatea Navală Română",
+      "tip": "centrală",
+      "documente_emise": [
+        "Documente înregistrare ambarcațiuni"
+      ],
+      "folosit_pentru": "Impozit auto pe apă (ITL-007)"
+    },
+    {
+      "id": "remat-deee",
+      "acronim": "REMAT / DEEE / RoEcollect / TGP / ECOTIC",
+      "denumire": "Operatori autorizați colectare deșeuri (auto, electronice)",
+      "tip": "operator privat autorizat",
+      "documente_emise": [
+        "Certificate distrugere/casare auto",
+        "Confirmare predare DEEE"
+      ],
+      "folosit_pentru": "Scoatere din evidență auto (ITL-016), gestiune DEEE"
+    },
+    {
+      "id": "banca",
+      "acronim": "Bancă comercială",
+      "denumire": "Orice bancă licențiată",
+      "tip": "privat",
+      "documente_emise": [
+        "Coordonate cont IBAN",
+        "Ordine de plată (OP)",
+        "Chitanțe plată",
+        "Extras de cont"
+      ],
+      "folosit_pentru": "Restituiri taxe, alocații, indemnizații, premii (Nunta de Aur etc.)"
+    },
+    {
+      "id": "trezorerie",
+      "acronim": "Trezorerie",
+      "denumire": "Trezoreria Statului",
+      "tip": "centrală cu structuri",
+      "documente_emise": [
+        "Conturi IBAN pentru taxe locale (ex. RO07 TREZ 216 21 360206 XXXXX pentru taxa turism)"
+      ],
+      "folosit_pentru": "Plata taxelor locale specifice"
+    },
+    {
+      "id": "asoc-nuca",
+      "acronim": "NUCA",
+      "denumire": "Asociația NUCA Animal Welfare (ONG)",
+      "tip": "ONG",
+      "documente_emise": [
+        "Confirmare capturare/transport pisici comunitare",
+        "Sesizare sterilizare"
+      ],
+      "folosit_pentru": "Program sterilizare pisici fără stăpân"
+    },
+    {
+      "id": "cabinete-vet",
+      "acronim": "Cabinete veterinare partenere",
+      "denumire": "Croma Impex, Happy Pets, Veterinarius, GeoVet (cabinete partenere Primărie)",
+      "tip": "privat partener",
+      "documente_emise": [
+        "Bon sterilizare",
+        "Carnet de sănătate animal",
+        "Înregistrare RECS (Registrul Evidență Câini cu Stăpân)"
+      ],
+      "folosit_pentru": "Program sterilizare gratuită câini și pisici cu stăpân"
+    },
+    {
+      "id": "ansvsa",
+      "acronim": "ANSVSA",
+      "denumire": "Autoritatea Națională Sanitară Veterinară și pentru Siguranța Alimentelor",
+      "tip": "centrală",
+      "documente_emise": [
+        "RECS — Registrul de Evidență a Câinilor cu Stăpân (Ordinul ANSVSA 1/2014)"
+      ],
+      "folosit_pentru": "Microcipare câini (obligație medic veterinar)"
+    },
+    {
+      "id": "primarii-altele",
+      "acronim": "Primării altele",
+      "denumire": "Primării din alte UAT-uri (pentru transferuri)",
+      "tip": "UAT externă",
+      "documente_emise": [
+        "Certificate fiscale de la vânzător auto (când vânzătorul are alt domiciliu)",
+        "Transfer dosar fiscal",
+        "Adeverință ultim domiciliu RO"
+      ],
+      "folosit_pentru": "Auto cumpărat din altă localitate, schimbare domiciliu, indemnizație handicap (verificare alta primărie)"
+    },
+    {
+      "id": "primaria-sector-1",
+      "acronim": "Primăria Sectorului 1 București",
+      "denumire": "Primăria Sectorului 1 București",
+      "tip": "UAT externă",
+      "documente_emise": [
+        "Transcrieri stare civilă pentru cetățeni români care nu au avut niciodată domiciliu în RO"
+      ],
+      "folosit_pentru": "Competență subsidiară pentru transcrieri"
+    },
+    {
+      "id": "spceeps",
+      "acronim": "SPCEEPS / Instituția Prefectului",
+      "denumire": "Serviciul Public Comunitar pentru Eliberarea și Evidența Pașapoartelor Simple — Instituția Prefectului Cluj",
+      "tip": "județeană",
+      "documente_emise": [
+        "Pașaport simplu / electronic"
+      ],
+      "folosit_pentru": "Pașapoarte (NU primăria)"
+    },
+    {
+      "id": "executor-judecatoresc",
+      "acronim": "Executor judecătoresc",
+      "denumire": "Executor judecătoresc",
+      "tip": "profesionist independent",
+      "documente_emise": [
+        "Documente evacuare / eviciune",
+        "Procese verbale executare silită"
+      ],
+      "folosit_pentru": "Locuință socială (categorie evacuați), locuință de necesitate"
+    }
+  ]
+}
