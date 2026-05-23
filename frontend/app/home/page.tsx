@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DocumentList } from "@/components/DocumentList";
-import { ReminderCard } from "@/components/ReminderCard";
+import { RemindersList } from "@/components/RemindersList";
 import { KioskShell } from "@/components/KioskShell";
 import { useAccessibilityPrefs, useLargeTextClass } from "@/lib/accessibilityStore";
 import { api } from "@/lib/api";
@@ -37,15 +37,10 @@ function HomeBody({
         <h2 id="reminders-heading" className="text-xl font-semibold">
           {t("home.recommended_title", {}, variant)}
         </h2>
-        <div className="space-y-3">
-          {reminders.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {t("home.empty_reminders", {}, variant)}
-            </p>
-          ) : (
-            reminders.map((r) => <ReminderCard key={r.id} reminder={r} />)
-          )}
-        </div>
+        <RemindersList
+          reminders={reminders}
+          emptyMessage={t("home.empty_reminders", {}, variant)}
+        />
       </section>
 
       <section aria-labelledby="documents-heading" className="space-y-3">
