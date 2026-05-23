@@ -964,22 +964,6 @@ export const schimbareDomiciliu: Procedure = {
 export const knownProcedures: Procedure[] = [
   schimbareDomiciliu,
   {
-    id: "adeverinta-venit",
-    title: "Adeverință de venit",
-    description: "Adeverință de venit pentru bancă",
-    scope: "primarie",
-    category: "evidenta-persoanelor",
-    synonyms: ["adeverinta venit", "venit pentru banca"],
-    sample_queries: ["am nevoie de adeverință de venit"],
-    fields: [
-      { name: "nume_complet", label: "Nume complet", source: "profile", required: true },
-      { name: "cnp", label: "CNP", source: "profile", required: true, redact_in_voice: true },
-      { name: "scopul", label: "Scopul adeverinței", source: "ask", required: true },
-    ],
-    template: "adeverinta-venit.tex",
-    next_steps: [],
-  },
-  {
     id: "preschimbare-ci",
     title: "Preschimbare carte de identitate",
     description: "Preschimbarea cărții de identitate",
@@ -1014,7 +998,7 @@ export const draftDoc: Document = {
 export const deliveredDoc: Document = {
   id: "22222222-2222-2222-2222-222222222222",
   citizen_id: maria.id,
-  procedure_id: "adeverinta-venit",
+  procedure_id: "certificat-fiscal",
   status: "finalized",
   fields: { nume_complet: "Maria Ionescu", scopul: "credit bancar" },
   delivery: "send",

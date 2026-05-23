@@ -102,26 +102,12 @@ SEED_BY_CNP: dict[str, list[dict[str, Any]]] = {
             "due_offset_days": 30,
         },
     ],
-    "1900512123456": [  # Andrei
-        {
-            "kind": "in_scope_procedure",
-            "procedure_id": "ajutor-social",
-            "title": "Verificare anuală: eligibilitate ajutor social",
-            "due_offset_days": 14,
-        },
-    ],
     "2620908123456": [  # Elena
         {
             "kind": "external_redirect",
             "redirect_target": "DRPCIV",
             "title": "Actualizare certificat înmatriculare auto (termen 30 zile)",
             "due_offset_days": 30,
-        },
-        {
-            "kind": "in_scope_procedure",
-            "procedure_id": "adeverinta-venit",
-            "title": "Adeverință de venit — utilă pentru acte sociale",
-            "due_offset_days": None,
         },
     ],
 }
