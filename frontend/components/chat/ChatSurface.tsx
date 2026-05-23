@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   useAccessibilityPrefs,
@@ -18,6 +18,7 @@ import { AnimatedBackground } from "./AnimatedBackground";
 import { ChatStream } from "./ChatStream";
 import { Composer } from "./Composer";
 import { DocumentsDrawer } from "./DocumentsDrawer";
+import { MobileViewToggle, type MobileView } from "./MobileViewToggle";
 import { ProfileMenu } from "./ProfileMenu";
 import { RightPane } from "./RightPane";
 import { TopBar } from "./TopBar";
@@ -52,6 +53,9 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
 
   const voice = useVoiceAgent();
   const voiceStartedRef = useRef(false);
+
+  const [mobileView, setMobileView] = useState<MobileView>("chat");
+  const [docHinted, setDocHinted] = useState(false);
 
   // Auth gate.
   useEffect(() => {
@@ -119,6 +123,16 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
         }
       });
   }, [voiceOnly, citizen, activeDocId, simpleLanguage, voice, appendMessage]);
+
+  // Briefly pulse the "Document" segment of the mobile toggle when new
+  // doc-side content becomes available while the user is on the Chat view.
+  useEffect(() => {
+    if (mobileView !== "chat") return;
+    if (sessionState !== "filling" && sessionState !== "reviewing") return;
+    setDocHinted(true);
+    const t = window.setTimeout(() => setDocHinted(false), 1500);
+    return () => window.clearTimeout(t);
+  }, [mobileView, sessionState]);
 
   async function startVoice() {
     if (!citizen) return;
@@ -196,6 +210,7 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
       className="civic-root"
       data-mode={engaged ? "engaged" : "idle"}
       data-kiosk={isKiosk ? "true" : "false"}
+      data-mobile-view={mobileView}
     >
       <a className="skip-link" href="#civic-main">
         Sări la conținut
@@ -208,6 +223,13 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
 
       <div className="civic-shell">
         <TopBar voiceOn={voiceActive} onToggleVoice={toggleVoice} />
+        {showRight ? (
+          <MobileViewToggle
+            value={mobileView}
+            onChange={setMobileView}
+            hinted={docHinted}
+          />
+        ) : null}
         <ProfileMenu />
         <main
           id="civic-main"
