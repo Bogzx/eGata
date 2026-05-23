@@ -1363,8 +1363,7 @@ WHERE citizen_id IN (SELECT id FROM citizens WHERE cnp LIKE '___demo%')
    OR id IN (
      '11111111-1111-1111-1111-111111111101'::uuid,
      '11111111-1111-1111-1111-111111111102'::uuid,
-     '11111111-1111-1111-1111-111111111103'::uuid,
-     '11111111-1111-1111-1111-111111111104'::uuid
+     '11111111-1111-1111-1111-111111111103'::uuid
    );
 
 -- Maria Ionescu (CNP 2851014123456) — primary demo persona
@@ -1401,18 +1400,6 @@ SELECT
     CURRENT_DATE + INTERVAL '30 days',
     'pending'
 FROM citizens WHERE cnp = '1900215987654';
-
--- Elena Vasilescu (third demo persona) — has children
-INSERT INTO reminders (id, citizen_id, kind, procedure_id, title, due_date, status)
-SELECT
-    '11111111-1111-1111-1111-111111111104'::uuid,
-    id,
-    'in_scope_procedure',
-    'ajutor-social',
-    'Verificare eligibilitate ajutor social anual',
-    CURRENT_DATE + INTERVAL '14 days',
-    'pending'
-FROM citizens WHERE cnp = '2750822111222';
 ```
 
 (CNPs and personas should match those seeded in Plan 2's `002_seed_data.sql`. If they don't match exactly, adjust the WHERE clauses to use whichever CNPs Plan 2 actually inserted.)
@@ -1423,7 +1410,7 @@ FROM citizens WHERE cnp = '2750822111222';
 psql "$SUPABASE_DB_URL" -f backend/migrations/005_seed_reminders.sql
 ```
 
-Expected: 4 INSERT rows.
+Expected: 3 INSERT rows.
 
 - [ ] **Step 3: Commit**
 
@@ -1723,14 +1710,6 @@ def _seed_for_citizen(db, citizen_id: UUID) -> int:
             "kind": "external_redirect",
             "redirect_target": "DRPCIV",
             "title": "Actualizare certificat înmatriculare auto (termen 30 zile)",
-            "status": "pending",
-        }]
-    elif cnp == "2750822111222":
-        seeds = [{
-            "citizen_id": str(citizen_id),
-            "kind": "in_scope_procedure",
-            "procedure_id": "ajutor-social",
-            "title": "Verificare eligibilitate ajutor social anual",
             "status": "pending",
         }]
 
