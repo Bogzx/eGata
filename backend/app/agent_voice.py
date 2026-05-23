@@ -333,6 +333,13 @@ class VoiceBridgeSession:
                                 )
                             except Exception:
                                 log.exception("send_client_content failed")
+                    elif ptype == "widget_submission" and self.gemini is not None:
+                        widget_id = payload.get("widget_id")
+                        value = payload.get("value")
+                        if not isinstance(widget_id, str) or not widget_id:
+                            log.warning("widget_submission missing widget_id")
+                            continue
+                        await self._handle_widget_submission(widget_id, value)
                     elif ptype == "interrupt":
                         # v1 no-op; reserved for explicit barge-in UX.
                         pass
@@ -495,6 +502,117 @@ class VoiceBridgeSession:
         except Exception:
             log.exception("state_recap doc lookup failed")
         return recap
+
+    async def _handle_widget_submission(
+        self, widget_id: str, value: Any
+    ) -> None:
+        """Resolve a widget click during an active Live session.
+
+        Mirrors `agent.widget_result` (the HTTP path used in text-only mode)
+        but injects the result into Gemini Live's in-session context via
+        `send_client_content`, so the model knows the field was answered
+        without us having to re-seed history or end the session.
+
+        Two paths, like the HTTP endpoint:
+        * widget has `target_field` → dispatch set_field locally, then send
+          a synthetic system note to Live with turn_complete=False (the
+          model absorbs the context but doesn't respond — UI already shows
+          the field updated).
+        * widget has no target_field (confirm in confirming_match) → forward
+          the user's choice as a real turn (turn_complete=True) so the
+          model picks the next action (start_procedure, abandon, etc.).
+        """
+        if self.db_session is None or self.tool_ctx is None or self.gemini is None:
+            return
+
+        widget = self.db_session.resolve_pending_widget(widget_id)
+        if widget is None:
+            await self.send_json(
+                {
+                    "type": "error",
+                    "detail": (
+                        f"Widget {widget_id!r} nu este în așteptare "
+                        f"(deja rezolvat?)"
+                    ),
+                }
+            )
+            return
+
+        # Reuse the same Da/Nu/true/false coercion as the HTTP endpoint.
+        from app.agent import _coerce_widget_value
+
+        user_visible = str(value) if not isinstance(value, str) else value
+
+        if widget.target_field:
+            coerced = _coerce_widget_value(value, widget.type)
+            # _dispatch_tool emits tool_call / frontend_event / tool_result /
+            # session_snapshot for us. The FunctionResponse return value is
+            # for replying to Gemini-initiated calls — discard it here because
+            # this call was initiated by the user clicking a widget.
+            await self._dispatch_tool(
+                name="set_field",
+                args={"name": widget.target_field, "value": coerced},
+                call_id=None,
+            )
+
+            synthetic_text = (
+                f"[Sistem: cetățeanul a răspuns widget-ului pentru câmpul "
+                f"'{widget.target_field}' cu valoarea: {user_visible}. "
+                f"Câmpul a fost setat automat — NU mai apela set_field "
+                f"pentru acest câmp. Continuă conversația sau întreabă "
+                f"următorul câmp lipsă.]"
+            )
+            try:
+                await self.gemini.send_client_content(
+                    turns=[
+                        genai_types.Content(
+                            role="user",
+                            parts=[
+                                genai_types.Part.from_text(text=synthetic_text)
+                            ],
+                        )
+                    ],
+                    turn_complete=False,
+                )
+            except Exception:
+                log.exception(
+                    "send_client_content for widget update failed"
+                )
+
+            # Persist into session.history so a reconnect re-seeds the
+            # same synthetic context the live session just absorbed.
+            self.db_session.history.append(
+                {"role": "user", "parts": [{"text": synthetic_text}]}
+            )
+            return
+
+        # No target_field: the answer IS the user's turn. Forward to Live
+        # with turn_complete=True so the model produces a response.
+        prompt = f"[Răspuns widget: {user_visible}]"
+        try:
+            await self.gemini.send_client_content(
+                turns=[
+                    genai_types.Content(
+                        role="user",
+                        parts=[genai_types.Part.from_text(text=prompt)],
+                    )
+                ],
+                turn_complete=True,
+            )
+        except Exception:
+            log.exception("send_client_content for widget followup failed")
+
+        self.db_session.history.append(
+            {"role": "user", "parts": [{"text": prompt}]}
+        )
+
+        # Snapshot so frontend sees pending_widgets shrink.
+        await self.send_json(
+            {
+                "type": "session_snapshot",
+                "snapshot": self.db_session.snapshot(),
+            }
+        )
 
     async def _dispatch_tool(
         self, name: str, args: dict[str, Any], call_id: str | None
