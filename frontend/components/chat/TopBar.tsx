@@ -6,9 +6,14 @@ import { useKioskMode } from "@/lib/kioskMode";
 import { useSessionStore } from "@/lib/sessionStore";
 import type { Document } from "@/lib/types";
 
-function Logo() {
+function Logo({ onHome }: { onHome: () => void }) {
   return (
-    <div className="brand">
+    <button
+      type="button"
+      className="brand"
+      onClick={onHome}
+      aria-label="Acasă · CivicAI"
+    >
       <div className="brand-mark" aria-hidden="true">
         <svg
           viewBox="0 0 24 24"
@@ -30,7 +35,7 @@ function Logo() {
         <div className="brand-name">CivicAI</div>
         <div className="brand-sub">Primărie · România</div>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -43,6 +48,7 @@ export function TopBar({ voiceOn = false, onToggleVoice }: Props) {
   const citizen = useSessionStore((s) => s.citizen);
   const openDrawer = useSessionStore((s) => s.openDrawer);
   const toggleProfile = useSessionStore((s) => s.toggleProfileMenu);
+  const reset = useSessionStore((s) => s.reset);
   const isKiosk = useKioskMode();
 
   const [docCount, setDocCount] = useState<number | null>(null);
@@ -69,7 +75,7 @@ export function TopBar({ voiceOn = false, onToggleVoice }: Props) {
 
   return (
     <header className="topbar" role="banner">
-      <Logo />
+      <Logo onHome={reset} />
       <nav className="topbar-actions" aria-label="Bara de instrumente">
         <button
           type="button"
