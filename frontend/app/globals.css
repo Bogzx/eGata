@@ -1491,4 +1491,28 @@ html.large-text {
     width: 32px;
     height: 32px;
   }
+
+  /* ---- Composer ---- */
+  .composer {
+    padding: 6px 12px 14px;
+  }
+  .composer-shell {
+    padding: 4px 4px 4px 12px;
+  }
+  .composer-input {
+    font-size: 16px; /* prevent iOS zoom-on-focus */
+  }
+}
+
+/* ============ Touch targets on coarse pointers ============ */
+
+@media (pointer: coarse) {
+  .composer-mic,
+  .composer-send {
+    width: 44px;
+    height: 44px;
+  }
+  .composer-attach {
+    padding: 12px;
+  }
 }
