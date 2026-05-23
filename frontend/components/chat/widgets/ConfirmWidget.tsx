@@ -10,9 +10,12 @@ type Props = {
 };
 
 export function ConfirmWidget({ spec, onSubmit }: Props) {
-  const [done, setDone] = useState(false);
+  const [pickedLocal, setPickedLocal] = useState<string | null>(null);
+  const picked = spec.submittedValue ?? pickedLocal;
+  const isDisabled = picked !== null && picked !== undefined;
   function pick(v: "Da" | "Nu") {
-    setDone(true);
+    if (isDisabled) return;
+    setPickedLocal(v);
     onSubmit(v);
   }
   return (
@@ -25,16 +28,17 @@ export function ConfirmWidget({ spec, onSubmit }: Props) {
         <Button
           type="button"
           size="sm"
-          disabled={done}
+          variant={picked === "Da" ? "default" : undefined}
+          disabled={isDisabled}
           onClick={() => pick("Da")}
         >
           Da
         </Button>
         <Button
           type="button"
-          variant="outline"
+          variant={picked === "Nu" ? "default" : "outline"}
           size="sm"
-          disabled={done}
+          disabled={isDisabled}
           onClick={() => pick("Nu")}
         >
           Nu

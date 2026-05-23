@@ -5,18 +5,25 @@ operation. The agent never juggles "did I generate the PDF yet?" — it's
 one call that does both atomically (from the user's perspective).
 
 Server-side flow:
-  1. Verify all required fields satisfied (with applies_if).
-  2. Render LaTeX → PDF via app.pdf.render_and_compile.
-  3. Upload to storage.
-  4. Finalize the document row (status=finalized, ref_number).
-  5. Append ledger PDF_GENERATED + DELIVERED events.
-  6. If delivery == "send", send the SMS to the citizen's phone.
-  7. Transition session: REVIEWING → DELIVERED.
+  1. Idempotency: if document already finalized, return cached delivery.
+  2. Verify all required fields satisfied (with applies_if).
+  3. Render LaTeX → PDF via app.pdf.render_and_compile.
+  4. Upload to storage.
+  5. Finalize the document row (status=finalized, ref_number).
+  6. Append ledger PDF_GENERATED + DELIVERED events.
+  7. If delivery == "send", send the SMS to the citizen's phone.
+  8. Transition session: REVIEWING → DELIVERED.
+
+All blocking I/O (pdflatex subprocess, Supabase upload, Twilio HTTP, DB
+writes) is offloaded via asyncio.to_thread so the WebSocket audio pumps
+in agent_voice.py keep flowing while a PDF compiles (~5-15s normally).
 
 Valid states: REVIEWING (the typical path; all fields filled).
 """
 from __future__ import annotations
 
+import asyncio
+import logging
 from uuid import UUID
 
 from app.agent_tools import Tool, ToolContext, ToolResult, register
@@ -35,6 +42,8 @@ from app.procedure_state import all_required_satisfied
 from app.sessions import Session, SessionState
 from app.storage import upload_pdf_to_storage
 
+log = logging.getLogger("complete_document")
+
 _VALID_DELIVERY = {"save", "send", "print"}
 
 
@@ -51,9 +60,39 @@ async def execute(
     doc_id = session.active_document_id
     doc_uuid = UUID(doc_id)
     citizen_uuid = UUID(session.citizen_id)
-    doc = fetch_document(doc_uuid)
+    doc = await asyncio.to_thread(fetch_document, doc_uuid)
     if str(doc["citizen_id"]) != session.citizen_id:
         return ToolResult(error="Acest document nu îți aparține.")
+
+    # Idempotency: if the doc is already finalized, short-circuit. Re-emitting
+    # the delivery frontend_event lets the UI re-render the success pane on
+    # an LLM retry without burning a second PDF + SMS.
+    if doc.get("status") == "finalized" and doc.get("ref_number"):
+        log.info(
+            "complete_document: doc %s already finalized, returning cached result",
+            doc_id,
+        )
+        cached_pdf_url = doc.get("pdf_url") or ""
+        cached_delivery = doc.get("delivery") or delivery
+        cached_ref = doc["ref_number"]
+        return ToolResult(
+            output={
+                "document_id": doc_id,
+                "pdf_url": cached_pdf_url,
+                "delivery": cached_delivery,
+                "ref_number": cached_ref,
+                "status": "finalized",
+                "already_finalized": True,
+            },
+            transition_to=SessionState.DELIVERED,
+            frontend_event={
+                "type": "document_delivered",
+                "document_id": doc_id,
+                "pdf_url": cached_pdf_url,
+                "delivery": cached_delivery,
+                "ref_number": cached_ref,
+            },
+        )
 
     reg = get_registry()
     proc = reg.get(doc["procedure_id"])
@@ -66,12 +105,15 @@ async def execute(
             error="Mai sunt câmpuri obligatorii necompletate. Completează-le mai întâi."
         )
 
-    # 1. PDF
-    pdf_bytes = render_and_compile(proc.template, fields)
+    # 1. PDF — pdflatex blocks ~5-15s, runs in worker thread.
+    pdf_bytes = await asyncio.to_thread(render_and_compile, proc.template, fields)
     object_path = f"{session.citizen_id}/{doc_id}.pdf"
-    pdf_url = upload_pdf_to_storage(object_path, pdf_bytes)
-    set_document_pdf_url(doc_uuid, pdf_url)
-    append_ledger(
+    pdf_url = await asyncio.to_thread(
+        upload_pdf_to_storage, object_path, pdf_bytes
+    )
+    await asyncio.to_thread(set_document_pdf_url, doc_uuid, pdf_url)
+    await asyncio.to_thread(
+        append_ledger,
         citizen_id=citizen_uuid,
         event_type=LedgerEventType.PDF_GENERATED,
         payload={"document_id": doc_id, "pdf_url": pdf_url},
@@ -80,8 +122,11 @@ async def execute(
 
     # 2. Finalize + deliver
     ref_number = generate_ref_number(doc_uuid)
-    finalized = finalize_document(doc_uuid, delivery, ref_number)
-    append_ledger(
+    finalized = await asyncio.to_thread(
+        finalize_document, doc_uuid, delivery, ref_number
+    )
+    await asyncio.to_thread(
+        append_ledger,
         citizen_id=citizen_uuid,
         event_type=LedgerEventType.DELIVERED,
         payload={
@@ -91,9 +136,20 @@ async def execute(
         },
         document_id=doc_uuid,
     )
+    # SMS is best-effort: a Twilio blip MUST NOT cause the LLM to retry and
+    # double-finalize. Log + carry on; the doc is already finalized and the
+    # delivery frontend_event will still fire.
     if delivery == "send":
-        phone = fetch_phone_for_citizen(citizen_uuid)
-        send_delivery_sms(phone, ref_number)
+        try:
+            phone = await asyncio.to_thread(fetch_phone_for_citizen, citizen_uuid)
+            await asyncio.to_thread(send_delivery_sms, phone, ref_number)
+        except Exception:  # noqa: BLE001
+            log.exception(
+                "send_delivery_sms failed for doc=%s ref=%s — doc remains "
+                "finalized, will not retry",
+                doc_id,
+                ref_number,
+            )
 
     return ToolResult(
         output={

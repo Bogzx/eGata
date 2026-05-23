@@ -125,6 +125,78 @@ describe("sessionStore setSession", () => {
     expect(s.session?.state).toBe("filling");
     expect(s.session?.active_document_id).toBe("doc_y");
   });
+
+  it("drops a stale snapshot if seq goes backwards", () => {
+    const store = useSessionStore.getState();
+    store.setSession({
+      id: "sess_x",
+      citizen_id: "abc",
+      state: "filling",
+      active_document_id: "doc_y",
+      scenario_id: null,
+      step_index: null,
+      pending_widgets: [],
+      seq: 100,
+    });
+    // Older snapshot arrives — should be dropped.
+    store.setSession({
+      id: "sess_x",
+      citizen_id: "abc",
+      state: "exploring",
+      active_document_id: null,
+      scenario_id: null,
+      step_index: null,
+      pending_widgets: [],
+      seq: 50,
+    });
+    expect(useSessionStore.getState().session?.state).toBe("filling");
+    // Newer snapshot wins.
+    store.setSession({
+      id: "sess_x",
+      citizen_id: "abc",
+      state: "reviewing",
+      active_document_id: "doc_y",
+      scenario_id: null,
+      step_index: null,
+      pending_widgets: [],
+      seq: 200,
+    });
+    expect(useSessionStore.getState().session?.state).toBe("reviewing");
+  });
+
+  it("does not apply seq guard across different session ids", () => {
+    const store = useSessionStore.getState();
+    store.setSession({
+      id: "sess_a",
+      citizen_id: "abc",
+      state: "filling",
+      active_document_id: "doc_y",
+      scenario_id: null,
+      step_index: null,
+      pending_widgets: [],
+      seq: 999,
+    });
+    // Different session id → always applies.
+    store.setSession({
+      id: "sess_b",
+      citizen_id: "abc",
+      state: "exploring",
+      active_document_id: null,
+      scenario_id: null,
+      step_index: null,
+      pending_widgets: [],
+      seq: 1,
+    });
+    expect(useSessionStore.getState().session?.id).toBe("sess_b");
+  });
+});
+
+describe("sessionStore abortCurrentTurn", () => {
+  it("is a no-op when no turn is in flight", () => {
+    // Smoke test only — exercise the code path so we don't regress the
+    // null-guard in the future.
+    expect(() => useSessionStore.getState().abortCurrentTurn()).not.toThrow();
+  });
 });
 
 describe("sessionStore reset", () => {

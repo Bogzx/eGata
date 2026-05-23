@@ -204,11 +204,23 @@ async def step(
         )
     ]
 
+    # Persist the user turn into session.history NOW so a mid-stream crash
+    # (Gemini timeout, client disconnect, tool exception) doesn't lose it.
+    # The transport's finally-block update_session() will commit this even
+    # if the iterator never reaches a terminal branch.
+    session.history = [_content_to_dict(c) for c in contents]
+
     tool_calls_emitted: list[dict[str, Any]] = []
     ctx = ToolContext(citizen_id=session.citizen_id, citizen_attributes=citizen_attrs)
 
     # Initial snapshot so the client sees state at turn start.
     yield Event("session_snapshot", session.snapshot())
+
+    # Cumulative cleaned text across all tool-loop iterations. Each delta is
+    # emitted as `transcript_so_far + this_iter_text` so the user's bubble
+    # never loses iteration-1's preamble when iteration-2 starts after a
+    # tool call.
+    transcript_so_far = ""
 
     for _ in range(_MAX_TOOL_LOOP_ITERATIONS):
         accumulated_text = ""
@@ -243,15 +255,50 @@ async def step(
                 if text:
                     accumulated_text += text
                     accumulated_parts.append(p)
-                    yield Event("delta", {"text": accumulated_text})
+                    yield Event(
+                        "delta", {"text": transcript_so_far + accumulated_text}
+                    )
                 if fc:
                     accumulated_function_calls.append(fc)
                     accumulated_parts.append(p)
 
+        # Clean this iteration's text for history hygiene + transcript.
+        iter_cleaned = strip_thinking(accumulated_text)
+        if (
+            iter_cleaned != accumulated_text
+            and accumulated_text
+            and accumulated_parts
+        ):
+            # Replace text parts with the cleaned single-part version so
+            # chain-of-thought never re-enters the Gemini history.
+            cleaned_parts: list[genai_types.Part] = []
+            text_replaced = False
+            for p in accumulated_parts:
+                if getattr(p, "text", None):
+                    if not text_replaced and iter_cleaned:
+                        cleaned_parts.append(
+                            genai_types.Part.from_text(text=iter_cleaned)
+                        )
+                        text_replaced = True
+                else:
+                    cleaned_parts.append(p)
+            accumulated_parts = cleaned_parts
+
         if accumulated_parts:
-            contents.append(genai_types.Content(role="model", parts=accumulated_parts))
+            contents.append(
+                genai_types.Content(role="model", parts=accumulated_parts)
+            )
 
         if accumulated_function_calls:
+            # Carry the iter's user-visible text into the running transcript
+            # before the tool runs (so the next iter's deltas stack on top).
+            if iter_cleaned:
+                transcript_so_far += iter_cleaned
+                # Re-emit cumulative delta now that this iter's text is sealed
+                # into the running transcript (handles case where streaming
+                # leaked partial thinking that got scrubbed).
+                yield Event("delta", {"text": transcript_so_far})
+
             tool_response_parts: list[genai_types.Part] = []
             for fc in accumulated_function_calls:
                 args = dict(fc.args) if fc.args else {}
@@ -285,29 +332,28 @@ async def step(
             continue
 
         # Text-only turn: model is done.
-        cleaned = strip_thinking(accumulated_text) or "Cum te pot ajuta?"
-        if cleaned != accumulated_text and accumulated_text and contents:
-            contents[-1] = genai_types.Content(
-                role="model", parts=[genai_types.Part.from_text(text=cleaned)]
-            )
-            yield Event("delta", {"text": cleaned})
+        transcript_so_far += iter_cleaned
+        final_text = transcript_so_far or "Cum te pot ajuta?"
+        if final_text != (transcript_so_far + accumulated_text):
+            # Cleaning changed something; correct the bubble's final text.
+            yield Event("delta", {"text": final_text})
 
         # Persist history into the session (caller commits to DB)
         session.history = [_content_to_dict(c) for c in contents]
         yield Event("session_snapshot", session.snapshot())
         yield Event(
             "done",
-            {"message": cleaned, "tool_calls": tool_calls_emitted},
+            {"message": final_text, "tool_calls": tool_calls_emitted},
         )
         return
 
-    # Loop exhausted
+    # Loop exhausted — preserve whatever the model emitted last instead of
+    # silently swallowing it with a canned fallback (P1-#23).
     session.history = [_content_to_dict(c) for c in contents]
     yield Event("session_snapshot", session.snapshot())
+    fallback = "Am procesat câteva acțiuni. Vrei să continuăm?"
+    final_text = transcript_so_far or fallback
     yield Event(
         "done",
-        {
-            "message": "Am procesat câteva acțiuni. Vrei să continuăm?",
-            "tool_calls": tool_calls_emitted,
-        },
+        {"message": final_text, "tool_calls": tool_calls_emitted},
     )

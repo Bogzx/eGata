@@ -31,9 +31,12 @@ from app.config import get_settings
 from app.prompts import build_system_prompt
 from app.security import decode_token
 from app.sessions import (
+    IllegalTransitionError,
     Session as DbSession,
     SessionState,
     fetch_or_create_session,
+    session_lock,
+    transition,
     update_session,
 )
 
@@ -137,6 +140,29 @@ class VoiceBridgeSession:
             or f"conv_{secrets.token_urlsafe(8)}"
         )
 
+        # Hold the per-session lock for the lifetime of the voice call.
+        # Prevents a concurrent text turn on the same conversation from
+        # overwriting session.history while audio is in flight.
+        async with session_lock(self.conv_id):
+            await self._run_locked()
+
+    async def _run_locked(self) -> None:
+        """Body of run() that mutates session state — holds the lock."""
+        assert self.start_payload is not None  # set by caller
+        try:
+            await self._run_inner()
+        finally:
+            # Persist inside the lock so a subsequent turn (text or voice
+            # reconnect) waits for our final history write before it loads.
+            if self.db_session is not None:
+                try:
+                    update_session(self.db_session)
+                except Exception:
+                    log.exception("update_session failed in _run_locked")
+
+    async def _run_inner(self) -> None:
+        assert self.start_payload is not None
+
         # Resolve or create the Session and pull citizen attributes.
         self.db_session = fetch_or_create_session(
             self.citizen_id, session_id=self.conv_id
@@ -146,8 +172,15 @@ class VoiceBridgeSession:
             and not self.db_session.active_document_id
         ):
             self.db_session.active_document_id = self.start_payload.document_id
-            if self.db_session.state == SessionState.EXPLORING:
-                self.db_session.state = SessionState.FILLING
+            if self.db_session.state != SessionState.FILLING:
+                try:
+                    transition(self.db_session, SessionState.FILLING)
+                except IllegalTransitionError:
+                    log.warning(
+                        "voice: illegal %s -> FILLING on doc-injection, "
+                        "leaving state alone",
+                        self.db_session.state.value,
+                    )
 
         try:
             citizen = fetch_citizen_by_id(UUID(self.citizen_id))
@@ -175,6 +208,19 @@ class VoiceBridgeSession:
             citizen_attrs,
             simple_language=self.start_payload.simple_language,
             voice_only=self.start_payload.voice_only,
+        )
+        # Voice-only addendum: Gemini Live can't refresh system_instruction
+        # mid-call, so we shipped state into every tool_response. Tell the
+        # model where to find it.
+        full_prompt += (
+            "\n\n---\n"
+            "Notă tehnică (voce): după fiecare apel de unealtă, răspunsul "
+            "conține o cheie `_state` cu starea curentă a sesiunii: "
+            "`state`, `permitted_tools`, `active_document_id`, și (dacă "
+            "este deschis un document) `doc.fields` și `doc.missing_required`. "
+            "Folosește această cheie pentru a ști ce câmpuri mai lipsesc și "
+            "ce unelte poți chema acum — NU te baza pe instrucțiunea de "
+            "sistem inițială, care nu se actualizează în timp ce vorbim."
         )
 
         config = genai_types.LiveConnectConfig(
@@ -407,6 +453,49 @@ class VoiceBridgeSession:
         except Exception:
             log.exception("persist_turn failed for role=%s", role)
 
+    def _state_recap(self) -> dict[str, Any]:
+        """Snapshot of session state to embed in every tool_response.
+
+        Gemini Live freezes system_instruction at connect time, so the
+        model's "Stare sesiune / Tool-uri permise / Câmpuri obligatorii"
+        preamble grows stale the moment a tool fires. We sneak the fresh
+        state into every function_response under a `_state` key so the
+        model has a current view without rebuilding the system prompt.
+        """
+        if self.db_session is None:
+            return {}
+        recap: dict[str, Any] = {
+            "state": self.db_session.state.value,
+            "permitted_tools": permitted_tools(self.db_session.state),
+            "active_document_id": self.db_session.active_document_id,
+        }
+        doc_id = self.db_session.active_document_id
+        if not doc_id:
+            return recap
+        try:
+            from app.documents import fetch_document
+            from app.procedures import get_registry
+            from app.procedure_state import evaluate_field_states
+
+            doc = fetch_document(UUID(doc_id))
+            fields = doc.get("fields") or {}
+            reg = get_registry()
+            proc = reg.get(doc["procedure_id"])
+            recap["doc"] = {
+                "procedure_id": doc["procedure_id"],
+                "status": doc.get("status"),
+                "fields": fields,
+            }
+            if proc:
+                citizen_attrs = (
+                    self.tool_ctx.citizen_attributes if self.tool_ctx else {}
+                )
+                states = evaluate_field_states(proc, fields, citizen_attrs)
+                recap["doc"]["missing_required"] = states.missing
+        except Exception:
+            log.exception("state_recap doc lookup failed")
+        return recap
+
     async def _dispatch_tool(
         self, name: str, args: dict[str, Any], call_id: str | None
     ) -> genai_types.FunctionResponse:
@@ -435,6 +524,9 @@ class VoiceBridgeSession:
                         "event": result.frontend_event,
                     }
                 )
+
+        # Embed fresh state recap in every response — see _state_recap.
+        output["_state"] = self._state_recap()
 
         await self.send_json(
             {"type": "tool_result", "name": name, "output": output}
@@ -465,13 +557,8 @@ async def voice_ws(ws: WebSocket) -> None:
         log.exception("voice bridge crashed")
         await session.send_json({"type": "error", "detail": "Bridge error"})
     finally:
-        # Persist session state (history + state + active_doc) on shutdown
-        # so a reconnect picks up where we left off.
-        if session.db_session is not None:
-            try:
-                update_session(session.db_session)
-            except Exception:
-                log.exception("update_session failed on shutdown")
+        # Persistence happens inside _run_locked (under session_lock); the
+        # finally here only closes the socket.
         try:
             await ws.close()
         except Exception:

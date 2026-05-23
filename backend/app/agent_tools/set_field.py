@@ -19,6 +19,7 @@ from app.procedures import get_registry
 from app.procedure_state import (
     FieldValidationError,
     all_required_satisfied,
+    coerce_field_value,
     validate_field_value,
 )
 from app.sessions import Session, SessionState
@@ -40,12 +41,16 @@ async def execute(
     if proc is None:
         return ToolResult(error=f"Procedura {doc['procedure_id']!r} nu există.")
 
+    # Gemini's function_declaration caps value at STRING; coerce booleans
+    # ("true"/"da"/"adevărat") into Python bool so applies_if can compare
+    # against literal `true`/`false` in the procedure schema.
+    coerced = coerce_field_value(proc, name, value)
     try:
-        validate_field_value(proc, name, value)
+        validate_field_value(proc, name, coerced)
     except FieldValidationError as e:
         return ToolResult(error=str(e))
 
-    updated = update_document_fields(UUID(doc_id), {name: value})
+    updated = update_document_fields(UUID(doc_id), {name: coerced})
     updated_fields = updated.get("fields") or {}
 
     transition_to: SessionState | None = None
@@ -63,7 +68,7 @@ async def execute(
         output={
             "document_id": doc_id,
             "name": name,
-            "value": value,
+            "value": coerced,
             "fields": updated_fields,
         },
         transition_to=transition_to,
@@ -71,7 +76,7 @@ async def execute(
             "type": "field_updated",
             "document_id": doc_id,
             "name": name,
-            "value": value,
+            "value": coerced,
         },
     )
 

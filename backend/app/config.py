@@ -38,7 +38,13 @@ class Settings(BaseSettings):
     jwt_audience: str = Field(default="civicai-tools")
     jwt_issuer: str = Field(default="civicai-voice")
 
-    allow_origins: str = Field(default="*")
+    # Default to local dev origins only. Wildcard + allow_credentials=True
+    # is broken-by-browser anyway (Chrome refuses the combo) and would let
+    # any origin in the wild send credentialed requests. Prod MUST set
+    # ALLOW_ORIGINS to an explicit comma-separated allow list.
+    allow_origins: str = Field(
+        default="http://localhost:3000,http://127.0.0.1:3000"
+    )
     public_base_url: str = Field(default="http://localhost:8000")
     twilio_bridge_public_url: str = Field(default="")
 

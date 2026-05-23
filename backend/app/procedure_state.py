@@ -145,3 +145,36 @@ def validate_field_value(procedure: Procedure, name: str, value: Any) -> None:
                 f"Valoare invalidă pentru '{name}': "
                 f"{value!r} nu este în {fld.options}."
             )
+
+
+_TRUE_TOKENS = {"true", "adevărat", "adevarat", "da", "yes"}
+_FALSE_TOKENS = {"false", "fals", "nu", "no"}
+
+
+def coerce_field_value(procedure: Procedure, name: str, value: Any) -> Any:
+    """Coerce a raw value (typically a STRING from Gemini's function-call
+    schema) into the likely Python type expected by the field.
+
+    Why: the Gemini function_declarations cap us at JSON-schema STRING for
+    `value`, so booleans arrive as "true"/"da" and never compare equal to
+    Python `True` in applies_if expressions like `owns_vehicle == true`.
+
+    Rules:
+      - non-strings pass through (already typed)
+      - if the field has `options`, leave as-is — the validator enforces
+      - "true"/"da"/"adevărat" → True; "false"/"nu"/"fals" → False
+      - everything else stays a string (numeric coercion is intentionally
+        out of scope — we don't know if "1234567" is an int field or a
+        CNP/IBAN that must stay a string)
+    """
+    if not isinstance(value, str):
+        return value
+    fld = find_field(procedure, name)
+    if fld is None or fld.options is not None:
+        return value
+    v = value.strip().lower()
+    if v in _TRUE_TOKENS:
+        return True
+    if v in _FALSE_TOKENS:
+        return False
+    return value
