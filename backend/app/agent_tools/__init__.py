@@ -33,12 +33,22 @@ state, validates args (via Pydantic), executes, and returns the result
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
 from app.sessions import Session, SessionState
 
 log = logging.getLogger("agent_tools")
+
+
+def _summarize(value: Any, max_len: int = 120) -> str:
+    """Compact preview of an arg/output dict for log lines.
+
+    Full repr blows up the log when fields contain RAG payloads. Truncate.
+    """
+    s = repr(value)
+    return s if len(s) <= max_len else s[:max_len] + f"...<{len(s) - max_len}b>"
 
 
 # ---- types ----
@@ -136,28 +146,56 @@ async def dispatch(
     Does NOT persist the session — caller does `update_session(session)`
     after possibly multiple tool dispatches per turn.
     """
+    log.info(
+        "dispatch: in conv=%s tool=%s state=%s args=%s",
+        session.id,
+        name,
+        session.state.value,
+        _summarize(args),
+    )
+    started = time.perf_counter()
     tool = get_tool(name)
     if session.state not in tool.valid_states:
         msg = (
             f"Tool {name!r} not permitted in state {session.state.value!r}; "
             f"permitted: {[s.value for s in tool.valid_states]}"
         )
-        log.warning(msg)
+        log.warning(
+            "dispatch: state-gated conv=%s tool=%s state=%s permitted=%s",
+            session.id,
+            name,
+            session.state.value,
+            [s.value for s in tool.valid_states],
+        )
         return ToolResult(error=msg)
 
     try:
         result = await tool.execute(session, ctx, **args)
     except Exception as e:  # noqa: BLE001
-        log.exception("tool %s raised", name)
+        log.exception(
+            "dispatch: tool raised conv=%s tool=%s args=%s",
+            session.id,
+            name,
+            _summarize(args),
+        )
         return ToolResult(error=str(e))
 
     if result.transition_to is not None:
         from app.sessions import transition  # local import to avoid cycle
         try:
+            prev_state = session.state.value
             transition(session, result.transition_to)
+            log.info(
+                "dispatch: transition conv=%s tool=%s %s -> %s",
+                session.id,
+                name,
+                prev_state,
+                session.state.value,
+            )
         except Exception as e:  # noqa: BLE001
             log.warning(
-                "tool %s requested illegal transition %s -> %s: %s",
+                "dispatch: illegal transition conv=%s tool=%s %s -> %s err=%s",
+                session.id,
                 name,
                 session.state.value,
                 result.transition_to.value,
@@ -169,6 +207,15 @@ async def dispatch(
                 f"illegal_transition:{result.transition_to.value}"
             )
 
+    log.info(
+        "dispatch: out conv=%s tool=%s duration_ms=%.0f error=%s output=%s fe_event=%s",
+        session.id,
+        name,
+        (time.perf_counter() - started) * 1000,
+        result.error,
+        _summarize(result.output),
+        (result.frontend_event or {}).get("type"),
+    )
     return result
 
 

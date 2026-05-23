@@ -21,9 +21,15 @@
   "fields": [
     { "name": "nume_titular", "label": "Nume titular", "source": "ask", "required": true },
     { "name": "cnp_titular", "label": "CNP titular", "source": "ask", "required": true, "redact_in_voice": true },
+    { "name": "strada", "label": "Strada (domiciliu Cluj-Napoca)", "source": "ask", "required": true },
+    { "name": "numar", "label": "Numărul", "source": "ask", "required": true },
+    { "name": "apartament", "label": "Apartamentul", "source": "ask", "required": false },
+    { "name": "telefon", "label": "Telefon contact", "source": "profile", "required": true },
+    { "name": "email", "label": "Email", "source": "profile", "required": false },
     { "name": "grad_handicap", "label": "Grad handicap", "source": "ask", "options": ["grav cu asistent", "grav", "accentuat", "mediu"], "required": true },
     { "name": "modalitate_plata", "label": "Modalitate plată", "source": "ask", "options": ["virament bancar", "mandat poștal", "casierie"], "required": true },
-    { "name": "iban", "label": "IBAN (dacă virament)", "source": "ask", "required": false }
+    { "name": "iban", "label": "IBAN (dacă virament)", "source": "ask", "required": false },
+    { "name": "data_cerere", "label": "Data cererii", "source": "ask", "required": true, "suggest_default": "today" }
   ],
   "template": "indemnizatie-dizabilitati.tex",
   "next_steps": [
