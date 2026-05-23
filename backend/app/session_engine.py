@@ -130,6 +130,80 @@ def _tools_for_state(state: SessionState) -> list[dict[str, Any]]:
     return tools_for_chat_completions(declarations)
 
 
+def _sanitize_history_for_gemini(
+    history: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Trim trailing orphan turns so Gemini gets a valid alternating history.
+
+    Why: `step()` persists the user turn into `session.history` BEFORE the
+    model has responded (so a mid-stream crash doesn't lose what the user
+    typed — see `test_history_persists_user_turn_before_model_responds`).
+    If the model call then fails, the persisted history ends with role=user.
+    On the NEXT turn we'd append another role=user — Gemini rejects
+    consecutive same-role turns and the chat appears stuck from turn 2 on.
+
+    The fix: when constructing Gemini `contents`, peel off trailing orphans:
+
+      - role=user with function_response parts → dropped silently
+        (agent-internal tool result the model never consumed; not user data)
+      - role=model with function_call parts → dropped silently
+        (agent-internal — dispatch was supposed to add a function_response
+        next but the turn died first)
+      - role=user with text parts → dropped from history BUT the text is
+        returned to the caller so it can be prepended to the new user
+        message (no data loss; the user's prior attempt rides along)
+      - role=model with only text → clean end-of-history, leave it
+
+    `session.history` itself is NOT mutated here — callers do that via the
+    normal `session.history = [_content_to_dict(c) for c in contents]`
+    write at end-of-step. That naturally drops the orphan on the next
+    successful commit.
+
+    Returns: (sanitized_history, leftover_user_text).
+    """
+    sanitized = list(history)
+    orphan_text_chronological_reversed: list[str] = []
+
+    while sanitized:
+        last = sanitized[-1]
+        role = last.get("role")
+        parts = last.get("parts") or []
+
+        if role == "user":
+            has_function_response = any(
+                isinstance(p, dict) and p.get("function_response") for p in parts
+            )
+            if has_function_response:
+                sanitized.pop()
+                continue
+            for p in parts:
+                if isinstance(p, dict):
+                    text = p.get("text")
+                    if isinstance(text, str) and text.strip():
+                        orphan_text_chronological_reversed.append(text)
+            sanitized.pop()
+            continue
+
+        if role == "model":
+            has_function_call = any(
+                isinstance(p, dict) and p.get("function_call") for p in parts
+            )
+            if has_function_call:
+                sanitized.pop()
+                continue
+            break
+
+        # Unknown role: bail conservatively.
+        break
+
+    leftover = (
+        "\n".join(reversed(orphan_text_chronological_reversed))
+        if orphan_text_chronological_reversed
+        else None
+    )
+    return sanitized, leftover
+
+
 # ---- the engine ----
 
 
@@ -220,7 +294,17 @@ async def step(
                 session.id,
                 iter_idx,
             )
-            yield Event("error", {"detail": f"Agent error: {e}"})
+            # Structured error so the transport can pass `code` + `type`
+            # to the frontend; see agent.py:_stream_turn for the wire
+            # format.
+            yield Event(
+                "error",
+                {
+                    "code": "gemini_stream_failed",
+                    "type": type(e).__name__,
+                    "detail": f"Agent error: {e}",
+                },
+            )
             return
 
         accumulated_text = ""
