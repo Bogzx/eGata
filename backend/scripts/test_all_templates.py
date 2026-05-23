@@ -85,6 +85,11 @@ SAMPLE: dict[str, str] = {
     "termen_finalizare": "10.01.2027",
     "ref_doc": "Doc-2026-001",
     "suma": "5000",
+    "data_cerere": "23.05.2026",
+    "adresa_corespondenta": "Str. Avram Iancu nr. 5, Cluj-Napoca",
+    "cod_postal": "400089",
+    "sector": "",
+    "fax": "",
 }
 
 OUT_DIR.mkdir(exist_ok=True)

@@ -36,7 +36,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${onest.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="min-h-screen bg-background text-foreground antialiased">
+      <body className="bg-background text-foreground antialiased">
         <MockProvider>
           <AccessGate>{children}</AccessGate>
           <DemoResetButton />

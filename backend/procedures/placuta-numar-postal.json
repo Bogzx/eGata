@@ -24,7 +24,8 @@
     { "name": "telefon",          "label": "Telefon",                       "source": "profile",         "required": true },
     { "name": "strada_placuta",   "label": "Strada pentru plăcuță",         "source": "ask",             "required": true, "observatie": "Implicit aceeași cu domiciliul" },
     { "name": "nr_placuta",       "label": "Număr pentru plăcuță",          "source": "ask",             "required": true },
-    { "name": "email",            "label": "Email pentru comunicare",       "source": "profile",         "required": false }
+    { "name": "email",            "label": "Email pentru comunicare",       "source": "profile",         "required": false },
+    { "name": "data_cerere",      "label": "Data cererii",                  "source": "ask",             "required": true, "suggest_default": "today" }
   ],
   "template": "placuta-numar-postal.tex",
   "next_steps": []

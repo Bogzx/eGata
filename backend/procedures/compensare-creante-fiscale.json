@@ -19,6 +19,18 @@
   "fields": [
     { "name": "denumire_pj", "label": "Denumire persoană juridică", "source": "ask", "required": true },
     { "name": "cui", "label": "CUI/CIF", "source": "ask", "required": true },
+    { "name": "nume_complet", "label": "Nume reprezentant", "source": "profile", "required": true },
+    { "name": "cnp", "label": "CNP reprezentant", "source": "profile", "required": true, "redact_in_voice": true },
+    { "name": "ci_seria", "label": "Seria CI", "source": "id_scan|profile", "required": true },
+    { "name": "ci_numar", "label": "Număr CI", "source": "id_scan|profile", "required": true },
+    { "name": "judet", "label": "Județul de domiciliu", "source": "ask", "required": true },
+    { "name": "localitate", "label": "Localitatea de domiciliu", "source": "ask", "required": true },
+    { "name": "strada", "label": "Strada", "source": "ask", "required": true },
+    { "name": "numar", "label": "Numărul", "source": "ask", "required": true },
+    { "name": "bloc", "label": "Blocul", "source": "ask", "required": false },
+    { "name": "scara", "label": "Scara", "source": "ask", "required": false },
+    { "name": "etaj", "label": "Etajul", "source": "ask", "required": false },
+    { "name": "apartament", "label": "Apartamentul", "source": "ask", "required": false },
     { "name": "suma_compensare", "label": "Sumă de compensat (RON)", "source": "ask", "required": true },
     { "name": "tip_creanta", "label": "Tipul creanței", "source": "ask", "required": true }
   ],

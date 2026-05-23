@@ -19,8 +19,14 @@
   "fields": [
     { "name": "nume_titular", "label": "Nume titular", "source": "ask", "required": true },
     { "name": "cnp_titular", "label": "CNP titular", "source": "ask", "required": true, "redact_in_voice": true },
+    { "name": "strada", "label": "Strada (domiciliu Cluj-Napoca)", "source": "ask", "required": true },
+    { "name": "numar", "label": "Numărul", "source": "ask", "required": true },
+    { "name": "apartament", "label": "Apartamentul", "source": "ask", "required": false },
+    { "name": "telefon", "label": "Telefon contact", "source": "profile", "required": true },
+    { "name": "email", "label": "Email", "source": "profile", "required": false },
     { "name": "grad_handicap", "label": "Grad handicap", "source": "ask", "options": ["grav", "accentuat", "mediu"], "required": true },
-    { "name": "tip_abonament", "label": "Tip abonament", "source": "ask", "options": ["nominal cu fotografie", "nenominal pentru însoțitor"], "required": true }
+    { "name": "tip_abonament", "label": "Tip abonament", "source": "ask", "options": ["nominal cu fotografie", "nenominal pentru însoțitor"], "required": true },
+    { "name": "data_cerere", "label": "Data cererii", "source": "ask", "required": true, "suggest_default": "today" }
   ],
   "template": "transport-urban-dizabilitati.tex",
   "next_steps": [
