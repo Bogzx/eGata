@@ -1,0 +1,6 @@
+# metric_direction: lower_is_better
+# scope: backend/** frontend/** (excluding node_modules)
+# verify: bash autoresearch/verify.sh
+# guard: bash autoresearch/guard.sh
+iteration	timestamp	commit	metric	delta	guard	guard-metric	status	description
+0	2026-05-23T11:55:00	6907e5a	1	0.0	ok	-	baseline	1 backend pytest failure (test_procedure_emitent_ids_all_resolve); frontend vitest 23 passed, tsc clean, lint clean, build ok
