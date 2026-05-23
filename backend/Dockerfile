@@ -27,6 +27,9 @@ COPY app ./app
 COPY procedures ./procedures
 COPY templates ./templates
 COPY migrations ./migrations
+COPY scenarios ./scenarios
+COPY institutions ./institutions
+COPY scripts ./scripts
 
 EXPOSE 8000
 
