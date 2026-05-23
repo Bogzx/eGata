@@ -123,6 +123,21 @@ const TOOL_SCHEMAS: Record<string, FunctionDecl> = {
       required: ["kind", "title"],
     },
   },
+  propose_widget: {
+    name: "propose_widget",
+    description:
+      "Ask a structured UI question that the browser renders as an inline chat widget. Use for fixed-set choices, yes/no confirms, or date pickers.",
+    parameters: {
+      type: "object",
+      properties: {
+        type: { type: "string", enum: ["choice", "confirm", "date"] },
+        question: { type: "string" },
+        options: { type: "array", items: { type: "string" } },
+        target_field: { type: "string" },
+      },
+      required: ["type", "question"],
+    },
+  },
 };
 
 export function useVoiceAgent(): VoiceAgentHook {
