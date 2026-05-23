@@ -1,4 +1,4 @@
-"""/healthz endpoint (Plan 4) — reports Supabase, Gemini, Twilio status.
+"""/healthz endpoint (Plan 4) — reports Supabase, Azure, Twilio status.
 
 Always returns 200 so Railway healthchecks succeed; the body's `ok` flag is
 True only when every dependency is reachable / configured.
@@ -34,7 +34,8 @@ def healthz() -> dict[str, object]:
     settings = get_settings()
     checks = {
         "supabase": _check_supabase(),
-        "gemini_key": bool(settings.gemini_api_key),
+        "azure_openai_key": bool(settings.azure_openai_api_key),
+        "azure_voicelive_key": bool(settings.azure_voicelive_api_key),
         "twilio_token": bool(settings.twilio_auth_token),
     }
     return {"ok": all(checks.values()), "checks": checks}

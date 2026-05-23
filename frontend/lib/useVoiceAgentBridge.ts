@@ -48,12 +48,12 @@ export type VoiceAgentStartOpts = {
 
 export type VoiceAgentHook = {
   state: VoiceAgentState;
-  /** WS is open and Gemini Live is connected. True for state in
+  /** WS is open and the realtime session is connected. True for state in
    * `listening` / `speaking`, false during `connecting` and after `stop`. */
   wsReady: boolean;
   /** Microphone is currently recording. Orthogonal to wsReady — you can
    * have wsReady=true with micOn=false (text-only mode using the same
-   * Live session). */
+   * realtime session). */
   micOn: boolean;
   /** Open the WS + audio player. Does NOT start the microphone — call
    * `enableMic()` if you want voice input. Used by text-only sessions

@@ -152,17 +152,22 @@ _FALSE_TOKENS = {"false", "fals", "nu", "no"}
 
 
 def coerce_field_value(procedure: Procedure, name: str, value: Any) -> Any:
-    """Coerce a raw value (typically a STRING from Gemini's function-call
+    """Coerce a raw value (typically a STRING from the model's function-call
     schema) into the likely Python type expected by the field.
 
-    Why: the Gemini function_declarations cap us at JSON-schema STRING for
+    Why: the model's function_declarations cap us at JSON-schema STRING for
     `value`, so booleans arrive as "true"/"da" and never compare equal to
     Python `True` in applies_if expressions like `owns_vehicle == true`.
+    The model also paraphrases enum options ("Pierdere / furt" instead of
+    canonical "pierdere"), so we normalize before the validator runs.
 
     Rules:
       - non-strings pass through (already typed)
-      - if the field has `options`, leave as-is — the validator enforces
       - "true"/"da"/"adevărat" → True; "false"/"nu"/"fals" → False
+      - if the field has `options`, try to map the raw value back to the
+        canonical option via case-insensitive + token-split match. Falls
+        through unchanged if nothing matches — the validator will reject
+        and the model can retry.
       - everything else stays a string (numeric coercion is intentionally
         out of scope — we don't know if "1234567" is an int field or a
         CNP/IBAN that must stay a string)
@@ -170,11 +175,31 @@ def coerce_field_value(procedure: Procedure, name: str, value: Any) -> Any:
     if not isinstance(value, str):
         return value
     fld = find_field(procedure, name)
-    if fld is None or fld.options is not None:
+    if fld is None:
         return value
-    v = value.strip().lower()
-    if v in _TRUE_TOKENS:
-        return True
-    if v in _FALSE_TOKENS:
-        return False
+    if fld.options is None:
+        v = value.strip().lower()
+        if v in _TRUE_TOKENS:
+            return True
+        if v in _FALSE_TOKENS:
+            return False
+        return value
+    # Field has enum options — try to recover from model paraphrasing.
+    raw = value.strip()
+    if raw in fld.options:
+        return raw
+    lowered = raw.lower()
+    by_lower = {opt.lower(): opt for opt in fld.options}
+    if lowered in by_lower:
+        return by_lower[lowered]
+    # Token split on common separators a model uses when bundling options
+    # ("Pierdere / furt", "expirat, pierdere", "schimbare-domiciliu").
+    import re
+
+    tokens = [t.strip() for t in re.split(r"[\\/,;]+", lowered) if t.strip()]
+    for tok in tokens:
+        if tok in by_lower:
+            return by_lower[tok]
+    # No match — return the original so the validator surfaces the exact
+    # mismatch to the model for a deliberate retry.
     return value

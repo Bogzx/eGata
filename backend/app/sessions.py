@@ -3,7 +3,7 @@
 A `Session` is the agent's view of the world for a single conversation.
 It owns the current state (exploring / confirming_match / filling /
 reviewing / delivered / redirected), the active document id, the
-conversation history (Gemini `Content` list serialized to JSON), and
+conversation history (OpenAI chat messages serialized to JSON), and
 any pending UI widgets. Tools mutate the Session via permitted
 transitions; the result is snapshotted to the client.
 

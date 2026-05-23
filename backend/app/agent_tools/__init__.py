@@ -91,7 +91,7 @@ class ToolResult:
 class Tool:
     name: str
     description: str
-    parameters: dict[str, Any]  # JSON-schema-ish, suitable for Gemini function_declarations
+    parameters: dict[str, Any]  # JSON-schema; normalized by azure_clients before being sent to the model
     valid_states: set[SessionState]
     execute: Callable[..., Awaitable[ToolResult]]  # (session, ctx, **args) -> ToolResult
 

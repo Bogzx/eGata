@@ -25,16 +25,19 @@ fire on the same conversation).
 """
 from __future__ import annotations
 
+import json
 import logging
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
 
-from google import genai
-from google.genai import types as genai_types
-
 from app.agent_tools import REGISTRY as TOOLS_REGISTRY, ToolContext, dispatch, permitted_tools
+from app.azure_clients import (
+    get_openai_client,
+    history_to_openai_messages,
+    tools_for_chat_completions,
+)
 from app.citizens import fetch_citizen_by_id
 from app.config import get_settings
 from app.documents import fetch_document
@@ -46,15 +49,6 @@ from app.text_hygiene import strip_thinking
 log = logging.getLogger("session_engine")
 
 _MAX_TOOL_LOOP_ITERATIONS = 5
-
-_genai_client: genai.Client | None = None
-
-
-def _client() -> genai.Client:
-    global _genai_client
-    if _genai_client is None:
-        _genai_client = genai.Client(api_key=get_settings().gemini_api_key)
-    return _genai_client
 
 
 @dataclass
@@ -129,65 +123,11 @@ def build_system_instruction(
     return base + "\n".join(citizen_lines + doc_lines + state_lines)
 
 
-def _function_declarations_for_state(state: SessionState) -> list[dict[str, Any]]:
-    """The Gemini function_declarations list, filtered by state-permitted tools."""
+def _tools_for_state(state: SessionState) -> list[dict[str, Any]]:
+    """OpenAI-format tool definitions filtered to state-permitted tools."""
     names = permitted_tools(state)
-    return [TOOLS_REGISTRY[n].function_declaration() for n in names]
-
-
-def _build_gemini_config(
-    session: Session,
-    citizen_attrs: dict[str, Any],
-    *,
-    simple_language: bool,
-    voice_only: bool,
-) -> genai_types.GenerateContentConfig:
-    return genai_types.GenerateContentConfig(
-        system_instruction=build_system_instruction(
-            session,
-            citizen_attrs,
-            simple_language=simple_language,
-            voice_only=voice_only,
-        ),
-        tools=[
-            genai_types.Tool(
-                function_declarations=_function_declarations_for_state(session.state)
-            )
-        ],
-        temperature=0.7,
-        # Gemini 2.5 Flash defaults to "auto" thinking, which on some turns
-        # produces only thought=True parts that the SDK filters out, leaving
-        # us with an empty response (finish_reason=STOP, parts=[]). Disable
-        # it: we want direct tool calls + text, not chain-of-thought.
-        thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
-    )
-
-
-def _history_to_contents(
-    history: list[dict[str, Any]],
-) -> list[genai_types.Content]:
-    """Rehydrate persisted session.history into Gemini Content objects.
-
-    Validation errors are logged WITH the underlying exception (the previous
-    version dropped the error silently, which made history-corruption bugs
-    invisible — a dropped model turn between two user turns silently broke
-    role alternation and Gemini rejected the whole conversation).
-    """
-    out: list[genai_types.Content] = []
-    for entry in history:
-        try:
-            out.append(genai_types.Content.model_validate(entry))
-        except Exception as exc:  # noqa: BLE001
-            log.warning(
-                "history rehydrate failed; entry dropped: %s — entry=%r",
-                exc,
-                entry,
-            )
-    return out
-
-
-def _content_to_dict(c: genai_types.Content) -> dict[str, Any]:
-    return c.model_dump(mode="json", exclude_none=True)
+    declarations = [TOOLS_REGISTRY[n].function_declaration() for n in names]
+    return tools_for_chat_completions(declarations)
 
 
 def _sanitize_history_for_gemini(
@@ -277,7 +217,7 @@ async def step(
 ) -> AsyncIterator[Event]:
     """Drive one user→agent turn end-to-end. Mutates `session` in place."""
     settings = get_settings()
-    client = _client()
+    client = get_openai_client()
 
     if citizen_attrs is None:
         try:
@@ -288,96 +228,71 @@ async def step(
         except Exception:
             citizen_attrs = {}
 
-    # Strip trailing orphan turns from a previously-failed step before
-    # sending to Gemini. Without this, a turn that died after persisting the
-    # user message (see early-save below) leaves history ending in role=user;
-    # the next call would create user→user, which Gemini rejects — the
-    # chat would appear broken from message 2 onward. The leftover_text is
-    # the orphan user's typed message, merged into the current turn so the
-    # user's prior attempt isn't silently lost.
-    sanitized_history, leftover_text = _sanitize_history_for_gemini(session.history)
-    if len(sanitized_history) != len(session.history):
-        log.warning(
-            "session_engine: trimmed %d orphan turn(s) from prior failed step "
-            "(leftover_user_text=%s)",
-            len(session.history) - len(sanitized_history),
-            "yes" if leftover_text else "no",
-        )
-
-    effective_message = (
-        f"{leftover_text}\n\n{user_message}" if leftover_text else user_message
-    )
-
-    contents = _history_to_contents(sanitized_history) + [
-        genai_types.Content(
-            role="user", parts=[genai_types.Part.from_text(text=effective_message)]
-        )
+    prior_messages = history_to_openai_messages(session.history)
+    messages: list[dict[str, Any]] = list(prior_messages) + [
+        {"role": "user", "content": user_message}
     ]
 
-    # Persist the user turn into session.history NOW so a mid-stream crash
-    # (Gemini timeout, client disconnect, tool exception) doesn't lose it.
+    # Persist the user turn NOW so a mid-stream crash doesn't lose it.
     # The transport's finally-block update_session() will commit this even
-    # if the iterator never reaches a terminal branch. Note: we write the
-    # SANITIZED prefix here, not the raw session.history — that's how the
-    # orphan from a previous failed step gets cleaned up on disk.
-    session.history = [_content_to_dict(c) for c in contents]
+    # if the iterator never reaches a terminal branch.
+    session.history = list(messages)
 
     log.info(
-        "step: in conv=%s citizen=%s state=%s doc=%s msg_len=%d history_turns=%d model=%s",
+        "step: in conv=%s citizen=%s state=%s doc=%s msg_len=%d history_turns=%d deployment=%s",
         session.id,
         session.citizen_id,
         session.state.value,
         session.active_document_id,
         len(user_message or ""),
         len(session.history),
-        settings.gemini_model,
+        settings.azure_openai_chat_deployment,
     )
     turn_started = time.perf_counter()
 
     tool_calls_emitted: list[dict[str, Any]] = []
     ctx = ToolContext(citizen_id=session.citizen_id, citizen_attributes=citizen_attrs)
 
-    # Initial snapshot so the client sees state at turn start.
     yield Event("session_snapshot", session.snapshot())
 
-    # Cumulative cleaned text across all tool-loop iterations. Each delta is
-    # emitted as `transcript_so_far + this_iter_text` so the user's bubble
-    # never loses iteration-1's preamble when iteration-2 starts after a
-    # tool call.
     transcript_so_far = ""
 
-    for _ in range(_MAX_TOOL_LOOP_ITERATIONS):
-        accumulated_text = ""
-        accumulated_function_calls: list[Any] = []
-        accumulated_parts: list[genai_types.Part] = []
-
-        config = _build_gemini_config(
+    for iter_idx in range(_MAX_TOOL_LOOP_ITERATIONS):
+        system_instruction = build_system_instruction(
             session,
             citizen_attrs,
             simple_language=simple_language,
             voice_only=voice_only,
         )
+        tools = _tools_for_state(session.state)
+        # Prepend a fresh system message each iteration so the model sees
+        # current state. The previous iteration's system message stays in
+        # `messages` only when persisted; per-call we splice one in.
+        call_messages = [{"role": "system", "content": system_instruction}] + messages
 
         log.info(
-            "gemini: call conv=%s iter=%d history_len=%d contents_len=%d tools=%s",
+            "azure_openai: call conv=%s iter=%d msgs=%d tools=%s",
             session.id,
-            _,
-            len(session.history),
-            len(contents),
-            [t["name"] for t in _function_declarations_for_state(session.state)],
+            iter_idx,
+            len(call_messages),
+            [t["function"]["name"] for t in tools],
         )
         iter_started = time.perf_counter()
         try:
-            stream = await client.aio.models.generate_content_stream(
-                model=settings.gemini_model,
-                contents=contents,
-                config=config,
+            # Don't set temperature — gpt-5 reasoning models reject anything
+            # other than the default (1). Let the model decide.
+            stream = await client.chat.completions.create(
+                model=settings.azure_openai_chat_deployment,
+                messages=call_messages,
+                tools=tools or None,
+                tool_choice="auto" if tools else None,
+                stream=True,
             )
         except Exception as e:  # noqa: BLE001
             log.exception(
-                "gemini: generate_content_stream failed conv=%s iter=%d",
+                "azure_openai: chat.completions.create failed conv=%s iter=%d",
                 session.id,
-                _,
+                iter_idx,
             )
             # Structured error so the transport can pass `code` + `type`
             # to the frontend; see agent.py:_stream_turn for the wire
@@ -392,148 +307,129 @@ async def step(
             )
             return
 
+        accumulated_text = ""
+        tool_calls_acc: dict[int, dict[str, Any]] = {}
         chunk_count = 0
-        part_count = 0
-        last_finish_reason = None
-        last_safety = None
+        finish_reason: str | None = None
         async for chunk in stream:
             chunk_count += 1
-            candidate = chunk.candidates[0] if chunk.candidates else None
-            if candidate is None:
-                log.warning("gemini: chunk has no candidates conv=%s", session.id)
+            if not chunk.choices:
                 continue
-            last_finish_reason = getattr(candidate, "finish_reason", None)
-            last_safety = getattr(candidate, "safety_ratings", None)
-            content = candidate.content
-            if content is None:
-                log.warning(
-                    "gemini: candidate has no content conv=%s finish=%r",
-                    session.id,
-                    last_finish_reason,
-                )
+            choice = chunk.choices[0]
+            delta = choice.delta
+            if delta is None:
                 continue
-            parts = content.parts or []
-            if not parts:
-                log.warning(
-                    "gemini: content has no parts conv=%s role=%r finish=%r safety=%r",
-                    session.id,
-                    getattr(content, "role", None),
-                    last_finish_reason,
-                    last_safety,
-                )
-            for p in parts:
-                part_count += 1
-                text = getattr(p, "text", None)
-                fc = getattr(p, "function_call", None)
-                thought_flag = getattr(p, "thought", None)
-                # Per-part log is per-token-stream — quite chatty. Keep at
-                # DEBUG so prod stays readable, set LOG_LEVEL=DEBUG to inspect.
-                log.debug(
-                    "gemini: part conv=%s text=%r fc=%r thought=%r",
-                    session.id,
-                    (text[:80] + "...") if text and len(text) > 80 else text,
-                    fc.name if fc else None,
-                    thought_flag,
-                )
-                if text:
-                    accumulated_text += text
-                    accumulated_parts.append(p)
-                    yield Event(
-                        "delta", {"text": transcript_so_far + accumulated_text}
+            if getattr(delta, "content", None):
+                accumulated_text += delta.content
+                yield Event("delta", {"text": transcript_so_far + accumulated_text})
+            if getattr(delta, "tool_calls", None):
+                for tc_delta in delta.tool_calls:
+                    idx = tc_delta.index
+                    slot = tool_calls_acc.setdefault(
+                        idx,
+                        {"id": "", "name": "", "arguments": ""},
                     )
-                if fc:
-                    accumulated_function_calls.append(fc)
-                    accumulated_parts.append(p)
+                    if tc_delta.id:
+                        slot["id"] = tc_delta.id
+                    fn = getattr(tc_delta, "function", None)
+                    if fn is not None:
+                        if getattr(fn, "name", None):
+                            slot["name"] = fn.name
+                        if getattr(fn, "arguments", None):
+                            slot["arguments"] += fn.arguments
+            if choice.finish_reason:
+                finish_reason = choice.finish_reason
+
         log.info(
-            "gemini: iter done conv=%s iter=%d duration_ms=%.0f chunks=%d parts=%d text_len=%d fc=%d finish=%r",
+            "azure_openai: iter done conv=%s iter=%d duration_ms=%.0f chunks=%d text_len=%d tool_calls=%d finish=%r",
             session.id,
-            _,
+            iter_idx,
             (time.perf_counter() - iter_started) * 1000,
             chunk_count,
-            part_count,
             len(accumulated_text),
-            len(accumulated_function_calls),
-            last_finish_reason,
+            len(tool_calls_acc),
+            finish_reason,
         )
 
-        # Clean this iteration's text for history hygiene + transcript.
         iter_cleaned = strip_thinking(accumulated_text)
-        if (
-            iter_cleaned != accumulated_text
-            and accumulated_text
-            and accumulated_parts
-        ):
-            # Replace text parts with the cleaned single-part version so
-            # chain-of-thought never re-enters the Gemini history.
-            cleaned_parts: list[genai_types.Part] = []
-            text_replaced = False
-            for p in accumulated_parts:
-                if getattr(p, "text", None):
-                    if not text_replaced and iter_cleaned:
-                        cleaned_parts.append(
-                            genai_types.Part.from_text(text=iter_cleaned)
-                        )
-                        text_replaced = True
-                else:
-                    cleaned_parts.append(p)
-            accumulated_parts = cleaned_parts
 
-        if accumulated_parts:
-            contents.append(
-                genai_types.Content(role="model", parts=accumulated_parts)
-            )
+        assistant_msg: dict[str, Any] = {"role": "assistant"}
+        if iter_cleaned:
+            assistant_msg["content"] = iter_cleaned
+        if tool_calls_acc:
+            assistant_msg["tool_calls"] = [
+                {
+                    "id": slot["id"] or f"call_{i}",
+                    "type": "function",
+                    "function": {
+                        "name": slot["name"],
+                        "arguments": slot["arguments"] or "{}",
+                    },
+                }
+                for i, slot in sorted(tool_calls_acc.items())
+            ]
+        if "content" not in assistant_msg and "tool_calls" not in assistant_msg:
+            # Truly empty turn — give it an empty string so downstream
+            # serializers don't blow up.
+            assistant_msg["content"] = ""
+        messages.append(assistant_msg)
 
-        if accumulated_function_calls:
-            # Carry the iter's user-visible text into the running transcript
-            # before the tool runs (so the next iter's deltas stack on top).
+        if tool_calls_acc:
             if iter_cleaned:
                 transcript_so_far += iter_cleaned
-                # Re-emit cumulative delta now that this iter's text is sealed
-                # into the running transcript (handles case where streaming
-                # leaked partial thinking that got scrubbed).
                 yield Event("delta", {"text": transcript_so_far})
 
-            tool_response_parts: list[genai_types.Part] = []
-            for fc in accumulated_function_calls:
-                args = dict(fc.args) if fc.args else {}
-                tool_calls_emitted.append({"name": fc.name, "arguments": args})
-                yield Event("tool_call", {"name": fc.name, "arguments": args})
+            for i, slot in sorted(tool_calls_acc.items()):
+                name = slot["name"]
+                try:
+                    args = json.loads(slot["arguments"] or "{}")
+                except json.JSONDecodeError:
+                    args = {}
+                    log.warning(
+                        "step: tool args not valid json conv=%s name=%s raw=%r",
+                        session.id,
+                        name,
+                        slot["arguments"][:200],
+                    )
+                tool_calls_emitted.append({"name": name, "arguments": args})
+                yield Event("tool_call", {"name": name, "arguments": args})
 
-                result = await dispatch(session, fc.name, args, ctx)
+                result = await dispatch(session, name, args, ctx)
                 yield Event(
                     "tool_result",
                     {
-                        "name": fc.name,
+                        "name": name,
                         "output": result.output,
                         "error": result.error,
                     },
                 )
                 if result.frontend_event:
                     yield Event("frontend_event", result.frontend_event)
-                # Snapshot after every state mutation
                 yield Event("session_snapshot", session.snapshot())
 
-                tool_response_parts.append(
-                    genai_types.Part.from_function_response(
-                        name=fc.name,
-                        response={
-                            "output": result.output,
-                            "error": result.error,
-                        },
-                    )
+                tool_response_payload = {
+                    "output": result.output,
+                    "error": result.error,
+                }
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": slot["id"] or f"call_{i}",
+                        "name": name,
+                        "content": json.dumps(
+                            tool_response_payload, ensure_ascii=False
+                        ),
+                    }
                 )
-            contents.append(genai_types.Content(role="user", parts=tool_response_parts))
             continue
 
         # Text-only turn: model is done.
         transcript_so_far += iter_cleaned
         final_text = transcript_so_far or "Cum te pot ajuta?"
         if final_text != (transcript_so_far + accumulated_text):
-            # Cleaning changed something; correct the bubble's final text.
             yield Event("delta", {"text": final_text})
 
-        # Persist history into the session (caller commits to DB)
-        session.history = [_content_to_dict(c) for c in contents]
+        session.history = list(messages)
         yield Event("session_snapshot", session.snapshot())
         log.info(
             "step: out conv=%s duration_ms=%.0f final_text_len=%d tool_calls=%d state=%s",
@@ -549,14 +445,13 @@ async def step(
         )
         return
 
-    # Loop exhausted — preserve whatever the model emitted last instead of
-    # silently swallowing it with a canned fallback (P1-#23).
+    # Loop exhausted.
     log.warning(
         "step: tool-loop exhausted conv=%s after %d iters — model kept calling tools",
         session.id,
         _MAX_TOOL_LOOP_ITERATIONS,
     )
-    session.history = [_content_to_dict(c) for c in contents]
+    session.history = list(messages)
     yield Event("session_snapshot", session.snapshot())
     fallback = "Am procesat câteva acțiuni. Vrei să continuăm?"
     final_text = transcript_so_far or fallback

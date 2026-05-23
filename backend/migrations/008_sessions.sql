@@ -1,7 +1,7 @@
 -- 008_sessions.sql
 -- Adds the Session aggregate that drives the new state-machine architecture.
--- A Session owns: state, active document, conversation history (Gemini
--- Content list serialized to JSON), pending UI widgets, optional scenario
+-- A Session owns: state, active document, conversation history (OpenAI
+-- chat messages serialized to JSON), pending UI widgets, optional scenario
 -- pointer for multi-procedure flows.
 
 create table sessions (
@@ -21,7 +21,7 @@ create table sessions (
   scenario_id         text,
   step_index          int,
   pending_widgets     jsonb not null default '[]'::jsonb,
-  history             jsonb not null default '[]'::jsonb,          -- Gemini Content list
+  history             jsonb not null default '[]'::jsonb,          -- OpenAI chat messages
   created_at          timestamptz not null default now(),
   updated_at          timestamptz not null default now()
 );

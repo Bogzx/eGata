@@ -12,6 +12,11 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend/procedures:/app/procedures
+      - ./backend/templates:/app/templates
+      - ./backend/scenarios:/app/scenarios
+      - ./backend/institutions:/app/institutions
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 10s
