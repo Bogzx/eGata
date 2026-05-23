@@ -64,9 +64,10 @@ function deriveWidgetsFromVoice(toolCalls: AgentToolCall[]): WidgetSpec[] {
 
 type Props = {
   activeDocId: string | null;
+  activeScenarioId?: string | null;
 };
 
-export function ChatSurface({ activeDocId }: Props) {
+export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   useLargeTextClass();
   const router = useRouter();
   const isKiosk = useKioskMode();
@@ -76,6 +77,7 @@ export function ChatSurface({ activeDocId }: Props) {
   const citizen = useSessionStore((s) => s.citizen);
   const hydrateCitizen = useSessionStore((s) => s.hydrateCitizen);
   const loadDocument = useSessionStore((s) => s.loadDocument);
+  const openScenarioPlan = useSessionStore((s) => s.openScenarioPlan);
   const sendText = useSessionStore((s) => s.sendText);
   const appendMessage = useSessionStore((s) => s.appendMessage);
   const setVoiceStatus = useSessionStore((s) => s.setVoiceStatus);
@@ -98,14 +100,18 @@ export function ChatSurface({ activeDocId }: Props) {
     void hydrateCitizen().catch(() => {});
   }, [citizen, hydrateCitizen]);
 
-  // Hydrate the active doc if the URL has /r/<id>.
+  // Hydrate the active doc or scenario plan from the URL.
   useEffect(() => {
+    if (activeScenarioId) {
+      void openScenarioPlan(activeScenarioId).catch(() => {});
+      return;
+    }
     if (!activeDocId) {
       reset();
       return;
     }
     void loadDocument(activeDocId).catch(() => {});
-  }, [activeDocId, loadDocument, reset]);
+  }, [activeDocId, activeScenarioId, loadDocument, openScenarioPlan, reset]);
 
   // Browser back/forward sync.
   useEffect(() => {
@@ -115,11 +121,14 @@ export function ChatSurface({ activeDocId }: Props) {
       else if (path.startsWith("/r/")) {
         const id = path.slice(3);
         void loadDocument(id);
+      } else if (path.startsWith("/p/")) {
+        const id = path.slice(3);
+        void openScenarioPlan(id);
       }
     }
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, [reset, loadDocument]);
+  }, [reset, loadDocument, openScenarioPlan]);
 
   // Mirror voice agent state into the store so the composer mic can react.
   useEffect(() => {
