@@ -1,0 +1,10 @@
+{
+  "id": "onrc",
+  "nume_scurt": "ONRC",
+  "nume_complet": "Oficiul Național al Registrului Comerțului",
+  "scope": "Înregistrarea persoanelor juridice, certificate constatatoare, registrul comerțului.",
+  "url": "https://www.onrc.ro",
+  "phone": "021 316 0817",
+  "online_disponibil": true,
+  "note_ai_cannot_complete": "Certificatele ONRC se obțin online sau la ghișeu. CivicAI nu poate emite documente ONRC."
+}

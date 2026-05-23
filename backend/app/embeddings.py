@@ -52,6 +52,12 @@ def procedure_source_text(proc: Procedure) -> str:
     return "\n".join(p for p in parts if p)
 
 
+def scenario_source_text(sc) -> str:
+    """Authored summary + synonyms + sample queries — never chunked."""
+    parts = [sc.summary_for_rag, " ".join(sc.synonyms), " ".join(sc.sample_queries)]
+    return "\n".join(p for p in parts if p)
+
+
 def cosine_similarity(a: list[float], b: list[float]) -> float:
     if len(a) != len(b):
         raise ValueError(f"Length mismatch: {len(a)} vs {len(b)}")
@@ -63,27 +69,57 @@ def cosine_similarity(a: list[float], b: list[float]) -> float:
     return dot / (na * nb)
 
 
-def upsert_procedure_embedding(procedure_id: str, source_text: str, embedding: list[float]) -> None:
+def upsert_rag_entry(
+    *,
+    entry_id: str,
+    kind: str,
+    source_text: str,
+    embedding: list[float],
+) -> None:
     if len(embedding) != EMBEDDING_DIM:
         raise ValueError(f"Embedding must be {EMBEDDING_DIM}-dim, got {len(embedding)}")
+    if kind not in {"procedure", "scenario"}:
+        raise ValueError(f"Invalid kind {kind!r}; must be 'procedure' or 'scenario'")
     vec_literal = "[" + ",".join(f"{x:.7f}" for x in embedding) + "]"
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
-            "insert into procedures_embeddings (procedure_id, embedding, source_text) "
-            "values (%s, %s::vector, %s) "
-            "on conflict (procedure_id) do update set "
-            "embedding = excluded.embedding, source_text = excluded.source_text, updated_at = now();",
-            (procedure_id, vec_literal, source_text),
+            "insert into rag_entries (id, kind, embedding, source_text) "
+            "values (%s, %s, %s::vector, %s) "
+            "on conflict (id) do update set "
+            "kind = excluded.kind, embedding = excluded.embedding, "
+            "source_text = excluded.source_text, updated_at = now();",
+            (entry_id, kind, vec_literal, source_text),
         )
         conn.commit()
 
 
-def search_top_k(query_embedding: list[float], k: int = 3) -> list[dict[str, Any]]:
+def upsert_procedure_embedding(procedure_id: str, source_text: str, embedding: list[float]) -> None:
+    """Back-compat shim — existing callers use this name + signature."""
+    upsert_rag_entry(
+        entry_id=procedure_id, kind="procedure", source_text=source_text, embedding=embedding
+    )
+
+
+def search_top_k_rag(query_embedding: list[float], k: int = 5) -> list[dict[str, Any]]:
+    """Top-K across rag_entries regardless of kind. Each row: {id, kind, score}."""
     vec_literal = "[" + ",".join(f"{x:.7f}" for x in query_embedding) + "]"
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
-            "select procedure_id, 1 - (embedding <=> %s::vector) as score "
-            "from procedures_embeddings "
+            "select id, kind, 1 - (embedding <=> %s::vector) as score "
+            "from rag_entries "
+            "order by embedding <=> %s::vector asc limit %s;",
+            (vec_literal, vec_literal, k),
+        )
+        return [dict(r) for r in cur.fetchall()]
+
+
+def search_top_k(query_embedding: list[float], k: int = 3) -> list[dict[str, Any]]:
+    """Back-compat wrapper for code paths that only want procedure matches."""
+    vec_literal = "[" + ",".join(f"{x:.7f}" for x in query_embedding) + "]"
+    with get_pg_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            "select id as procedure_id, 1 - (embedding <=> %s::vector) as score "
+            "from rag_entries where kind = 'procedure' "
             "order by embedding <=> %s::vector asc limit %s;",
             (vec_literal, vec_literal, k),
         )

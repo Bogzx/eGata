@@ -1,0 +1,10 @@
+{
+  "id": "diriginte-santier",
+  "nume_scurt": "Diriginte de șantier",
+  "nume_complet": "Diriginte de șantier atestat",
+  "scope": "Supravegherea execuției lucrărilor de construcție, raport tehnic la finalul lucrării.",
+  "url": null,
+  "phone": null,
+  "online_disponibil": false,
+  "note_ai_cannot_complete": "Raportul dirigintelui de șantier se obține pe baza inspecției fizice a lucrării. CivicAI nu îl poate emite."
+}

@@ -1,0 +1,10 @@
+{
+  "id": "auditor-energetic",
+  "nume_scurt": "Auditor energetic",
+  "nume_complet": "Auditor energetic atestat MDRT",
+  "scope": "Certificat de performanță energetică a clădirilor.",
+  "url": "https://www.mdrt.gov.ro",
+  "phone": null,
+  "online_disponibil": false,
+  "note_ai_cannot_complete": "Certificatul energetic se eliberează de un auditor atestat după inspecție. CivicAI nu îl poate emite."
+}

@@ -1,0 +1,19 @@
+{
+  "id": "sc-certificat-fiscal",
+  "title": "Obținere certificat de atestare fiscală",
+  "description": "Plan pentru obținerea unui certificat de atestare fiscală — necesar pentru notar, instanță, sau alte instituții.",
+  "summary_for_rag": "Cetățeanul are nevoie de un certificat de atestare fiscală care confirmă lipsa restanțelor la impozite locale. Este o procedură în întregime la primărie (DITL). Documentul este apoi folosit la notar pentru tranzacții imobiliare, în procese, sau pentru alte instituții.",
+  "synonyms": ["certificat fiscal", "atestare fiscală", "lipsă datorii primărie", "adeverință fiscală"],
+  "sample_queries": [
+    "am nevoie de certificat fiscal",
+    "vreau atestare fiscală pentru notar",
+    "îmi trebuie adeverință că nu am datorii la primărie"
+  ],
+  "complexitate": "simplu",
+  "termen_total": "1-3 zile lucrătoare",
+  "applies_if": null,
+  "in_scope_steps": [
+    { "ordine": 1, "procedure_id": "certificat-fiscal", "deadline_days": null, "note": "Cerere standard la DITL." }
+  ],
+  "external_steps": []
+}

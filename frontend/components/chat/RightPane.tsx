@@ -6,6 +6,7 @@ import { DonePane } from "@/components/right-pane/DonePane";
 import { FillingPane } from "@/components/right-pane/FillingPane";
 import { GuidePane } from "@/components/right-pane/GuidePane";
 import { PdfPane } from "@/components/right-pane/PdfPane";
+import { PlanPane } from "@/components/right-pane/PlanPane";
 import { ReviewPane } from "@/components/right-pane/ReviewPane";
 import { WelcomePane } from "@/components/right-pane/WelcomePane";
 
@@ -26,5 +27,7 @@ export function RightPane() {
       return <DeliveryPane />;
     case "done":
       return <DonePane />;
+    case "plan":
+      return <PlanPane />;
   }
 }
