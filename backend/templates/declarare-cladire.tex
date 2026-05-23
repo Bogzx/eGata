@@ -1,11 +1,12 @@
-\documentclass[10pt,a4paper,landscape]{article}
+\documentclass[8pt,a4paper,landscape]{extarticle}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[romanian]{babel}
-\usepackage[margin=1cm]{geometry}
+\usepackage[margin=0.7cm]{geometry}
 \usepackage{array}
 \usepackage{tabularx}
 \usepackage{enumitem}
+\setlist{itemsep=1pt,topsep=1pt,parsep=0pt}
 \usepackage{graphicx}
 \usepackage{setspace}
 \usepackage{xcolor}
@@ -13,6 +14,7 @@
 \usepackage{amssymb}
 \usepackage{multirow}
 \setlength{\parindent}{0pt}
+\renewcommand{\arraystretch}{1.0}
 \newcommand{\fillline}[1][6cm]{\underline{\hspace{#1}}}
 \newcommand{\fillbox}[1][0.4cm]{\framebox[#1]{\rule{0pt}{#1}}}
 \newcommand{\checkboxempty}{$\square$}
@@ -20,8 +22,8 @@
 \begin{document}
 
 \begin{minipage}{0.5\textwidth}
-\includegraphics[height=1.3cm]{assets/stema-cluj-color.png}\hspace{0.3cm}%
-\raisebox{0.4cm}{\parbox[t]{6cm}{\footnotesize
+\includegraphics[height=2.2cm]{assets/stema-cluj-color.png}\hspace{0.3cm}%
+\raisebox{0.9cm}{\parbox[t]{6cm}{\footnotesize
 ROMÂNIA\\
 Judeţul Cluj\\
 Municipiul Cluj-Napoca\\
@@ -37,7 +39,7 @@ Model 2016\\
 \includegraphics[width=4cm]{assets/barcode-491007.png}
 \end{minipage}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 
 \begin{tabularx}{\textwidth}{|X|X|X|X|}
 \hline
@@ -46,7 +48,7 @@ Numărul de rol nominal unic & Registrul agricol Tipul: & Volumul: & Poziţia: \
 \hline
 \end{tabularx}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 
 \begin{center}
 \textbf{DECLARAŢIE FISCALĂ PENTRU STABILIREA IMPOZITULUI/TAXEI PE CLĂDIRILE REZIDENŢIALE/NEREZIDENŢIALE/CU DESTINAŢIE MIXTĂ AFLATE ÎN PROPRIETATEA PERSOANELOR FIZICE}
@@ -54,7 +56,7 @@ Numărul de rol nominal unic & Registrul agricol Tipul: & Volumul: & Poziţia: \
 
 \textbf{I. DATE DE IDENTIFICARE A CONTRIBUABILULUI} \footnotesize (în cazul a mai mult de trei coproprietari se completează o nouă declaraţie) \normalsize
 
-\vspace{0.2cm}
+\vspace{0.15cm}
 
 \textbf{1. Coproprietar 1}\\
 \begin{tabularx}{\textwidth}{|X|X|X|X|}
@@ -81,7 +83,7 @@ Bloc & Scara \quad Etaj \quad Apartament & Localitatea & Judeţul/Sectorul & Ţa
 \hline
 \end{tabularx}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 
 \textbf{2. Coproprietar 2}\\
 \begin{tabularx}{\textwidth}{|X|X|X|X|}
@@ -108,7 +110,7 @@ Bloc & Scara \quad Etaj \quad Apartament & Localitatea & Judeţul/Sectorul & Ţa
 \hline
 \end{tabularx}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 
 \textbf{3. Coproprietar 3}\\
 \begin{tabularx}{\textwidth}{|X|X|X|X|}
@@ -135,7 +137,7 @@ Bloc & Scara \quad Etaj \quad Apartament & Localitatea & Judeţul/Sectorul & Ţa
 \hline
 \end{tabularx}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 
 \textbf{II. DATE DE IDENTIFICARE A ÎMPUTERNICITULUI} \footnotesize (Împuternicirea nu este transmisibilă şi încetează la data revocării de către contribuabil sau la data decesului acestuia.) \normalsize
 
@@ -160,18 +162,18 @@ Număr & Cod poştal & Blocul & Scara \quad Etaj \quad Apartament & Localitate &
 \hline
 \end{tabularx}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 
 \textbf{III. Adresa de reziden\c{t}ă a contribuabilului în alt stat decât România}\\
 \fillline[18cm]
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 
 \textbf{IV. DATELE CLĂDIRII NECESARE STABILIRII IMPOZITULUI/TAXEI DATORAT/E PE CLĂDIRI REZIDENŢIALE}
 
 \textbf{Tip operaţiune:} \underline{ {{tip_operatiune}} } \hspace{1cm} \textbf{Adresă imobil:} \underline{ {{adresa_imobil}} } \hspace{1cm} \textbf{Nr. cadastral:} \underline{ {{nr_cadastral}} }
 
-\vspace{0.2cm}
+\vspace{0.15cm}
 
 \begin{tabularx}{\textwidth}{|X|X|X|X|X|}
 \hline
@@ -189,11 +191,11 @@ Strada & Nr & Bloc & Scara & Etaj & Ap & An construire & bloc cu mai mult de 3 e
 \hline
 \end{tabularx}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 
 \textbf{Tabel rezidenţial -- tipuri de clădiri / construcţii anexe / subsol-demisol-mansardă}
 
-\renewcommand{\arraystretch}{1.3}
+\renewcommand{\arraystretch}{1.05}
 \begin{tabularx}{\textwidth}{|m{2.6cm}|X|X|X|X|X|X|}
 \hline
 \textbf{Specificaţii} & \textbf{A.} Clădire cu cadre din beton armat sau cu pereţi exteriori din cărămidă arsă sau din orice alte materiale rezultate în urma unui tratament termic şi/sau chimic & \textbf{B.} Clădire cu pereţii exteriori din lemn, din piatră naturală, din cărămidă nearsă, din vălătuci sau din orice alte materiale nesupuse unui tratament termic şi/sau chimic & \textbf{C.} Clădire-anexă cu cadre din beton armat sau cu pereţi exteriori din cărămidă arsă sau din orice alte materiale rezultate în urma unui tratament termic şi/sau chimic & \textbf{D.} Clădire-anexă cu pereţii exteriori din lemn, din piatră naturală, din cărămidă nearsă, din vălătuci sau din orice alte materiale nesupuse unui tratament termic şi/sau chimic & \textbf{E.} În cazul contribuabilului care deţine la aceeaşi adresă încăperi amplasate la subsol, demisol şi/sau la mansardă, utilizate ca locuinţă, în oricare dintre tipurile de clădiri prevăzute la lit. A-D & \textbf{F.} În cazul contribuabilului care deţine la aceeaşi adresă încăperi amplasate la subsol, la demisol şi/sau la mansardă, utilizate în alte scopuri decât cel de locuinţă, în oricare dintre tipurile de clădiri prevăzute la lit. A-D \\
@@ -209,7 +211,7 @@ Suprafaţa construită desfăşurată (m\textsuperscript{2}) & & & & & & \\
 
 \footnotesize\textit{Tabelul de mai sus se completează inclusiv pentru clădirile cu destinaţie agricolă}\normalsize
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 
 \textbf{V. DATELE CLĂDIRII NECESARE STABILIRII IMPOZITULUI/TAXEI DATORAT/E PE CLĂDIRI NEREZIDENŢIALE aflate în proprietatea persoanelor fizice}
 
@@ -222,7 +224,7 @@ Strada & Nr & Bloc & Scara & Etaj & Ap & An construire & bloc cu mai mult de 3 e
 
 Suprafaţa clădirii: utilă \fillline[3cm] m\textsuperscript{2} \hspace{1cm} construită desfăşurată \fillline[3cm] m\textsuperscript{2}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 
 \begin{tabularx}{\textwidth}{|X|X|X|}
 \hline
@@ -234,11 +236,11 @@ Dată întocmire raport \fillline[3cm] & Dată întocmire proces verbal de recep
 \hline
 \end{tabularx}
 
-\vspace{0.2cm}
+\vspace{0.15cm}
 
 \footnotesize\textit{Notă: în cazul în care contribuabilul persoană fizică nu deţine informaţiile necesare completării punctului V completează informaţiile de la punctul IV şi consemnează în cele ce urmează olograf faptul că utilizează clădirea în scop nerezidenţial:}\normalsize
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 \hrulefill \\
 \hrulefill
 
@@ -246,18 +248,18 @@ Dată întocmire raport \fillline[3cm] & Dată întocmire proces verbal de recep
 
 \textbf{VI.} În cazul în care clădirea este utilizată în scop mixt (rezidenţial şi nerezidenţial), iar \textbf{SUPRAFEŢELE POT FI DELIMITATE} atunci se completează în mod corespunzător pct. IV, respectiv V de mai sus.
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 
 \textbf{VII.} În cazul în care clădirea este utilizată în scop mixt (rezidenţial şi nerezidenţial), iar \textbf{SUPRAFEŢELE NU POT FI DELIMITATE} atunci contribuabilul bifează situaţia în care se află:
 
-\vspace{0.2cm}
+\vspace{0.15cm}
 
 \checkboxempty\ \textbf{a)} La adresa poştală a clădirii este înregistrat un domiciliu fiscal al unui operator economic, dar nu se desfăşoară nici o activitate economică.
 
 \textit{În acest caz, contribuabilul completează punctul IV şi consemnează olograf pe proprie răspundere acest fapt pe rândul următor:}\\
 \hrulefill
 
-\vspace{0.2cm}
+\vspace{0.15cm}
 
 \checkboxempty\ \textbf{b)} La adresa poştală a clădirii este înregistrat un domiciliu fiscal al unui operator economic care desfăşoară activitate economică, iar cheltuielile cu utilităţile sunt în sarcina operatorului economic. În acest caz, contribuabilul completează punctul V.
 
@@ -271,7 +273,7 @@ Anexez la prezenta declaraţie documentele, certificate de conformitate cu origi
 3. \fillline[5cm] & 6. \fillline[5cm] & 9. \fillline[5cm] \\
 \end{tabularx}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 
 \textbf{Sub sancţiunile aplicate faptei de fals în acte publice, declar că:}
 
@@ -279,7 +281,7 @@ Anexez la prezenta declaraţie documentele, certificate de conformitate cu origi
 
 2. în cazul în care intervin modificări privind situaţia juridică a contribuabilului ori a bunului impozabil/taxabil, mă oblig să depun o nouă declaraţie fiscală care să reflecte realitatea, în termen de 30 de zile de la apariţia situaţiei respective.
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 
 \begin{tabularx}{\textwidth}{|X|X|X|X|X|}
 \hline
@@ -302,7 +304,7 @@ Data semnării \underline{ {{data_dobandirii}} } & Data semnării \fillline[4cm]
 
 \footnotesize\textit{În cazul în care contribuabilul nu poate citi sau scrie, declaraţia fiscală se completează de o persoană agreată de către acesta, care îi va citi integral conţinutul declaraţiei fiscale şi va semna pentru conformitate.}\normalsize
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 
 Date de identificare ale acestei persoane:
 
@@ -312,7 +314,7 @@ Posed actul de identitate TIPUL \fillline[2cm] & seria \fillline[2cm] & numărul
 \hline
 \end{tabularx}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 
 Data şi semnătura \fillline[8cm]
 
@@ -351,7 +353,7 @@ Data semnării \fillline[4cm] & \\
 
 Pentru documentele emise de către alte instituţii publice, organe de specialitate ale administraţiei publice centrale şi locale, precum şi persoane juridice de drept privat, care potrivit legii au obţinut statut de utilitate publică sau sunt autorizate să presteze un serviciu public, în regim de putere publică, pe care solicitantul nu le depune, acesta are posibilitatea de a-şi da consimţământul expres ca Primăria municipiului Cluj-Napoca să obţină în numele său copii sau extrase ale acestora.
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 
 Timp estimativ de completare: 10 minute
 
