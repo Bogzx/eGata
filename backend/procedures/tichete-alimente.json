@@ -1,0 +1,42 @@
+{
+  "id": "tichete-alimente",
+  "title": "Tichete sociale Programul „Alimente\"",
+  "description": "Cerere și declarație pe propria răspundere pentru Programul social „Alimente\" — 500 lei/an pe tichete electronice pentru categorii vulnerabile (cod 801.001). DASM Cluj-Napoca.",
+  "scope": "primarie",
+  "category": "asistenta-sociala",
+  "synonyms": ["tichete alimente", "tichete sociale", "card alimente", "ajutor alimentar", "program alimente"],
+  "sample_queries": [
+    "vreau tichete sociale pentru alimente",
+    "cum cer cardul de alimente de la primărie",
+    "sunt pensionar — am dreptul la tichete alimente?",
+    "am handicap — primăria îmi dă alimente?"
+  ],
+  "acte_necesare": [
+    { "denumire": "Cerere și declarație pe propria răspundere (cod 801.001)", "emitent": "primarie" },
+    { "denumire": "CI toți membrii familiei", "emitent_id": "spclep-depabd", "format": "copie" },
+    { "denumire": "Certificat încadrare grad handicap", "emitent_id": "dgaspc", "obligatoriu": false, "observatie": "Pentru categoria handicap grav/accentuat" },
+    { "denumire": "Cupon de pensie", "emitent_id": "casa-pensii", "obligatoriu": false, "observatie": "Pentru pensionari/invalizi/veterani" },
+    { "denumire": "Carnet șomer / adeverință înregistrare", "emitent_id": "ajofm", "obligatoriu": false, "observatie": "Pentru șomeri" },
+    { "denumire": "Adeverință venituri toți membrii familiei", "emitent_id": "anaf", "format": "original", "alternative": ["adeverință angajator"] },
+    { "denumire": "Certificat fiscal local", "emitent": "primarie" },
+    { "denumire": "Certificat fiscal ANAF", "emitent_id": "anaf" },
+    { "denumire": "Atestare beneficiar VMI (dacă e cazul)", "emitent": "primarie", "obligatoriu": false },
+    { "denumire": "Atestare victimă trafic/violență de la ONG/DGASPC", "emitent_id": "dgaspc", "obligatoriu": false }
+  ],
+  "fields": [
+    { "name": "nume_complet",     "label": "Nume complet",        "source": "id_scan|profile", "required": true },
+    { "name": "cnp",              "label": "CNP",                 "source": "id_scan|profile", "required": true, "redact_in_voice": true },
+    { "name": "strada",           "label": "Strada (Cluj-Napoca)","source": "id_scan|profile", "required": true },
+    { "name": "numar",            "label": "Număr",                "source": "id_scan|profile", "required": true },
+    { "name": "apartament",       "label": "Apartament",           "source": "id_scan|profile", "required": false },
+    { "name": "telefon",          "label": "Telefon",              "source": "profile",         "required": true },
+    { "name": "categoria_eligibilitate", "label": "Categoria de eligibilitate", "source": "ask", "required": true, "options": ["handicap_grav_accentuat", "pensionar_invalid_veteran", "somer", "beneficiar_vmi", "victima_trafic", "victima_violenta_domestica"] },
+    { "name": "document_1",       "label": "Document doveditor 1", "source": "ask",             "required": true },
+    { "name": "document_2",       "label": "Document doveditor 2", "source": "ask",             "required": false },
+    { "name": "document_3",       "label": "Document doveditor 3", "source": "ask",             "required": false }
+  ],
+  "template": "tichete-alimente.tex",
+  "next_steps": [
+    { "kind": "in_scope_procedure", "procedure_id": "certificat-fiscal", "title": "Pregătește certificatul fiscal local — necesar pentru dosar" }
+  ]
+}

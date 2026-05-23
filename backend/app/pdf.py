@@ -45,10 +45,13 @@ def render_template(template_path: Path, fields: dict[str, Any]) -> str:
 
 
 def _copy_assets(dest: Path) -> None:
-    """Copy base.tex and other shared assets next to the rendered .tex."""
+    """Copy base.tex and the assets/ folder next to the rendered .tex."""
     base = TEMPLATES_DIR / "base.tex"
     if base.exists():
         shutil.copy(base, dest / "base.tex")
+    assets_dir = TEMPLATES_DIR / "assets"
+    if assets_dir.is_dir():
+        shutil.copytree(assets_dir, dest / "assets", dirs_exist_ok=True)
 
 
 def compile_pdf(tex_source: str) -> bytes:

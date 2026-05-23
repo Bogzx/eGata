@@ -158,6 +158,58 @@ export type ChatResponse = {
   tool_calls: ChatToolCall[];
 };
 
+// ---- Multi-procedure RAG types ----
+
+export type ScenarioSummary = {
+  id: string;
+  title: string;
+  description: string;
+  complexitate?: string;
+  applies_if?: string;
+};
+
+export type ResolvedActeNecesareItem = {
+  denumire: string;
+  emitent?: string;
+  emitent_id?: string;
+  institutie_nume?: string;
+  note_ai_cannot_complete?: string;
+  format?: string;
+  observatie?: string;
+  obligatoriu?: boolean;
+  alternative?: string[];
+};
+
+export type ResolvedInScopeStep = {
+  ordine: number;
+  procedure_id: string;
+  procedure_title: string;
+  deadline_days?: number;
+  note?: string;
+  acte_necesare?: ResolvedActeNecesareItem[];
+};
+
+export type ResolvedExternalStep = {
+  institutie_id: string;
+  institutie_nume: string;
+  scope?: string;
+  url?: string;
+  phone?: string;
+  obligatoriu?: boolean;
+  note?: string;
+  note_ai_cannot_complete?: string;
+};
+
+export type ScenarioPlan = {
+  scenario_id: string;
+  title: string;
+  summary: string;
+  complexitate?: string;
+  termen_total?: string;
+  in_scope_steps: ResolvedInScopeStep[];
+  external_steps: ResolvedExternalStep[];
+};
+
 // ---- Chat-first redesign types ----
 
 export type RightPaneState =
@@ -195,6 +247,13 @@ export type Message =
   | { id: string; role: "user"; text: string; via: "text" | "voice" }
   | { id: string; role: "agent"; text: string; widgets?: WidgetSpec[] }
   | { id: string; role: "system"; text: string };
+
+export type PendingMessage = {
+  id: string;
+  role: "user" | "agent";
+  text: string;
+  via?: "text" | "voice";
+};
 
 export type VoiceStatus =
   | "idle"
