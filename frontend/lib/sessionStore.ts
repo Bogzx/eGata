@@ -121,6 +121,28 @@ export interface SessionState {
 // state (it's not serializable and triggers needless re-renders).
 let _currentAbort: AbortController | null = null;
 
+// Helper: optimistically toggle a widget's submittedValue in the messages
+// array (and persist). Passing `null` rolls back a prior submission on
+// error. Shared between submitWidget's two branches and its catch block.
+function _markWidgetSubmitted(
+  get: () => SessionState,
+  set: (partial: Partial<SessionState>) => void,
+  activeDocId: string | null,
+  widgetId: string,
+  value: string | null,
+) {
+  const messages = get().messages;
+  const next = messages.map((m) => {
+    if (m.role !== "agent" || !m.widgets) return m;
+    const updated = m.widgets.map((w) =>
+      w.widgetId === widgetId ? { ...w, submittedValue: value } : w,
+    );
+    return { ...m, widgets: updated };
+  });
+  set({ messages: next });
+  if (activeDocId) saveMessages(activeDocId, next);
+}
+
 export const useSessionStore = create<SessionState>((set, get) => ({
   citizen: null,
   activeDocId: null,
@@ -440,34 +462,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const { conversationId, activeDocId } = get();
     if (!conversationId) {
       // No active conversation — fall back to plain text so the agent
-      // hears the answer in its first turn.
+      // hears the answer in its first turn (sendText appends the bubble).
+      _markWidgetSubmitted(get, set, activeDocId, widgetSpec.widgetId, value);
       void get().sendText(value);
       return;
     }
 
-    // 1. Optimistically mark the widget submitted so the UI disables it
-    //    immediately — protects against double-click.
-    const messages = get().messages;
-    const newMessages = messages.map((m) => {
-      if (m.role !== "agent" || !m.widgets) return m;
-      const updated = m.widgets.map((w) =>
-        w.widgetId === widgetSpec.widgetId ? { ...w, submittedValue: value } : w,
-      );
-      return { ...m, widgets: updated };
-    });
-    set({ messages: newMessages });
-    if (activeDocId) saveMessages(activeDocId, newMessages);
+    // Optimistically mark the widget submitted so the UI disables it
+    // immediately — protects against double-click.
+    _markWidgetSubmitted(get, set, activeDocId, widgetSpec.widgetId, value);
 
-    // 2. Append the user-side bubble so the transcript reads naturally.
-    get().appendMessage({
-      id: makeId(),
-      role: "user",
-      text: value,
-      via: "text",
-    });
-
-    // 3. Hit the backend; the structured response includes the new snapshot
-    //    plus any frontend_event (field_updated, etc).
     try {
       const res = await api.submitWidget({
         conversation_id: conversationId,
@@ -475,6 +479,24 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         value,
       });
       get().setSession(res.snapshot);
+
+      if (res.requires_chat_followup) {
+        // Confirm widget without a target_field — the agent must run a
+        // turn to decide what to do (typically start_procedure). sendText
+        // appends the user bubble + streams the agent's response, so we
+        // don't append a user bubble ourselves here.
+        await get().sendText(value);
+        return;
+      }
+
+      // Direct set_field path: append the user bubble and process any
+      // side-effect events from the dispatcher (field_updated, etc.).
+      get().appendMessage({
+        id: makeId(),
+        role: "user",
+        text: value,
+        via: "text",
+      });
       for (const ev of res.events) {
         if (ev.kind === "frontend_event" && ev.event) {
           void get().handleFrontendEvent(
@@ -496,17 +518,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         text: `Nu am putut trimite răspunsul: ${detail}`,
       });
       // Roll back the optimistic submittedValue so user can retry.
-      const rolled = get().messages.map((m) => {
-        if (m.role !== "agent" || !m.widgets) return m;
-        const reverted = m.widgets.map((w) =>
-          w.widgetId === widgetSpec.widgetId
-            ? { ...w, submittedValue: null }
-            : w,
-        );
-        return { ...m, widgets: reverted };
-      });
-      set({ messages: rolled });
-      if (activeDocId) saveMessages(activeDocId, rolled);
+      _markWidgetSubmitted(get, set, activeDocId, widgetSpec.widgetId, null);
     }
   },
 

@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     gemini_api_key: str = Field(default="")
     gemini_model: str = Field(default="gemini-2.5-flash")
-    gemini_voice_model: str = Field(default="gemini-2.5-flash-native-audio-latest")
+    gemini_voice_model: str = Field(default="gemini-3.1-flash-live-preview")
     gemini_voice_name: str = Field(default="Aoede")
     openai_api_key: str = Field(default="")
 

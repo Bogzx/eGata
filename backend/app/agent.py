@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import AsyncIterator
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -196,6 +197,11 @@ async def widget_result(
         )
 
         if widget.target_field:
+            # Direct path: a field gets set; the agent doesn't need to
+            # react this turn because the field_updated event + state recap
+            # carry the change to the model on its next turn. We synthesize
+            # a [răspuns widget X] history line so the model has transcript
+            # continuity ("user clicked Y").
             citizen = fetch_citizen_by_id(citizen_id)
             citizen_attrs = citizen.get("attributes") or {}
             ctx = ToolContext(
@@ -223,29 +229,42 @@ async def widget_result(
                     )
                 )
 
-        # Synthesize a user-side history turn so the LLM sees the answer in
-        # context on the next chat turn — keeps continuity even though we
-        # bypassed the chat round-trip.
-        history_entry = {
-            "role": "user",
-            "parts": [
-                {
-                    "text": (
-                        f"[răspuns widget {widget.target_field or widget.widget_id}] "
-                        f"{user_visible}"
-                    )
-                }
-            ],
-        }
-        session.history.append(history_entry)
+            history_entry = {
+                "role": "user",
+                "parts": [
+                    {
+                        "text": (
+                            f"[răspuns widget {widget.target_field}] "
+                            f"{user_visible}"
+                        )
+                    }
+                ],
+            }
+            session.history.append(history_entry)
+            update_session(session)
 
+            return WidgetResultResponse(
+                conversation_id=session.id,
+                snapshot=session.snapshot(),
+                user_message=user_visible,
+                events=events,
+                requires_chat_followup=False,
+            )
+
+        # No target_field path (typical confirm widget in CONFIRMING_MATCH):
+        # the answer is a signal — the agent must run a turn and decide
+        # what to do (start_procedure, abandon, etc.). We persist the
+        # widget resolution (pending_widgets popped) and ask the frontend
+        # to follow up via /agent/chat/stream so the user message goes
+        # through the normal turn pipeline. Skipping the synthetic history
+        # line here — the chat turn will append the real one.
         update_session(session)
-
         return WidgetResultResponse(
             conversation_id=session.id,
             snapshot=session.snapshot(),
             user_message=user_visible,
             events=events,
+            requires_chat_followup=True,
         )
 
 

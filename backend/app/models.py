@@ -224,6 +224,11 @@ class WidgetResultResponse(BaseModel):
     snapshot: dict[str, Any]
     user_message: str
     events: list[WidgetResultEvent] = Field(default_factory=list)
+    # When true, the widget answer is a signal the agent must react to
+    # (e.g. a confirm widget in CONFIRMING_MATCH where the next move is
+    # start_procedure). The frontend follows up by sending the answer as
+    # a chat turn so the agent runs and produces a reply.
+    requires_chat_followup: bool = False
 
 
 class ReminderResponse(BaseModel):
