@@ -1,4 +1,4 @@
-# CivicAI — Design Spec
+# eGata — Design Spec
 
 - **Date:** 2026-05-23
 - **Event:** Cluj Hackathon 2026 — Digital Romania / NoQueue.Done
@@ -12,13 +12,13 @@
 
 Interacting with a Romanian primărie is the canonical bad UX of public life. Citizens don't know which forms apply to their situation, fill them by hand with errors, return three times to fix the same paperwork, and queue for clerks who spend most of their day re-explaining identical procedures. Existing portals like ghiseul.ro handle payments but not the "what do I even need?" layer where most of the friction lives.
 
-**CivicAI** is a conversational, multi-channel civic agent for primărie procedures. It maps a citizen's plain-language life event to the exact pre-filled documents they need — and proactively surfaces follow-up steps that the citizen would otherwise discover too late. Scope is primărie-only by design; for needs outside that scope (ANAF, CNAS, DRPCIV, etc.), the agent recognizes and elegantly redirects, with full integration on the roadmap.
+**eGata** is a conversational, multi-channel civic agent for primărie procedures. It maps a citizen's plain-language life event to the exact pre-filled documents they need — and proactively surfaces follow-up steps that the citizen would otherwise discover too late. Scope is primărie-only by design; for needs outside that scope (ANAF, CNAS, DRPCIV, etc.), the agent recognizes and elegantly redirects, with full integration on the roadmap.
 
 ## 2. Win strategy & scoring alignment
 
 The hackathon scores 100 points across 5 criteria. Each design decision below maps to specific points:
 
-| Criterion | Pts | How CivicAI scores |
+| Criterion | Pts | How eGata scores |
 |---|---|---|
 | Social impact | 25 | Universal pain point; accessibility-first (voice-only mode, simple-language toggle); citizen-bypasses-queue at primărie. |
 | UX / Usability | 25 | Next.js 15 + Tailwind + shadcn + framer-motion; three completion modes (manual, on-screen, vocal); live form preview; AA-compliant; modern aesthetic deliberately unlike existing state apps. |
@@ -323,7 +323,7 @@ PSTN caller ──> Twilio ──Media Streams WS──> FastAPI bridge ──WS
 
 - ~150 LOC Python bridge in FastAPI relays inbound audio bytes to Gemini Live and Gemini's audio back to Twilio.
 - Function calls disabled on phone variant — pure RAG-over-procedures + general info.
-- **Demo-day fallback** if the bridge misbehaves: TwiML `<Say>` plays *"Vizitați civicai.ro pentru asistență completă"* in Romanian.
+- **Demo-day fallback** if the bridge misbehaves: TwiML `<Say>` plays *"Vizitați egata.ro pentru asistență completă"* in Romanian.
 
 ## 14. PDF generation + delivery
 
@@ -523,7 +523,7 @@ Explicitly **not** in the hackathon scope; mentioned in the pitch as roadmap:
 ## Appendix A — Agent system prompt (Romanian, draft)
 
 ```
-Ești CivicAI, asistentul digital al primăriei. Vorbește simplu, prietenos, în română.
+Ești eGata, asistentul digital al primăriei. Vorbește simplu, prietenos, în română.
 Scopul tău: să ajuți cetățeanul să completeze documente pentru primărie.
 
 Reguli stricte:
@@ -577,5 +577,5 @@ modul „simplu", vorbește ca pentru un copil de clasa a 6-a.
 │
 └── docs/
     └── superpowers/specs/
-        └── 2026-05-23-civicai-design.md  # this file
+        └── 2026-05-23-egata-design.md  # this file
 ```

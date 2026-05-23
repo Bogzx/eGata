@@ -59,8 +59,8 @@ class Settings(BaseSettings):
     jwt_signing_secret: str = Field(...)
     jwt_algorithm: str = Field(default="HS256")
     jwt_expires_seconds: int = Field(default=86400)
-    jwt_audience: str = Field(default="civicai-tools")
-    jwt_issuer: str = Field(default="civicai-voice")
+    jwt_audience: str = Field(default="egata-tools")
+    jwt_issuer: str = Field(default="egata-voice")
 
     # Default to local dev origins only. Wildcard + allow_credentials=True
     # is broken-by-browser anyway (Chrome refuses the combo) and would let

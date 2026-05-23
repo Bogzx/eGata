@@ -1,4 +1,4 @@
-# CivicAI — Plan 4: Proactive Layer + Polish + Accessibility
+# eGata — Plan 4: Proactive Layer + Polish + Accessibility
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -1070,7 +1070,7 @@ async def lifespan(app):
     shutdown_worker()
 
 # Modify the FastAPI() init to pass lifespan:
-app = FastAPI(title="CivicAI", lifespan=lifespan)
+app = FastAPI(title="eGata", lifespan=lifespan)
 ```
 
 If Plan 2 already configured a `lifespan` context manager (e.g., to init the Supabase client), add the worker init/shutdown calls into that existing function rather than duplicating it.
@@ -2145,7 +2145,7 @@ export default function GlobalError({
         >
           <h1 className="text-2xl font-semibold mb-3">A apărut o eroare</h1>
           <p className="text-gray-600 mb-6">
-            Ne pare rău — ceva nu a mers cum trebuia. Echipa CivicAI a fost
+            Ne pare rău — ceva nu a mers cum trebuia. Echipa eGata a fost
             notificată automat.
           </p>
           <button
@@ -2589,7 +2589,7 @@ export function ReminderCard({ reminder }: { reminder: Reminder }) {
               </p>
               <p className="text-xs text-gray-500 italic">
                 Pe roadmap: integrare directă, astfel încât să nu mai fie nevoie
-                să ieși din CivicAI.
+                să ieși din eGata.
               </p>
             </div>
           )}
@@ -3386,8 +3386,8 @@ Create `lighthouserc.json` at repo root:
   "ci": {
     "collect": {
       "url": [
-        "https://civicai-staging.vercel.app/",
-        "https://civicai-staging.vercel.app/login"
+        "https://egata-staging.vercel.app/",
+        "https://egata-staging.vercel.app/login"
       ],
       "numberOfRuns": 1,
       "settings": {
@@ -3634,8 +3634,8 @@ Record findings in `docs/superpowers/deploy-checklist.md`:
 
 ## Smoke checks
 
-- [ ] `curl https://api.civicai.../healthz` returns `{"ok": true, ...}`
-- [ ] Frontend loads with no console errors at https://civicai.../
+- [ ] `curl https://api.egata.../healthz` returns `{"ok": true, ...}`
+- [ ] Frontend loads with no console errors at https://egata.../
 - [ ] Sentry receives a test error (run a force-throw + confirm event)
 ```
 
@@ -3763,7 +3763,7 @@ This is the prepared answer-list for the juror Q&A from spec §21.
 Create `docs/superpowers/demo-pokelist.md`:
 
 ```markdown
-# CivicAI — Juror Poke-List (Hackathon Demo)
+# eGata — Juror Poke-List (Hackathon Demo)
 
 Anticipated questions and the rehearsed answers. Practice these out loud before the demo.
 
@@ -3884,7 +3884,7 @@ gh pr create --title "Plan 4: proactive layer + polish + accessibility" --body "
 - [ ] Lighthouse a11y = 1.0 on /, /login, /req/[id], /doc/[id]
 - [ ] Manual: Reset demo button works; reminders appear after delivery; voice-only mode works once Plan 3 merged
 
-Closes the Plan 4 scope in `docs/superpowers/plans/2026-05-23-civicai-execution-roadmap.md` §6.
+Closes the Plan 4 scope in `docs/superpowers/plans/2026-05-23-egata-execution-roadmap.md` §6.
 EOF
 )"
 ```

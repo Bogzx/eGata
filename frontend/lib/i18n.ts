@@ -5,7 +5,7 @@ type Variant = "standard" | "simple";
 type Entry = { standard: string; simple?: string };
 
 const strings = {
-  "app.title": { standard: "CivicAI" },
+  "app.title": { standard: "eGata" },
   "app.tagline": {
     standard: "Spune-i ce ai nevoie. Îți spune ce acte îți trebuie.",
     simple: "Spune ce vrei. Te ajutăm cu actele.",

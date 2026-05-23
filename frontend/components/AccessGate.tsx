@@ -2,7 +2,7 @@
 
 import { useEffect, useState, FormEvent } from "react";
 
-const STORAGE_KEY = "civicai.access";
+const STORAGE_KEY = "egata.access";
 // Read from env so the password isn't hardcoded in the shipped JS bundle.
 // When unset, the gate is bypassed entirely — keeps local dev frictionless.
 // Note: NEXT_PUBLIC_* envs end up in the bundle anyway; this isn't real

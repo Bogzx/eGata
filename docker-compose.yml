@@ -3,8 +3,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: civicai-backend:local
-    container_name: civicai-backend
+    image: egata-backend:local
+    container_name: egata-backend
     env_file:
       - ./backend/.env
     environment:
@@ -33,8 +33,8 @@ services:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
         NEXT_PUBLIC_DEMO_MODE: ${NEXT_PUBLIC_DEMO_MODE:-1}
         NEXT_PUBLIC_USE_MOCKS: ${NEXT_PUBLIC_USE_MOCKS:-0}
-    image: civicai-frontend:local
-    container_name: civicai-frontend
+    image: egata-frontend:local
+    container_name: egata-frontend
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:

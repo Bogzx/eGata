@@ -14,7 +14,7 @@ type Props = {
 
 /**
  * Right-column document preview shell. Wraps any pane's content with the
- * CivicAI eyebrow + title + ref + scrollable body + footer actions.
+ * eGata eyebrow + title + ref + scrollable body + footer actions.
  */
 export function DocPane({ eyebrow, title, refNumber, children, actions }: Props) {
   return (

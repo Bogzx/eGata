@@ -6,7 +6,7 @@
 
 ## Goal
 
-Make every reachable page of the CivicAI frontend usable and visually correct on three classes of device:
+Make every reachable page of the eGata frontend usable and visually correct on three classes of device:
 
 - **Mobile** ≤ 640px
 - **Tablet** 641px – 1024px

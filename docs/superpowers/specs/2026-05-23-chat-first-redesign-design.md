@@ -1,4 +1,4 @@
-# CivicAI Chat-First Redesign — Design
+# eGata Chat-First Redesign — Design
 
 **Status:** Draft for implementation
 **Date:** 2026-05-23
@@ -9,7 +9,7 @@
 
 ## 1. Goal
 
-Make CivicAI feel like opening a single, conversational AI surface — not a multi-page government portal. The user lands on a full-bleed chat ("Cu ce te pot ajuta?"). When the AI engages, the screen splits to a 40 / 60 chat-plus-right-pane layout. The right pane swaps between a Quick Guide, the live-filling form, a review checklist, a PDF preview, and a delivery picker — all driven by the agent's tool calls. Voice lives inside the same composer (a mic button), the same chat thread, the same tool dispatch.
+Make eGata feel like opening a single, conversational AI surface — not a multi-page government portal. The user lands on a full-bleed chat ("Cu ce te pot ajuta?"). When the AI engages, the screen splits to a 40 / 60 chat-plus-right-pane layout. The right pane swaps between a Quick Guide, the live-filling form, a review checklist, a PDF preview, and a delivery picker — all driven by the agent's tool calls. Voice lives inside the same composer (a mic button), the same chat thread, the same tool dispatch.
 
 This replaces the current multi-route flow (`/home` → `/req/new` → `/req/[id]` → `/doc/[id]`) with one continuous shell.
 
@@ -340,7 +340,7 @@ drawer item click
   → store.loadDocument(targetId)
        store.stopVoice() if active
        parallel: api.getDocument, api.getProcedure
-       restore messages from localStorage[civicai:session:<docId>] (or empty)
+       restore messages from localStorage[egata:session:<docId>] (or empty)
        restore conversationId from localStorage (or null)
        rightPane = computeInitialRightPaneFrom(doc, procedure)
   → store.closeDrawer()
@@ -473,8 +473,8 @@ All existing handlers (procedures, documents, agent chat, voice session, tool di
 | What | Where | Why |
 |---|---|---|
 | Document state (fields, status, pdf_url, ref_number) | Supabase (existing) | Source of truth |
-| Conversation message history (per doc) | `localStorage["civicai:session:<docId>"]` | Restore on refresh / drawer switch. Hackathon-scoped. |
-| `conversation_id` per doc | `localStorage["civicai:conv:<docId>"]` | Lets backend reuse its in-memory conversation if still warm |
+| Conversation message history (per doc) | `localStorage["egata:session:<docId>"]` | Restore on refresh / drawer switch. Hackathon-scoped. |
+| `conversation_id` per doc | `localStorage["egata:conv:<docId>"]` | Lets backend reuse its in-memory conversation if still warm |
 | Accessibility prefs | `localStorage` via `useAccessibilityPrefs` (existing) | Already in place |
 | Voice session | Not persisted | Always reconnect fresh |
 | `activeDocId` | Derived from URL pathname | Single source of truth |

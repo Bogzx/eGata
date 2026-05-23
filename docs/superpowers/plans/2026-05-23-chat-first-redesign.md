@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans (inline execution). Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Convert CivicAI from a multi-route portal into a single chat-first shell at `/` and `/r/[id]`, with a 40/60 split when engaged, voice in the composer, drawer-based documents, and a state machine driving the right pane from agent tool calls.
+**Goal:** Convert eGata from a multi-route portal into a single chat-first shell at `/` and `/r/[id]`, with a 40/60 split when engaged, voice in the composer, drawer-based documents, and a state machine driving the right pane from agent tool calls.
 
 **Architecture:** A single `<ChatSurface>` React tree, never unmounted during a session. URL flips via `history.pushState`. A Zustand `sessionStore` holds messages, doc, voice status, drawer, and a `rightPane` discriminated union. Backend adds one tool (`propose_widget`) plus three layers of thinking-token suppression. Existing 6 tools, RAG, voice JWT, and Twilio bridge are reused.
 
@@ -599,8 +599,8 @@ import type {
   WidgetSpec,
 } from "./types";
 
-const LS_MSG_KEY = (docId: string) => `civicai:session:${docId}`;
-const LS_CONV_KEY = (docId: string) => `civicai:conv:${docId}`;
+const LS_MSG_KEY = (docId: string) => `egata:session:${docId}`;
+const LS_CONV_KEY = (docId: string) => `egata:conv:${docId}`;
 
 function makeId(): string {
   return Math.random().toString(36).slice(2, 11);
@@ -912,7 +912,7 @@ describe("sessionStore", () => {
     useSessionStore.setState({ activeDocId: "d1" });
     useSessionStore.getState().appendMessage({ id: "m1", role: "user", text: "hi", via: "text" });
     expect(useSessionStore.getState().messages).toHaveLength(1);
-    const raw = localStorage.getItem("civicai:session:d1");
+    const raw = localStorage.getItem("egata:session:d1");
     expect(raw).toContain("hi");
   });
 

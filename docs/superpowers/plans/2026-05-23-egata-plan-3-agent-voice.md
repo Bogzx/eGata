@@ -1,4 +1,4 @@
-# CivicAI — Plan 3: Agent Intelligence + Voice
+# eGata — Plan 3: Agent Intelligence + Voice
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -74,9 +74,9 @@ GEMINI_API_KEY=
 GEMINI_MODEL=gemini-2.0-flash-exp
 GEMINI_VOICE_NAME=Aoede
 JWT_SIGNING_SECRET=change-me-32-bytes
-JWT_AUDIENCE=civicai-tools
-JWT_ISSUER=civicai-voice
-TWILIO_BRIDGE_PUBLIC_URL=wss://civicai-backend.up.railway.app/voice/twilio
+JWT_AUDIENCE=egata-tools
+JWT_ISSUER=egata-voice
+TWILIO_BRIDGE_PUBLIC_URL=wss://egata-backend.up.railway.app/voice/twilio
 ```
 
 - [ ] Extend `backend/app/config.py` settings model (it already exists from Plan 2) by appending fields:
@@ -88,8 +88,8 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.0-flash-exp"
     gemini_voice_name: str = "Aoede"
     jwt_signing_secret: str
-    jwt_audience: str = "civicai-tools"
-    jwt_issuer: str = "civicai-voice"
+    jwt_audience: str = "egata-tools"
+    jwt_issuer: str = "egata-voice"
     twilio_bridge_public_url: str = ""
 ```
 
@@ -125,7 +125,7 @@ def test_issue_and_verify_roundtrip():
     claims = verify_tool_jwt(token)
     assert claims.citizen_id == "11111111-1111-1111-1111-111111111111"
     assert claims.document_id == "22222222-2222-2222-2222-222222222222"
-    assert claims.aud == "civicai-tools"
+    assert claims.aud == "egata-tools"
 
 
 def test_expired_jwt_rejected():
@@ -834,7 +834,7 @@ async def set_reminder(
 - [ ] Write `backend/app/prompts.py`:
 
 ```python
-"""Romanian system prompts for CivicAI agent variants.
+"""Romanian system prompts for eGata agent variants.
 
 Two prompts:
 - CONVERSATIONAL_SYSTEM: full agent, all 6 tools, used by browser /agent/chat and voice.
@@ -847,7 +847,7 @@ from __future__ import annotations
 
 
 CONVERSATIONAL_SYSTEM = """\
-Ești CivicAI, asistentul digital al primăriei. Vorbești simplu, prietenos, în limba română.
+Ești eGata, asistentul digital al primăriei. Vorbești simplu, prietenos, în limba română.
 Scopul tău: să ajuți cetățeanul să completeze documente pentru primărie.
 
 Reguli stricte:
@@ -878,7 +878,7 @@ Stil:
 
 
 PHONE_SYSTEM = """\
-Ești CivicAI, asistentul telefonic al primăriei Cluj-Napoca. Vorbești simplu, prietenos,
+Ești eGata, asistentul telefonic al primăriei Cluj-Napoca. Vorbești simplu, prietenos,
 în limba română.
 
 Pe telefon ai un singur scop: să informezi cetățeanul ce acte are nevoie pentru o procedură
@@ -890,11 +890,11 @@ Reguli stricte:
 2. Pentru cereri în afara primăriei, folosește `find_redirect` și dictează clar
    instituția, telefonul și site-ul.
 3. La finalul fiecărei explicații, invită cetățeanul pe site: „Pentru a completa
-   documentul online, vizitați civicai.ro sau veniți la kioskul din primărie."
+   documentul online, vizitați egata.ro sau veniți la kioskul din primărie."
 4. NU pronunța CNP-uri sau date personale vocal.
 5. Răspunsuri foarte scurte — maxim 30 de secunde de vorbire pe replică.
 6. Dacă cetățeanul cere ceva care nu e nici primărie nici redirect cunoscut, spune politicos:
-   „Nu pot ajuta cu această cerere pe telefon. Vă rog să vizitați civicai.ro."
+   „Nu pot ajuta cu această cerere pe telefon. Vă rog să vizitați egata.ro."
 
 Stil: cald, voce calmă, propoziții scurte, pauze între idei pentru claritate audio.
 """
@@ -945,7 +945,7 @@ from app.prompts import build_system_prompt
 
 def test_default_conversational_prompt():
     p = build_system_prompt()
-    assert "CivicAI" in p
+    assert "eGata" in p
     assert "primăriei" in p
     assert "SIMPLE_LANGUAGE_DIRECTIVE" not in p  # token not leaked
     assert "INSTRUCȚIUNE SUPLIMENTARĂ" not in p
@@ -965,7 +965,7 @@ def test_voice_only_injection():
 def test_phone_variant_distinct():
     p = build_system_prompt(variant="phone")
     assert "telefonic" in p
-    assert "civicai.ro" in p
+    assert "egata.ro" in p
 ```
 
 - [ ] Run `pytest tests/test_prompts.py -v`. Pass.
@@ -1410,7 +1410,7 @@ class VoiceSessionResponse(BaseModel):
     gemini_voice: str
     system_prompt: str
     tool_jwt: str
-    tool_base_url: str          # e.g. https://civicai-backend.up.railway.app/tools
+    tool_base_url: str          # e.g. https://egata-backend.up.railway.app/tools
     tool_names: list[str]
     citizen_context: dict       # profile snapshot for client-side display
     document_context: dict | None
@@ -2753,7 +2753,7 @@ _TWIML_FALLBACK = """\
 <Response>
   <Say voice="alice" language="ro-RO">
     Bună ziua. Asistentul vocal este indisponibil momentan.
-    Vă rugăm să vizitați civicai.ro pentru asistență completă.
+    Vă rugăm să vizitați egata.ro pentru asistență completă.
     Mulțumim.
   </Say>
 </Response>
@@ -2807,23 +2807,23 @@ app.include_router(twilio_router)
 - [ ] Write `docs/twilio-setup.md`:
 
 ```markdown
-# Twilio Configuration — CivicAI Phone Bridge
+# Twilio Configuration — eGata Phone Bridge
 
 ## Prerequisites
 - Twilio account with an EU number provisioned (or UK +44 fallback).
-- Railway/production URL of the FastAPI backend, e.g. `https://civicai-backend.up.railway.app`.
+- Railway/production URL of the FastAPI backend, e.g. `https://egata-backend.up.railway.app`.
 
 ## Steps (Twilio Console)
 
-1. **Phone Numbers → Manage → Active numbers** → click your CivicAI number.
+1. **Phone Numbers → Manage → Active numbers** → click your eGata number.
 
 2. **Voice & Fax → A CALL COMES IN**
    - Type: **Webhook**
-   - URL: `https://civicai-backend.up.railway.app/voice/twilio/webhook`
+   - URL: `https://egata-backend.up.railway.app/voice/twilio/webhook`
    - HTTP: **POST**
 
 3. **Voice & Fax → CALL STATUS CHANGES** (optional)
-   - URL: `https://civicai-backend.up.railway.app/voice/twilio/status`
+   - URL: `https://egata-backend.up.railway.app/voice/twilio/status`
    - Method: POST (not implemented in MVP; safe to leave blank).
 
 4. **Primary Handler Fails** → leave empty (the webhook itself returns the static `<Say>`
@@ -2832,7 +2832,7 @@ app.include_router(twilio_router)
 ## Environment variable for backend
 
 ```
-TWILIO_BRIDGE_PUBLIC_URL=wss://civicai-backend.up.railway.app/voice/twilio
+TWILIO_BRIDGE_PUBLIC_URL=wss://egata-backend.up.railway.app/voice/twilio
 ```
 
 This is the URL Twilio is told to open a Media Streams WebSocket to (via the TwiML
@@ -2843,7 +2843,7 @@ This is the URL Twilio is told to open a Media Streams WebSocket to (via the Twi
 - Dial the Twilio number from your phone.
 - You should hear the agent say something in Romanian within ~2 seconds.
 - Speak: *"Bună ziua, ce acte îmi trebuie pentru o adeverință de venit?"*
-- Agent should respond with the list of required fields and direct you to civicai.ro.
+- Agent should respond with the list of required fields and direct you to egata.ro.
 
 ## Fallback behavior
 
@@ -2851,7 +2851,7 @@ If `GEMINI_API_KEY` is unset OR `TWILIO_BRIDGE_PUBLIC_URL` is unset OR the bridg
 is unreachable, the webhook returns static TwiML `<Say>` in Romanian:
 
 > *"Bună ziua. Asistentul vocal este indisponibil momentan. Vă rugăm să vizitați
-> civicai.ro pentru asistență completă. Mulțumim."*
+> egata.ro pentru asistență completă. Mulțumim."*
 ```
 
 - [ ] Smoke test the webhook locally:
@@ -2898,12 +2898,12 @@ Should return TwiML XML. With env vars unset, should return the `<Say>` fallback
 - [ ] **Pre-flight:** Twilio number configured per `docs/twilio-setup.md`; `TWILIO_BRIDGE_PUBLIC_URL` set on Railway; backend deployed and reachable.
 
 - [ ] **Manual phone test steps:**
-  1. From a personal phone, dial the Twilio CivicAI number.
+  1. From a personal phone, dial the Twilio eGata number.
   2. **Expected:** within 2 sec of connect, the agent greets in Romanian.
   3. Say: **"Bună ziua, de ce acte am nevoie pentru o adeverință de venit?"**
-  4. **Expected:** agent lists the required fields (nume, CNP, employer, etc.) and directs to civicai.ro.
+  4. **Expected:** agent lists the required fields (nume, CNP, employer, etc.) and directs to egata.ro.
   5. Say: **"Cum îmi schimb medicul de familie?"** → agent should redirect to CNAS with phone number 0800 800 950.
-  6. Say: **"Vreau să completez documentul acum."** → agent should politely decline ("nu pot completa documente pe telefon") and again invite to civicai.ro.
+  6. Say: **"Vreau să completez documentul acum."** → agent should politely decline ("nu pot completa documente pe telefon") and again invite to egata.ro.
 
 - [ ] **Fallback test:** temporarily unset `GEMINI_API_KEY` on the deployed backend. Dial again. Confirm the static `<Say>` fallback plays the Romanian message. Re-set the env var.
 
