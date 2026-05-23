@@ -20,7 +20,7 @@ function OtpForm() {
     try {
       const session = await api.otp({ challenge_id: challengeId, code });
       setSession(session);
-      router.push("/home");
+      router.push("/");
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         setError(t("otp.error"));
