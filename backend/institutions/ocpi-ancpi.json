@@ -1,0 +1,10 @@
+{
+  "id": "ocpi-ancpi",
+  "nume_scurt": "OCPI",
+  "nume_complet": "Oficiul de Cadastru și Publicitate Imobiliară (ANCPI)",
+  "scope": "Cadastru, extras carte funciară, plan situație.",
+  "url": "https://www.ancpi.ro",
+  "phone": "021 317 7339",
+  "online_disponibil": true,
+  "note_ai_cannot_complete": "Extras carte funciară se obține direct la OCPI sau online pe ePay. CivicAI nu poate emite acest document — instituție diferită."
+}
