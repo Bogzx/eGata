@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+*.log
+dev-server.log
+.env
+.env.local
+.env.*.local
+.vercel
+playwright-report
+test-results
+coverage
+.vscode
+.idea
+e2e
+*.tsbuildinfo
