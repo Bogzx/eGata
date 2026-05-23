@@ -45,10 +45,13 @@ class Settings(BaseSettings):
     azure_voicelive_model: str = Field(default="gpt-realtime")
     azure_voicelive_voice: str = Field(default="en-US-Ava:DragonHDLatestNeural")
     azure_voicelive_api_version: str = Field(default="2026-04-10")
-    # Whisper deployment used by VoiceLive's input_audio_transcription.
-    # Defaults to the Foundry standard "whisper" deployment; override if
-    # your Azure resource uses a different name.
-    azure_voicelive_transcription_model: str = Field(default="whisper")
+    # Transcription back-channel for VoiceLive's input_audio_transcription.
+    # This is NOT a deployment name — it's a fixed enum the realtime API
+    # accepts: one of "whisper-1", "gpt-4o-transcribe", "gpt-4o-mini-transcribe",
+    # "gpt-4o-transcribe-diarize", "azure-fast-transcription", "azure-speech",
+    # "mai-transcribe-1". VoiceLive maps the chosen value to whatever STT
+    # backend Azure has wired up on the resource.
+    azure_voicelive_transcription_model: str = Field(default="whisper-1")
     azure_voicelive_transcription_language: str = Field(default="ro")
 
     embedding_dim: int = Field(default=768)
