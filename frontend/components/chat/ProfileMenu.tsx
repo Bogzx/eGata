@@ -49,7 +49,7 @@ export function ProfileMenu() {
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.15 }}
           role="menu"
-          className="fixed right-3 top-14 z-50 w-[min(360px,calc(100vw-1.5rem))] rounded-xl border bg-background p-4 shadow-lg"
+          className="fixed right-3 top-14 z-50 w-[min(520px,calc(100vw-1.5rem))] rounded-xl border bg-background p-5 shadow-lg"
         >
           <p className="mb-3 text-sm font-medium uppercase tracking-wider text-muted-foreground">
             Accesibilitate
