@@ -90,9 +90,113 @@
   }
 }
 
-/* Large-text accessibility mode */
+/* =====================================================================
+   Accessibility modes — applied as classes on <html> by useAccessibility-
+   Classes(). Each mode is opt-in and composes with the others.
+   ===================================================================== */
+
+/* Large text mode — bumps small / body text only; display headings stay. */
 html.large-text {
-  font-size: 120%;
+  font-size: 110%;
+}
+html.large-text p,
+html.large-text li,
+html.large-text label,
+html.large-text .doc-value,
+html.large-text .doc-label,
+html.large-text .doc-num,
+html.large-text .reminder-title,
+html.large-text .chip,
+html.large-text .composer-input,
+html.large-text .text-xs {
+  font-size: 16px;
+}
+html.large-text .text-sm,
+html.large-text .welcome-pill,
+html.large-text .docpane-eyebrow,
+html.large-text .doc-detail-eyebrow,
+html.large-text .dh-meta {
+  font-size: 15px;
+}
+
+/* High contrast mode — pushes ink to black and surfaces to white, thicker
+   borders, removes the soft translucent layers that hurt readability. */
+html.high-contrast {
+  --c-ink: #000000;
+  --c-ink-soft: #1a1a1a;
+  --c-bg: #ffffff;
+  --c-line: rgba(0, 0, 0, 0.6);
+  --c-card: #ffffff;
+  --c-card-solid: #ffffff;
+  --c-dark: #08362e;
+  --c-mid: #08362e;
+  --c-light: #08362e;
+}
+html.high-contrast body {
+  background: #ffffff;
+}
+html.high-contrast .chip,
+html.high-contrast .doc-row,
+html.high-contrast .suggest-card,
+html.high-contrast .reminder-card,
+html.high-contrast .composer-shell,
+html.high-contrast .doc-paper,
+html.high-contrast .mobile-toggle,
+html.high-contrast .civic-right,
+html.high-contrast .drawer,
+html.high-contrast .doc-detail {
+  border-color: #000000;
+  border-width: 2px;
+  background: #ffffff;
+}
+html.high-contrast .bubble-agent {
+  border-color: #000000;
+  border-width: 2px;
+}
+html.high-contrast .bubble-user {
+  background: #000000;
+  color: #ffffff;
+}
+html.high-contrast .doc-auto,
+html.high-contrast .doc-status.k-ok {
+  background: #08362e;
+  color: #ffffff;
+}
+html.high-contrast .bg-canvas,
+html.high-contrast .bg-grain,
+html.high-contrast .bg-vignette {
+  display: none;
+}
+html.high-contrast :focus-visible {
+  outline: 3px solid #ffbf00;
+  outline-offset: 2px;
+}
+
+/* Dyslexic mode — generous letter / word / line spacing makes runs of text
+   easier to track for dyslexic readers. */
+html.dyslexic body,
+html.dyslexic input,
+html.dyslexic textarea,
+html.dyslexic button,
+html.dyslexic select {
+  letter-spacing: 0.04em;
+  word-spacing: 0.16em;
+  line-height: 1.7;
+}
+html.dyslexic p,
+html.dyslexic li,
+html.dyslexic .bubble,
+html.dyslexic .doc-value,
+html.dyslexic .reminder-title,
+html.dyslexic .welcome-sub {
+  max-width: 65ch;
+}
+html.dyslexic .hello,
+html.dyslexic .docpane-title,
+html.dyslexic .doc-title,
+html.dyslexic .doc-detail-h {
+  letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
 /* ============ A11y utilities ============ */

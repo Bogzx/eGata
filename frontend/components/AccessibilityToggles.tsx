@@ -2,20 +2,26 @@
 
 import { useEffect } from "react";
 import { useAccessibilityPrefs } from "@/lib/accessibilityStore";
-import { t } from "@/lib/i18n";
 
 function Toggle({
   label,
+  hint,
   checked,
   onChange,
 }: {
   label: string;
+  hint?: string;
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
   return (
     <label className="flex items-center justify-between gap-4 rounded-lg border bg-background p-3.5">
-      <span className="text-base font-medium">{label}</span>
+      <span className="flex flex-col">
+        <span className="text-base font-medium">{label}</span>
+        {hint ? (
+          <span className="mt-0.5 text-xs text-muted-foreground">{hint}</span>
+        ) : null}
+      </span>
       <button
         type="button"
         role="switch"
@@ -24,8 +30,8 @@ function Toggle({
         onClick={() => onChange(!checked)}
         className={
           checked
-            ? "relative h-8 w-14 rounded-full bg-primary transition"
-            : "relative h-8 w-14 rounded-full bg-muted transition"
+            ? "relative h-8 w-14 shrink-0 rounded-full bg-primary transition"
+            : "relative h-8 w-14 shrink-0 rounded-full bg-muted transition"
         }
       >
         <span
@@ -42,29 +48,37 @@ function Toggle({
 }
 
 export function AccessibilityToggles() {
-  const { voiceOnly, simpleLanguage, largeText, hydrate, hydrated, set } =
-    useAccessibilityPrefs();
+  const {
+    largeText,
+    highContrast,
+    dyslexic,
+    hydrate,
+    hydrated,
+    set,
+  } = useAccessibilityPrefs();
 
   useEffect(() => {
     if (!hydrated) hydrate();
   }, [hydrated, hydrate]);
 
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="flex flex-col gap-2.5">
       <Toggle
-        label={t("a11y.voice_only")}
-        checked={voiceOnly}
-        onChange={(v) => set({ voiceOnly: v })}
+        label="High contrast mode"
+        checked={highContrast}
+        onChange={(v) => set({ highContrast: v })}
       />
       <Toggle
-        label={t("a11y.simple_language")}
-        checked={simpleLanguage}
-        onChange={(v) => set({ simpleLanguage: v })}
-      />
-      <Toggle
-        label={t("a11y.large_text")}
+        label="Large text mode"
+        hint="Mărește textul mic — paragrafe, etichete, descrieri."
         checked={largeText}
         onChange={(v) => set({ largeText: v })}
+      />
+      <Toggle
+        label="Dyslexic mode"
+        hint="Spațiere și interlinie mai generoase pentru lectură mai ușoară."
+        checked={dyslexic}
+        onChange={(v) => set({ dyslexic: v })}
       />
     </div>
   );
