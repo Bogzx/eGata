@@ -28,6 +28,8 @@ export type ActNecesar = {
   denumire: string;
   emitent?: string;
   emitent_id?: string;
+  institutie_nume?: string;
+  note_ai_cannot_complete?: string;
   format?: string;
   observatie?: string;
   obligatoriu?: boolean;
