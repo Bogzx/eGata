@@ -1,0 +1,10 @@
+{
+  "id": "anaf",
+  "nume_scurt": "ANAF",
+  "nume_complet": "Agenția Națională de Administrare Fiscală",
+  "scope": "Impozite, taxe, fiscalitate, domiciliu fiscal.",
+  "url": "https://www.anaf.ro",
+  "phone": "031 403 9160",
+  "online_disponibil": true,
+  "note_ai_cannot_complete": "Notificările fiscale se depun la ANAF. CivicAI nu poate emite documente ANAF."
+}
