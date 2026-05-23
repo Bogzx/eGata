@@ -10,10 +10,8 @@ import { useKioskMode } from "@/lib/kioskMode";
 import { getSession } from "@/lib/session";
 import { setNavigate, useSessionStore } from "@/lib/sessionStore";
 import type { WidgetSpec } from "@/lib/types";
-import {
-  VoiceAgentMicDeniedError,
-  useVoiceAgentBridge as useVoiceAgent,
-} from "@/lib/useVoiceAgentBridge";
+import { VoiceAgentMicDeniedError } from "@/lib/useVoiceAgentBridge";
+import { useVoiceContext } from "@/lib/voiceContext";
 import { AnimatedBackground } from "./AnimatedBackground";
 import { ChatStream } from "./ChatStream";
 import { Composer } from "./Composer";
@@ -52,7 +50,7 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   const sessionState = useSessionStore((s) => s.session?.state ?? null);
   const hasMessages = useSessionStore((s) => s.messages.length > 0);
 
-  const voice = useVoiceAgent();
+  const voice = useVoiceContext();
   const voiceStartedRef = useRef(false);
 
   const [mobileView, setMobileView] = useState<MobileView>("chat");
@@ -122,10 +120,16 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
   // toggle and by the voice_only auto-start. If the mic is denied after the
   // WS opens, tear the WS back down so we don't leave a dangling session.
   async function enterVoiceMode(): Promise<void> {
-    await voice.start({
-      documentId: useSessionStore.getState().activeDocId ?? undefined,
-      preferences: { simple_language: simpleLanguage, voice_only: voiceOnly },
-    });
+    // If the WS is already up (e.g. user previously had voice on and the
+    // VoiceProvider kept it alive across navigation), skip start() —
+    // calling start twice would race two WS connections on the same
+    // conv_id and deadlock on session_lock.
+    if (!voice.wsReady) {
+      await voice.start({
+        documentId: useSessionStore.getState().activeDocId ?? undefined,
+        preferences: { simple_language: simpleLanguage, voice_only: voiceOnly },
+      });
+    }
     try {
       await voice.enableMic();
     } catch (err) {

@@ -3,6 +3,7 @@ import { Onest, JetBrains_Mono } from "next/font/google";
 import { AccessGate } from "@/components/AccessGate";
 import { DemoResetButton } from "@/components/DemoResetButton";
 import { MockProvider } from "@/components/MockProvider";
+import { VoiceProvider } from "@/lib/voiceContext";
 import "./globals.css";
 
 const onest = Onest({
@@ -36,9 +37,11 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${onest.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="min-h-screen bg-background text-foreground antialiased">
+      <body className="bg-background text-foreground antialiased">
         <MockProvider>
-          <AccessGate>{children}</AccessGate>
+          <AccessGate>
+            <VoiceProvider>{children}</VoiceProvider>
+          </AccessGate>
           <DemoResetButton />
         </MockProvider>
       </body>

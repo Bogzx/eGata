@@ -35,9 +35,13 @@ function renderWidget(w: WidgetSpec, onSubmit: (v: string) => void) {
 }
 
 function StreamingCaret() {
+  // Block-cursor glyph — picked over `|` because the pipe is visually
+  // indistinguishable from a capital "I" in most UI fonts. Users were
+  // reporting a phantom "I" appearing in the bubble for the brief window
+  // between beginLiveMessage (empty bubble, live=true) and the first delta.
   return (
     <span aria-hidden="true" className="ml-0.5 inline-block w-[1ch] animate-pulse">
-      |
+      ▍
     </span>
   );
 }
@@ -48,7 +52,7 @@ function MsgUser({ text, streaming }: { text: string; streaming?: boolean }) {
       <span className="sr-only">Tu:</span>
       <div className="bubble bubble-user">
         {text}
-        {streaming ? <StreamingCaret /> : null}
+        {streaming && text.length > 0 ? <StreamingCaret /> : null}
       </div>
     </div>
   );
@@ -88,7 +92,7 @@ function MsgAgent({
         <span className="sr-only">CivicAI:</span>
         <div>
           {text}
-          {streaming ? <StreamingCaret /> : null}
+          {streaming && text.length > 0 ? <StreamingCaret /> : null}
         </div>
         {widgets && widgets.length > 0 ? (
           <div className="widget">

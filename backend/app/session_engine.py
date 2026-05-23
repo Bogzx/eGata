@@ -26,6 +26,7 @@ fire on the same conversation).
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
@@ -321,6 +322,18 @@ async def step(
     # orphan from a previous failed step gets cleaned up on disk.
     session.history = [_content_to_dict(c) for c in contents]
 
+    log.info(
+        "step: in conv=%s citizen=%s state=%s doc=%s msg_len=%d history_turns=%d model=%s",
+        session.id,
+        session.citizen_id,
+        session.state.value,
+        session.active_document_id,
+        len(user_message or ""),
+        len(session.history),
+        settings.gemini_model,
+    )
+    turn_started = time.perf_counter()
+
     tool_calls_emitted: list[dict[str, Any]] = []
     ctx = ToolContext(citizen_id=session.citizen_id, citizen_attributes=citizen_attrs)
 
@@ -345,6 +358,15 @@ async def step(
             voice_only=voice_only,
         )
 
+        log.info(
+            "gemini: call conv=%s iter=%d history_len=%d contents_len=%d tools=%s",
+            session.id,
+            _,
+            len(session.history),
+            len(contents),
+            [t["name"] for t in _function_declarations_for_state(session.state)],
+        )
+        iter_started = time.perf_counter()
         try:
             stream = await client.aio.models.generate_content_stream(
                 model=settings.gemini_model,
@@ -352,7 +374,11 @@ async def step(
                 config=config,
             )
         except Exception as e:  # noqa: BLE001
-            log.exception("Gemini generate_content_stream failed")
+            log.exception(
+                "gemini: generate_content_stream failed conv=%s iter=%d",
+                session.id,
+                _,
+            )
             # Structured error so the transport can pass `code` + `type`
             # to the frontend; see agent.py:_stream_turn for the wire
             # format.
@@ -370,30 +396,27 @@ async def step(
         part_count = 0
         last_finish_reason = None
         last_safety = None
-        log.warning(
-            "iter start: history_len=%d contents_len=%d",
-            len(session.history),
-            len(contents),
-        )
         async for chunk in stream:
             chunk_count += 1
             candidate = chunk.candidates[0] if chunk.candidates else None
             if candidate is None:
-                log.warning("chunk: no candidates")
+                log.warning("gemini: chunk has no candidates conv=%s", session.id)
                 continue
             last_finish_reason = getattr(candidate, "finish_reason", None)
             last_safety = getattr(candidate, "safety_ratings", None)
             content = candidate.content
             if content is None:
                 log.warning(
-                    "chunk: candidate has no content (finish=%r)",
+                    "gemini: candidate has no content conv=%s finish=%r",
+                    session.id,
                     last_finish_reason,
                 )
                 continue
             parts = content.parts or []
             if not parts:
                 log.warning(
-                    "chunk: content has no parts (role=%r finish=%r safety=%r)",
+                    "gemini: content has no parts conv=%s role=%r finish=%r safety=%r",
+                    session.id,
                     getattr(content, "role", None),
                     last_finish_reason,
                     last_safety,
@@ -403,8 +426,11 @@ async def step(
                 text = getattr(p, "text", None)
                 fc = getattr(p, "function_call", None)
                 thought_flag = getattr(p, "thought", None)
-                log.warning(
-                    "iter part: text=%r fc=%r thought=%r",
+                # Per-part log is per-token-stream — quite chatty. Keep at
+                # DEBUG so prod stays readable, set LOG_LEVEL=DEBUG to inspect.
+                log.debug(
+                    "gemini: part conv=%s text=%r fc=%r thought=%r",
+                    session.id,
                     (text[:80] + "...") if text and len(text) > 80 else text,
                     fc.name if fc else None,
                     thought_flag,
@@ -418,8 +444,11 @@ async def step(
                 if fc:
                     accumulated_function_calls.append(fc)
                     accumulated_parts.append(p)
-        log.warning(
-            "iter done: chunks=%d parts=%d text_len=%d fc_count=%d finish=%r",
+        log.info(
+            "gemini: iter done conv=%s iter=%d duration_ms=%.0f chunks=%d parts=%d text_len=%d fc=%d finish=%r",
+            session.id,
+            _,
+            (time.perf_counter() - iter_started) * 1000,
             chunk_count,
             part_count,
             len(accumulated_text),
@@ -506,6 +535,14 @@ async def step(
         # Persist history into the session (caller commits to DB)
         session.history = [_content_to_dict(c) for c in contents]
         yield Event("session_snapshot", session.snapshot())
+        log.info(
+            "step: out conv=%s duration_ms=%.0f final_text_len=%d tool_calls=%d state=%s",
+            session.id,
+            (time.perf_counter() - turn_started) * 1000,
+            len(final_text),
+            len(tool_calls_emitted),
+            session.state.value,
+        )
         yield Event(
             "done",
             {"message": final_text, "tool_calls": tool_calls_emitted},
@@ -514,10 +551,23 @@ async def step(
 
     # Loop exhausted — preserve whatever the model emitted last instead of
     # silently swallowing it with a canned fallback (P1-#23).
+    log.warning(
+        "step: tool-loop exhausted conv=%s after %d iters — model kept calling tools",
+        session.id,
+        _MAX_TOOL_LOOP_ITERATIONS,
+    )
     session.history = [_content_to_dict(c) for c in contents]
     yield Event("session_snapshot", session.snapshot())
     fallback = "Am procesat câteva acțiuni. Vrei să continuăm?"
     final_text = transcript_so_far or fallback
+    log.info(
+        "step: out (exhausted) conv=%s duration_ms=%.0f final_text_len=%d tool_calls=%d state=%s",
+        session.id,
+        (time.perf_counter() - turn_started) * 1000,
+        len(final_text),
+        len(tool_calls_emitted),
+        session.state.value,
+    )
     yield Event(
         "done",
         {"message": final_text, "tool_calls": tool_calls_emitted},
