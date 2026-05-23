@@ -11,6 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from app.institutions import get_institutions_registry
 from app.models import (
@@ -20,6 +21,14 @@ from app.models import (
     Scenario,
     ScenarioPlan,
 )
+
+
+class ScenarioSummary(BaseModel):
+    id: str
+    title: str
+    description: str
+    complexitate: str | None = None
+    applies_if: str | None = None
 
 SCENARIOS_DIR = Path(__file__).resolve().parent.parent / "scenarios"
 
@@ -115,6 +124,20 @@ def build_scenario_plan(scenario_id: str) -> ScenarioPlan | None:
         in_scope_steps=resolved_in_scope,
         external_steps=resolved_external,
     )
+
+
+@router.get("", response_model=list[ScenarioSummary])
+def list_scenarios() -> list[ScenarioSummary]:
+    return [
+        ScenarioSummary(
+            id=sc.id,
+            title=sc.title,
+            description=sc.description,
+            complexitate=sc.complexitate,
+            applies_if=sc.applies_if,
+        )
+        for sc in get_scenarios_registry().values()
+    ]
 
 
 @router.get("/{scenario_id}", response_model=ScenarioPlan)
