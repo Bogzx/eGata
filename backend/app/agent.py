@@ -63,6 +63,19 @@ def _resolve_session(req: AgentChatRequest, citizen_id: UUID) -> Session:
     state-machine world; SP5's UI deletes that path in favor of the
     agent calling start_procedure.
     """
+    # Diagnostic: missing conversation_id on a chat request is normal on
+    # the very first turn, but if it happens repeatedly for the same
+    # browser the frontend isn't echoing the `event: conversation` SSE
+    # frame back. Each fresh session means the AI has no history, which
+    # presents as "the chat ignores my previous messages".
+    if not req.conversation_id:
+        log.info(
+            "agent.chat: no conversation_id on request (citizen=%s, doc=%s) — "
+            "creating fresh session. If this recurs for the same browser, "
+            "the frontend may be dropping the `event: conversation` SSE frame.",
+            citizen_id,
+            req.document_id,
+        )
     session = fetch_or_create_session(
         str(citizen_id), session_id=req.conversation_id
     )
@@ -121,7 +134,19 @@ async def _stream_turn(
                 yield _sse(ev.kind, ev.data)
         except Exception as e:  # noqa: BLE001
             log.exception("session_engine.step crashed")
-            yield _sse("error", {"detail": str(e)})
+            # Structured error frame so the frontend can branch on `code`
+            # instead of guessing from a free-form `detail` string. The
+            # `type` field carries the exception class for debugging; the
+            # `detail` keeps the human-readable message for legacy clients
+            # that still read it.
+            yield _sse(
+                "error",
+                {
+                    "code": "agent_error",
+                    "type": type(e).__name__,
+                    "detail": str(e),
+                },
+            )
         finally:
             try:
                 update_session(session)
@@ -310,8 +335,17 @@ async def chat(
                 elif ev.kind == "done":
                     final_message = ev.data.get("message") or final_message
                 elif ev.kind == "error":
+                    # Mirror the SSE shape so programmatic callers can
+                    # branch on `code` instead of substring-matching
+                    # `detail`. FastAPI serializes `detail` as-is when
+                    # it's a dict.
                     raise HTTPException(
-                        status_code=502, detail=ev.data.get("detail") or "Agent error"
+                        status_code=502,
+                        detail={
+                            "code": ev.data.get("code") or "agent_error",
+                            "type": ev.data.get("type"),
+                            "message": ev.data.get("detail") or "Agent error",
+                        },
                     )
         finally:
             update_session(session)

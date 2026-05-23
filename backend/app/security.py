@@ -7,7 +7,7 @@ from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+from jose import ExpiredSignatureError, JWTError, jwt
 
 from app.config import get_settings
 
@@ -27,12 +27,24 @@ def mint_access_token(citizen_id: UUID | str) -> str:
 
 
 def decode_token(token: str) -> dict[str, Any]:
+    """Decode + verify a JWT. Distinguishes "expired" from generic "invalid".
+
+    The frontend branches on `detail`: an expired token triggers a silent
+    re-login redirect; an invalid token (signature mismatch, malformed,
+    tampered) is a real error worth surfacing. Pre-fix both raised the
+    same `Invalid token` detail and the chat appeared broken whenever a
+    long-idle session crossed the 24h JWT lifetime.
+    """
     settings = get_settings()
     try:
         return cast(
             dict[str, Any],
             jwt.decode(token, settings.jwt_signing_secret, algorithms=[settings.jwt_algorithm]),
         )
+    except ExpiredSignatureError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired"
+        ) from exc
     except JWTError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
 

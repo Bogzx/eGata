@@ -244,13 +244,35 @@ class VoiceBridgeSession:
 
         # Rehydrate prior conversation history (text-chat lineage) so
         # voice has full context. session.history is JSON; convert to
-        # Content objects for the Live API.
-        history: list[genai_types.Content] = []
-        for entry in self.db_session.history:
-            try:
-                history.append(genai_types.Content.model_validate(entry))
-            except Exception:
-                pass
+        # Content objects for the Live API. Share the text-path's
+        # sanitizer so a half-written turn from text mode doesn't make
+        # Gemini Live reject the seeded history with a role-alternation
+        # error. Any leftover user text from the orphan is seeded as a
+        # final user turn so the prior intent is preserved.
+        from app.session_engine import (
+            _history_to_contents,
+            _sanitize_history_for_gemini,
+        )
+
+        sanitized_history, leftover_text = _sanitize_history_for_gemini(
+            self.db_session.history
+        )
+        if len(sanitized_history) != len(self.db_session.history):
+            log.warning(
+                "voice: trimmed %d orphan turn(s) from prior failed step "
+                "(leftover_user_text=%s)",
+                len(self.db_session.history) - len(sanitized_history),
+                "yes" if leftover_text else "no",
+            )
+            self.db_session.history = sanitized_history
+        history: list[genai_types.Content] = _history_to_contents(sanitized_history)
+        if leftover_text:
+            history.append(
+                genai_types.Content(
+                    role="user",
+                    parts=[genai_types.Part.from_text(text=leftover_text)],
+                )
+            )
 
         async with client.aio.live.connect(
             model=settings.gemini_voice_model, config=config

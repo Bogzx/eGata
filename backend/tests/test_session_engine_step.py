@@ -333,3 +333,89 @@ def test_history_persists_user_turn_before_model_responds():
         and h.get("parts", [{}])[0].get("text") == "vreau ceva"
         for h in sess.history
     )
+
+
+def test_second_turn_recovers_after_failed_first_turn():
+    """Regression for the "chat doesn't work from message 2" bug.
+
+    The previous turn died after persisting the user message (the early
+    save at the top of step()) but before any model response. session.history
+    ends with role=user. The next turn must NOT send Gemini consecutive
+    user→user content (Gemini rejects it). The sanitizer should peel off
+    the orphan and merge its text into the new user message so the user's
+    prior attempt isn't lost.
+    """
+    sess = Session(id="s_regression", citizen_id="cit")
+
+    # Turn 1: Gemini crashes.
+    class _Boom:
+        async def generate_content_stream(self, **kwargs):
+            raise RuntimeError("gemini hiccup")
+
+    boom_client = MagicMock()
+    boom_client.aio.models = _Boom()
+    with patch("app.session_engine._client", return_value=boom_client):
+        _run(_drain(step(sess, "salut, vreau schimbare domiciliu", citizen_attrs={})))
+
+    # After turn 1: error fired, but the user turn is persisted (the
+    # established invariant — see test above).
+    assert any(
+        h.get("role") == "user"
+        and "schimbare domiciliu" in (h.get("parts", [{}])[0].get("text") or "")
+        for h in sess.history
+    ), "turn 1 user turn was not preserved"
+
+    # Turn 2: Gemini responds normally.
+    ok_fake = _FakeGenAI([[_text_chunk("Sigur, te ajut.")]])
+    ok_client = MagicMock()
+    ok_client.aio.models = ok_fake
+    with patch("app.session_engine._client", return_value=ok_client):
+        events = _run(_drain(step(sess, "spune mai mult", citizen_attrs={})))
+
+    # The new chat completes — no error, ends with done.
+    kinds = [e.kind for e in events]
+    assert "error" not in kinds, (
+        f"turn 2 errored after a clean orphan recovery: {kinds}"
+    )
+    assert kinds[-1] == "done"
+
+    # Inspect what Gemini was sent on turn 2: the orphan user turn from
+    # turn 1 MUST NOT appear as a separate user role (that would be
+    # consecutive-user-roles, which is the original bug). The orphan's
+    # text MUST be merged into turn 2's user message so nothing is lost.
+    assert len(ok_fake.calls) == 1
+    sent_contents = ok_fake.calls[0]["contents"]
+    user_roles = [c for c in sent_contents if c.role == "user"]
+    assert len(user_roles) == 1, (
+        f"Gemini received {len(user_roles)} consecutive user turns — "
+        f"the orphan from turn 1 wasn't merged. Roles sent: "
+        f"{[c.role for c in sent_contents]}"
+    )
+    merged_text = user_roles[0].parts[0].text
+    assert "schimbare domiciliu" in merged_text, (
+        f"orphan user text was dropped, not merged: {merged_text!r}"
+    )
+    assert "spune mai mult" in merged_text
+
+
+def test_engine_error_event_carries_code_and_type():
+    """The frontend branches on `code` instead of substring-matching the
+    free-form `detail`. Both the engine's direct error event and the
+    transport-wrapped exception path should emit {code, type, detail}.
+    """
+    sess = Session(id="s_err", citizen_id="cit")
+
+    class _Boom:
+        async def generate_content_stream(self, **kwargs):
+            raise RuntimeError("simulated gemini outage")
+
+    mock_client = MagicMock()
+    mock_client.aio.models = _Boom()
+    with patch("app.session_engine._client", return_value=mock_client):
+        events = _run(_drain(step(sess, "test", citizen_attrs={})))
+
+    err = events[-1]
+    assert err.kind == "error"
+    assert err.data.get("code") == "gemini_stream_failed"
+    assert err.data.get("type") == "RuntimeError"
+    assert "simulated gemini outage" in err.data.get("detail", "")
