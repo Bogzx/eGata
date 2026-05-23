@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import type { VoicePreferences } from "./types";
-import { GeminiLiveSession, type FunctionDecl } from "./gemini-live";
+import {
+  GeminiLiveSession,
+  type AgentToolCall,
+  type FunctionDecl,
+} from "./gemini-live";
 import {
   startMicRecorder,
   startPlayer,
@@ -23,19 +27,21 @@ export type ToolCallHandler = (
   args: Record<string, unknown>,
 ) => Promise<Record<string, unknown>>;
 
+export type VoiceAgentStartOpts = {
+  documentId?: string;
+  preferences?: VoicePreferences;
+  /** Called once per finalized user turn with the full transcript. */
+  onUserMessage?: (text: string) => void;
+  /** Called once per finalized agent turn with text + emitted tool calls. */
+  onAgentMessage?: (text: string, toolCalls: AgentToolCall[]) => void;
+};
+
 export type VoiceAgentHook = {
   state: VoiceAgentState;
-  start: (opts: {
-    documentId?: string;
-    preferences?: VoicePreferences;
-    onAgentMessage?: (text: string) => void;
-    onTranscript?: (text: string) => void;
-  }) => Promise<void>;
+  start: (opts: VoiceAgentStartOpts) => Promise<void>;
   stop: () => void;
   sendText: (text: string) => Promise<void>;
   registerToolHandler: (handler: ToolCallHandler) => void;
-  lastTranscript: string;
-  lastAgentMessage: string;
 };
 
 export class VoiceAgentMicDeniedError extends Error {
@@ -142,8 +148,6 @@ const TOOL_SCHEMAS: Record<string, FunctionDecl> = {
 
 export function useVoiceAgent(): VoiceAgentHook {
   const [state, setState] = useState<VoiceAgentState>("idle");
-  const [lastTranscript, setLastTranscript] = useState("");
-  const [lastAgentMessage, setLastAgentMessage] = useState("");
 
   const sessionRef = useRef<GeminiLiveSession | null>(null);
   const recorderRef = useRef<RecorderHandle | null>(null);
@@ -175,7 +179,7 @@ export function useVoiceAgent(): VoiceAgentHook {
         throw new Error(`Tool ${name} failed (${resp.status}): ${detail}`);
       }
       const result = (await resp.json()) as Record<string, unknown>;
-      // Fire-and-forget UI notification so components can refresh document.
+      // Fire-and-forget UI side-effect notification (e.g. refetch document).
       try {
         await userToolHandlerRef.current?.(name, { ...args, _result: result });
       } catch {
@@ -228,14 +232,12 @@ export function useVoiceAgent(): VoiceAgentHook {
             setState("speaking");
             player.feed(pcm);
           },
-          onAgentText: (text) => {
-            setLastAgentMessage(text);
-            opts.onAgentMessage?.(text);
-          },
-          onUserTranscript: (text) => {
-            setLastTranscript(text);
-            opts.onTranscript?.(text);
+          onUserMessage: (text) => {
+            opts.onUserMessage?.(text);
             setState("listening");
+          },
+          onAgentMessage: (text, toolCalls) => {
+            opts.onAgentMessage?.(text, toolCalls);
           },
           onInterrupted: () => {
             player.flush();
@@ -294,7 +296,5 @@ export function useVoiceAgent(): VoiceAgentHook {
     stop,
     sendText,
     registerToolHandler,
-    lastTranscript,
-    lastAgentMessage,
   };
 }
