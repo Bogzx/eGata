@@ -56,13 +56,17 @@ function KioskLogin() {
       <div className="mx-auto max-w-3xl space-y-8">
         {path === "chooser" ? (
           <div className="grid gap-4 sm:grid-cols-2">
-            <Button size="xl" className="h-32 text-2xl" onClick={() => setPath("roeid")}>
+            <Button
+              size="xl"
+              className="h-24 text-xl sm:h-32 sm:text-2xl"
+              onClick={() => setPath("roeid")}
+            >
               {t("login.roeid_button")}
             </Button>
             <Button
               size="xl"
               variant="outline"
-              className="h-32 text-2xl"
+              className="h-24 text-xl sm:h-32 sm:text-2xl"
               onClick={() => setPath("mrz")}
             >
               {t("login.scan_id_button")}
@@ -93,7 +97,7 @@ export default function LoginPage() {
   const isKiosk = useKioskMode();
   if (isKiosk) return <KioskLogin />;
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
+    <main className="flex min-h-screen items-center justify-center p-4 sm:p-6">
       <LoginCard onChallenge={(c) => nav(router, c)} />
     </main>
   );
