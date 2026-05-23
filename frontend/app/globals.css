@@ -1461,6 +1461,14 @@ html.large-text {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     max-width: 600px;
   }
+
+  /* ---- DocPaper (tablet) ---- */
+  .doc-paper {
+    padding: 22px 20px;
+  }
+  .doc-paper-detail {
+    padding: 28px 24px;
+  }
 }
 
 /* ============ Mobile (≤640px) ============ */
@@ -1545,6 +1553,46 @@ html.large-text {
   }
   .civic-left.idle {
     padding-bottom: 18vh;
+  }
+
+  /* ---- DocPaper (mobile) ---- */
+  .doc-paper {
+    padding: 18px 14px;
+    font-size: 12.5px;
+  }
+  .doc-paper-detail {
+    padding: 20px 16px;
+  }
+  .doc-title {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  .doc-label {
+    width: 42%;
+    padding-right: 10px;
+    font-size: 10.5px;
+  }
+  .doc-value {
+    font-size: 12.5px;
+  }
+  .doc-foot {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .doc-detail-meta {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .doc-detail-meta > :last-child {
+    grid-column: span 2;
+  }
+  .docpane-head {
+    padding: 18px 18px 12px;
+  }
+  .docpane-doc {
+    padding: 14px 14px;
+  }
+  .docpane-title {
+    font-size: 18px;
   }
 }
 
