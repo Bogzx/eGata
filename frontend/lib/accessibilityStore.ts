@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import { create } from "zustand";
+import { api } from "./api";
+import { getSession } from "./session";
 
 const KEY = "civicai.a11y";
 
@@ -54,6 +56,19 @@ export const useAccessibilityPrefs = create<State>((set, get) => ({
       simpleLanguage: patch.simpleLanguage ?? s.simpleLanguage,
       largeText: patch.largeText ?? s.largeText,
     });
+    if (typeof window !== "undefined" && getSession()) {
+      const accessibility: Record<string, boolean> = {};
+      if (patch.voiceOnly !== undefined) accessibility.voice_only = patch.voiceOnly;
+      if (patch.simpleLanguage !== undefined) accessibility.simple_language = patch.simpleLanguage;
+      if (patch.largeText !== undefined) accessibility.large_text = patch.largeText;
+      if (Object.keys(accessibility).length > 0) {
+        void api
+          .patchCitizenAttributes({ accessibility })
+          .catch(() => {
+            // best-effort sync; localStorage remains source of truth on failure
+          });
+      }
+    }
   },
   hydrate: () => {
     const loaded = load();
