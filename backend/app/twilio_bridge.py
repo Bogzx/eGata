@@ -134,8 +134,8 @@ async def _run_phone_voicelive_session(
         input_audio_format=InputAudioFormat.PCM16,
         output_audio_format=OutputAudioFormat.PCM16,
         input_audio_transcription=AudioInputTranscriptionOptions(
-            model="whisper-1",
-            language="ro",
+            model=settings.azure_voicelive_transcription_model,
+            language=settings.azure_voicelive_transcription_language,
         ),
         turn_detection=AzureSemanticVadMultilingual(),
         tools=tools_for_realtime(_phone_function_declarations()),
