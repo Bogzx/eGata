@@ -253,8 +253,8 @@ export type WidgetSpec =
     };
 
 export type Message =
-  | { id: string; role: "user"; text: string; via: "text" | "voice" }
-  | { id: string; role: "agent"; text: string; widgets?: WidgetSpec[] }
+  | { id: string; role: "user"; text: string; via: "text" | "voice"; live?: boolean }
+  | { id: string; role: "agent"; text: string; widgets?: WidgetSpec[]; live?: boolean }
   | { id: string; role: "system"; text: string };
 
 export type PendingMessage = {

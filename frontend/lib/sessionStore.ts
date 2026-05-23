@@ -99,6 +99,10 @@ export interface SessionState {
   finalizePendingUser(): void;
   finalizePendingAgent(widgets?: WidgetSpec[]): void;
   clearPending(): void;
+  /** Live messages stream their content in-place (e.g., voice transcripts). */
+  beginLiveMessage(role: "user" | "agent"): string;
+  updateLiveMessage(id: string, text: string): void;
+  finalizeLiveMessage(id: string, text: string): void;
   transitionRightPane(next: RightPaneState): void;
   setVoiceStatus(s: VoiceStatus): void;
   openDrawer(): void;
@@ -369,6 +373,42 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   clearPending() {
     set({ pendingUser: null, pendingAgent: null });
+  },
+
+  beginLiveMessage(role) {
+    const id = makeId();
+    const msg: Message =
+      role === "user"
+        ? { id, role: "user", text: "", via: "voice", live: true }
+        : { id, role: "agent", text: "", live: true };
+    set((s) => {
+      const messages = [...s.messages, msg];
+      if (s.activeDocId) saveMessages(s.activeDocId, messages);
+      return { messages };
+    });
+    return id;
+  },
+
+  updateLiveMessage(id, text) {
+    set((s) => {
+      const messages = s.messages.map((m) =>
+        m.id === id && m.role !== "system" ? { ...m, text } : m,
+      );
+      if (s.activeDocId) saveMessages(s.activeDocId, messages);
+      return { messages };
+    });
+  },
+
+  finalizeLiveMessage(id, text) {
+    set((s) => {
+      const messages = s.messages.map((m) =>
+        m.id === id && m.role !== "system"
+          ? { ...m, text, live: false }
+          : m,
+      );
+      if (s.activeDocId) saveMessages(s.activeDocId, messages);
+      return { messages };
+    });
   },
 
   transitionRightPane(next) {
