@@ -10,12 +10,14 @@ import { streamChat, type StreamChatToolCall } from "./sseChat";
 import type {
   Citizen,
   Document,
+  FrontendEvent,
   LookupMatch,
   Message,
   PendingMessage,
   Procedure,
   RightPaneState,
   ScenarioPlan,
+  SessionSnapshot,
   VoiceStatus,
   WidgetSpec,
 } from "./types";
@@ -103,6 +105,11 @@ export interface SessionState {
   beginLiveMessage(role: "user" | "agent"): string;
   updateLiveMessage(id: string, text: string): void;
   finalizeLiveMessage(id: string, text: string): void;
+  /** SP4: mirror the backend's session_snapshot frame. */
+  session: SessionSnapshot | null;
+  setSession(snapshot: SessionSnapshot): void;
+  /** SP4: react to a structured frontend event from a tool. */
+  handleFrontendEvent(event: FrontendEvent): void;
   transitionRightPane(next: RightPaneState): void;
   setVoiceStatus(s: VoiceStatus): void;
   openDrawer(): void;
@@ -128,6 +135,109 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   sending: false,
   scenarioPlan: null,
   lookupMatches: [],
+  session: null,
+
+  setSession(snapshot) {
+    set({ session: snapshot });
+  },
+
+  async handleFrontendEvent(event) {
+    switch (event.type) {
+      case "document_opened": {
+        try {
+          await get().loadDocument(event.document_id);
+        } catch (err) {
+          const detail = err instanceof Error ? err.message : "necunoscută";
+          get().appendMessage({
+            id: makeId(),
+            role: "system",
+            text: `Nu am putut deschide documentul: ${detail}`,
+          });
+        }
+        return;
+      }
+      case "widget_proposed": {
+        const spec: WidgetSpec =
+          event.widget_type === "choice"
+            ? {
+                type: "choice",
+                question: event.question,
+                options: event.options,
+                targetField: event.target_field ?? "",
+                widgetId: event.widget_id,
+              }
+            : event.widget_type === "date"
+              ? {
+                  type: "date",
+                  question: event.question,
+                  targetField: event.target_field ?? "",
+                  widgetId: event.widget_id,
+                }
+              : {
+                  type: "confirm",
+                  question: event.question,
+                  widgetId: event.widget_id,
+                };
+        const messages = get().messages;
+        // Attach the widget to the most recent agent message, or create one.
+        let realIdx = -1;
+        for (let i = messages.length - 1; i >= 0; i--) {
+          if (messages[i]?.role === "agent") {
+            realIdx = i;
+            break;
+          }
+        }
+        if (realIdx === -1) {
+          get().appendMessage({
+            id: makeId(),
+            role: "agent",
+            text: event.question,
+            widgets: [spec],
+          });
+          return;
+        }
+        const target = messages[realIdx];
+        if (!target || target.role !== "agent") return;
+        const next: Message = {
+          id: target.id,
+          role: "agent",
+          text: target.text,
+          widgets: [...(target.widgets ?? []), spec],
+          live: target.live,
+        };
+        const newMessages = [...messages];
+        newMessages[realIdx] = next;
+        const { activeDocId } = get();
+        if (activeDocId) saveMessages(activeDocId, newMessages);
+        set({ messages: newMessages });
+        return;
+      }
+      case "field_updated": {
+        // Optimistic: applyToolResult also refetches the doc, but pushing the
+        // field locally first means the UI reflects the change immediately.
+        const { document } = get();
+        if (!document || document.id !== event.document_id) return;
+        const newFields = {
+          ...(document.fields ?? {}),
+          [event.name]: event.value,
+        };
+        set({ document: { ...document, fields: newFields } });
+        return;
+      }
+      case "document_delivered": {
+        set({ rightPane: { kind: "done", refNumber: event.ref_number } });
+        return;
+      }
+      case "redirect": {
+        get().appendMessage({
+          id: makeId(),
+          role: "system",
+          text: `Această cerere se face la ${event.name}. Vezi ${event.url}.`,
+        });
+        return;
+      }
+    }
+  },
 
   async hydrateCitizen() {
     const c = await api.getCitizenMe();
@@ -238,6 +348,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           onToolResult: async (name, output) => {
             const call = collectedToolCalls.find((c) => c.name === name);
             await get().applyToolResult(name, call?.arguments ?? {}, output);
+          },
+          onSessionSnapshot: (snapshot) => {
+            get().setSession(snapshot);
+          },
+          onFrontendEvent: (event) => {
+            void get().handleFrontendEvent(event);
           },
           onDone: (final) => {
             const widgets = deriveWidgets(final.tool_calls);

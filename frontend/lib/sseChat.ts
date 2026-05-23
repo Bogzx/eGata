@@ -43,6 +43,10 @@ export type StreamChatHandlers = {
   onToolCall?: (call: StreamChatToolCall) => void;
   /** Fired AFTER the tool runs server-side with its raw output. */
   onToolResult?: (name: string, output: unknown) => void;
+  /** SP4: full session-state snapshot pushed by the server after every mutation. */
+  onSessionSnapshot?: (snapshot: import("./types").SessionSnapshot) => void;
+  /** SP4: structured frontend event from a tool (document_opened, widget_proposed, etc.). */
+  onFrontendEvent?: (event: import("./types").FrontendEvent) => void;
   /** Fired exactly once at the end of the stream. */
   onDone?: (final: {
     conversation_id: string;
@@ -168,6 +172,14 @@ function dispatchFrame(frame: ParsedFrame, h: StreamChatHandlers): void {
     case "tool_result": {
       const p = payload as { name?: string; output?: unknown };
       if (p.name) h.onToolResult?.(p.name, p.output);
+      return;
+    }
+    case "session_snapshot": {
+      h.onSessionSnapshot?.(payload as import("./types").SessionSnapshot);
+      return;
+    }
+    case "frontend_event": {
+      h.onFrontendEvent?.(payload as import("./types").FrontendEvent);
       return;
     }
     case "done": {
