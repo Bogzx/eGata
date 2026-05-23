@@ -43,6 +43,7 @@ async def execute(session: Session, ctx: ToolContext, query: str) -> ToolResult:
                 "title": proc.title,
                 "score": float(row["score"]),
                 "description": proc.description,
+                "llm_hint": proc.llm_hint,
                 "acte_necesare": [
                     resolve_act(a).model_dump(mode="json") for a in proc.acte_necesare
                 ],

@@ -503,7 +503,22 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   appendMessage(m) {
-    const next = [...get().messages, m];
+    // When the user replies via text/voice (not by clicking a widget),
+    // dismiss every still-pending widget so the buttons disappear from
+    // earlier agent bubbles. submittedValue is the same marker
+    // ChatStream filters on — '__dismissed__' is distinguishable from
+    // a real value if downstream code ever needs to tell them apart.
+    const prior = get().messages;
+    const cleaned = m.role === "user"
+      ? prior.map((msg) => {
+          if (msg.role !== "agent" || !msg.widgets) return msg;
+          const widgets = msg.widgets.map((w) =>
+            w.submittedValue ? w : { ...w, submittedValue: "__dismissed__" },
+          );
+          return { ...msg, widgets };
+        })
+      : prior;
+    const next = [...cleaned, m];
     set({ messages: next });
     const id = get().activeDocId;
     if (id) saveMessages(id, next);
