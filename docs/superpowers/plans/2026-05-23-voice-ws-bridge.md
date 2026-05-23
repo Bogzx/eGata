@@ -44,7 +44,7 @@
 
 ## Task 0: Upgrade google-genai for transcription support
 
-The Python SDK at 1.2.0 doesn't expose `input_audio_transcription` / `output_audio_transcription` on `LiveConnectConfig`. Both fields are required for the live-message UX. Upgrade to 1.10+ (transcription is stable from that range onward) while staying below 2.0 to avoid the major-version bump that breaks `pyproject.toml`'s upper bound.
+The Python SDK at 1.2.0 doesn't expose `input_audio_transcription` / `output_audio_transcription` on `LiveConnectConfig`. Both fields are required for the live-message UX. Bump to the latest line (2.x) and widen the upper bound so we get the most recent fixes around Live transcription. We still verify the existing `twilio_bridge.py` and text agent import cleanly afterwards.
 
 **Files:**
 - Modify: `backend/pyproject.toml` (the `google-genai` line)
@@ -57,7 +57,7 @@ In `backend/pyproject.toml`, change:
 ```
 to:
 ```
-  "google-genai>=1.10.0,<2.0",
+  "google-genai>=2.0.0,<3.0",
 ```
 
 - [ ] **Step 2: Install the new version**
