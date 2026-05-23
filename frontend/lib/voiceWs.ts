@@ -26,6 +26,10 @@ export type VoiceWsHandlers = {
   onAgentDone: (text: string, toolCalls: VoiceWsToolCall[]) => void;
   onToolCall: (name: string, args: Record<string, unknown>) => void;
   onToolResult: (name: string, output: Record<string, unknown>) => void;
+  /** SP4: full session-state snapshot pushed after every mutation. */
+  onSessionSnapshot?: (snapshot: import("./types").SessionSnapshot) => void;
+  /** SP4: structured frontend event from a tool. */
+  onFrontendEvent?: (event: import("./types").FrontendEvent) => void;
   onAudio: (pcm: ArrayBuffer) => void;
   onInterrupted: () => void;
   onError: (detail: string) => void;
@@ -170,6 +174,16 @@ export class VoiceWs {
         break;
       case "interrupted":
         this.handlers.onInterrupted();
+        break;
+      case "session_snapshot":
+        this.handlers.onSessionSnapshot?.(
+          msg.snapshot as import("./types").SessionSnapshot,
+        );
+        break;
+      case "frontend_event":
+        this.handlers.onFrontendEvent?.(
+          msg.event as import("./types").FrontendEvent,
+        );
         break;
       case "error":
         this.handlers.onError((msg.detail as string) ?? "Eroare necunoscută");

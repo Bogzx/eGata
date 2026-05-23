@@ -147,6 +147,12 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
               _result: output,
             }).catch(() => undefined);
           },
+          onSessionSnapshot: (snapshot) => {
+            store().setSession(snapshot);
+          },
+          onFrontendEvent: (event) => {
+            void store().handleFrontendEvent(event);
+          },
           onAudio: (pcm) => {
             playerRef.current?.feed(pcm);
           },
