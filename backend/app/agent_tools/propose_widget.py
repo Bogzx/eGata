@@ -58,6 +58,23 @@ async def execute(
             }
         )
 
+    # Refuse a duplicate of an already-pending widget (same question text).
+    # LLMs sometimes re-propose the same delivery-choice question twice
+    # back-to-back; the first one is still waiting for the user. Silently
+    # skip the duplicate so the user sees only one widget.
+    for pending in session.pending_widgets:
+        if pending.question.strip() == question.strip():
+            return ToolResult(
+                output={
+                    "ignored": True,
+                    "reason": (
+                        f"duplicate: a widget with the same question is already "
+                        f"pending (widget_id={pending.widget_id}). Așteaptă "
+                        f"răspunsul cetățeanului, nu re-propune."
+                    ),
+                }
+            )
+
     # target_field binds the widget answer to a document field via set_field.
     # set_field is only valid in FILLING/REVIEWING — there's no document to
     # write into during CONFIRMING_MATCH, so the combination is fatal if the

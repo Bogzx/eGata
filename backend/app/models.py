@@ -102,6 +102,11 @@ class ActNecesar(BaseModel):
     observatie: str | None = None
     obligatoriu: bool = True
     alternative: list[str] = Field(default_factory=list)
+    # If set, the frontend renders a "Vezi documentul" button that opens a
+    # PDF preview of /procedures/<id>/preview-pdf in a modal. Use for acts
+    # that ARE one of our procedure templates (e.g. the cerere itself, or
+    # an alternative that's also bookable in-app like CNS).
+    linked_procedure_id: str | None = None
 
 
 class Procedure(BaseModel):
@@ -322,6 +327,7 @@ class ResolvedActeNecesareItem(BaseModel):
     observatie: str | None = None
     obligatoriu: bool = True
     alternative: list[str] = Field(default_factory=list)
+    linked_procedure_id: str | None = None
 
 
 class ResolvedInScopeStep(BaseModel):

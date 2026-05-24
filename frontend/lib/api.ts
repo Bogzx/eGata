@@ -76,6 +76,19 @@ export const api = {
 
   getProcedure: (id: string) => request<Procedure>(`/procedures/${id}`),
 
+  /** Fetch a PDF preview of the procedure rendered with the citizen's
+   * profile data. Returns a blob URL the caller is responsible for
+   * revoking via URL.revokeObjectURL when the preview closes. */
+  async previewProcedurePdf(procedureId: string): Promise<string> {
+    const s = getSession();
+    const headers: Record<string, string> = {};
+    if (s) headers["Authorization"] = `Bearer ${s.access_token}`;
+    const res = await fetch(`${BASE_URL}/procedures/${procedureId}/preview-pdf`, { headers });
+    if (!res.ok) throw new ApiError(res.status, null, `preview-pdf → ${res.status}`);
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  },
+
   listScenarios: () => request<ScenarioSummary[]>("/scenarios"),
 
   getScenarioPlan: (id: string) => request<ScenarioPlan>(`/scenarios/${id}`),

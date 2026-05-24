@@ -133,12 +133,15 @@ export function ChatStream({ onWidgetSubmit }: Props) {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, sending]);
 
-  // Show the typing dots only when we are sending and there is no live
-  // agent message yet (the live message itself shows the streaming caret).
-  const hasLiveAgent = messages.some(
-    (m) => m.role === "agent" && m.live && m.text.trim().length > 0,
+  // Loading bubble shows when we are sending AND no live agent bubble has
+  // produced text yet. An empty live agent message (placeholder before
+  // the first delta) is rendered as null in the map below, so without
+  // this typing bubble the user would see complete silence during the
+  // multi-second tool loop.
+  const liveAgentWithText = messages.some(
+    (m) => m.role === "agent" && m.live && cleanText(m.text).length > 0,
   );
-  const showTyping = sending && !hasLiveAgent;
+  const showTyping = sending && !liveAgentWithText;
 
   return (
     <ol
@@ -148,31 +151,44 @@ export function ChatStream({ onWidgetSubmit }: Props) {
       aria-relevant="additions"
       aria-label="Conversație cu asistentul eGata"
     >
-      {messages.map((m: Message) => (
-        <li
-          key={m.id}
-          aria-label={
-            m.role !== "system" && m.live
-              ? m.role === "user"
-                ? "Mesajul tău se transcrie"
-                : "Asistentul răspunde"
-              : undefined
-          }
-        >
-          {m.role === "user" ? (
-            <MsgUser text={cleanText(m.text)} streaming={m.live} />
-          ) : m.role === "agent" ? (
-            <MsgAgent
-              text={cleanText(m.text)}
-              widgets={m.widgets}
-              streaming={m.live}
-              onWidgetSubmit={onWidgetSubmit}
-            />
-          ) : (
-            <MsgSystem text={cleanText(m.text)} />
-          )}
-        </li>
-      ))}
+      {messages.map((m: Message) => {
+        // Skip empty live agent messages — the loading bubble below covers
+        // this state. Without this, the user sees a phantom "eGata" header
+        // with no body while the model is still mid-tool-loop.
+        if (
+          m.role === "agent" &&
+          m.live &&
+          !cleanText(m.text) &&
+          (!m.widgets || m.widgets.length === 0)
+        ) {
+          return null;
+        }
+        return (
+          <li
+            key={m.id}
+            aria-label={
+              m.role !== "system" && m.live
+                ? m.role === "user"
+                  ? "Mesajul tău se transcrie"
+                  : "Asistentul răspunde"
+                : undefined
+            }
+          >
+            {m.role === "user" ? (
+              <MsgUser text={cleanText(m.text)} streaming={m.live} />
+            ) : m.role === "agent" ? (
+              <MsgAgent
+                text={cleanText(m.text)}
+                widgets={m.widgets}
+                streaming={m.live}
+                onWidgetSubmit={onWidgetSubmit}
+              />
+            ) : (
+              <MsgSystem text={cleanText(m.text)} />
+            )}
+          </li>
+        );
+      })}
 
       {showTyping ? (
         <li aria-label="Asistentul scrie">

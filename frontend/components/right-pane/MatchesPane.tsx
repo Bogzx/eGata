@@ -1,11 +1,137 @@
 "use client";
 
+import { useState } from "react";
 import { useSessionStore } from "@/lib/sessionStore";
+import type { ResolvedActeNecesareItem } from "@/lib/types";
 import { DocPane } from "./DocPane";
+import { PdfPreviewDialog } from "./PdfPreviewDialog";
+
+type ActCategory =
+  | "primarie-completable"
+  | "primarie-fizic"
+  | "user-personal"
+  | "extern-institutie";
+
+function categorizeAct(a: ResolvedActeNecesareItem): ActCategory {
+  if (a.linked_procedure_id) return "primarie-completable";
+  if (a.institutie_nume) return "extern-institutie";
+  if (a.emitent === "user") return "user-personal";
+  return "primarie-fizic";
+}
+
+function ActItem({
+  act,
+  onPreview,
+}: {
+  act: ResolvedActeNecesareItem;
+  onPreview: (procedureId: string, title: string) => void;
+}) {
+  const category = categorizeAct(act);
+
+  return (
+    <li
+      className="rounded-lg border p-3"
+      style={{ borderColor: "var(--c-line)", background: "var(--c-bg)" }}
+    >
+      <p className="font-medium">
+        {act.denumire}
+        {act.obligatoriu === false ? (
+          <span className="ml-1 text-xs" style={{ color: "var(--c-ink-soft)" }}>
+            (opțional)
+          </span>
+        ) : null}
+      </p>
+
+      {/* Per-category details */}
+      {category === "primarie-completable" ? (
+        <>
+          <span
+            className="mt-1 inline-block rounded px-2 py-0.5 text-xs font-medium"
+            style={{
+              background: "rgba(47, 160, 132, 0.18)",
+              color: "var(--c-dark)",
+            }}
+          >
+            🏛️ Emis de Primăria Cluj-Napoca
+          </span>
+          <div className="mt-2">
+            <button
+              type="button"
+              className="civic-btn civic-btn-ghost"
+              onClick={() => onPreview(act.linked_procedure_id!, act.denumire)}
+            >
+              👁️ Vezi documentul
+            </button>
+          </div>
+        </>
+      ) : category === "primarie-fizic" ? (
+        <>
+          <span
+            className="mt-1 inline-block rounded px-2 py-0.5 text-xs font-medium"
+            style={{
+              background: "rgba(47, 160, 132, 0.18)",
+              color: "var(--c-dark)",
+            }}
+          >
+            🏛️ De la Primăria Cluj-Napoca
+          </span>
+          <p
+            className="mt-1 text-xs"
+            style={{ color: "var(--c-ink-soft)" }}
+          >
+            📍 Ghișeul CIC, str. Moților nr. 3, parter, Cluj-Napoca
+          </p>
+        </>
+      ) : category === "user-personal" ? (
+        <>
+          <span
+            className="mt-1 inline-block rounded px-2 py-0.5 text-xs font-medium"
+            style={{
+              background: "rgba(120, 120, 120, 0.18)",
+              color: "var(--c-dark)",
+            }}
+          >
+            👤 Acte personale
+          </span>
+          <p className="mt-1 text-xs" style={{ color: "var(--c-ink-soft)" }}>
+            Adu o <strong>copie</strong>
+            {act.format ? ` (format: ${act.format})` : ""} cu tine la ghișeu.
+          </p>
+        </>
+      ) : (
+        // extern-institutie
+        <>
+          <span
+            className="mt-1 inline-block rounded px-2 py-0.5 text-xs font-medium"
+            style={{
+              background: "rgba(255, 165, 0, 0.18)",
+              color: "var(--c-dark)",
+            }}
+          >
+            📥 De la altă instituție
+          </span>
+          <p className="mt-1 text-xs" style={{ color: "var(--c-ink-soft)" }}>
+            Mergi la <strong>{act.institutie_nume}</strong>
+            {act.format ? ` și cere ${act.format}` : ""}.
+          </p>
+        </>
+      )}
+
+      {act.observatie ? (
+        <p
+          className="mt-2 text-xs italic"
+          style={{ color: "var(--c-ink-soft)" }}
+        >
+          {act.observatie}
+        </p>
+      ) : null}
+    </li>
+  );
+}
 
 export function MatchesPane() {
   const matches = useSessionStore((s) => s.lookupMatches);
-  const startProcedure = useSessionStore((s) => s.startProcedure);
+  const [preview, setPreview] = useState<{ procedureId: string; title: string } | null>(null);
 
   const top = matches[0];
   if (!top) {
@@ -18,157 +144,32 @@ export function MatchesPane() {
     );
   }
 
-  const others = matches.slice(1);
-  const countLabel =
-    matches.length === 1 ? "1 procedură găsită" : `${matches.length} proceduri găsite`;
-
   return (
-    <DocPane eyebrow={countLabel} title={top.title}>
-      <article className="space-y-5">
-        {top.description ? (
-          <p className="text-sm" style={{ color: "var(--c-ink-soft)" }}>
-            {top.description}
-          </p>
-        ) : null}
-
-        {top.acte_necesare && top.acte_necesare.length > 0 ? (
-          <section>
-            <h3 className="docpane-eyebrow" style={{ marginBottom: "10px" }}>
-              Acte pe care să le ai la îndemână
-            </h3>
+    <>
+      <DocPane title={top.title} titleEmphasis>
+        <article className="space-y-5">
+          {top.acte_necesare && top.acte_necesare.length > 0 ? (
             <ul className="space-y-2 text-sm">
               {top.acte_necesare.map((a, i) => (
-                <li
+                <ActItem
                   key={`${a.denumire}-${i}`}
-                  className="rounded-lg border p-3"
-                  style={{
-                    borderColor: "var(--c-line)",
-                    background: "var(--c-bg)",
-                  }}
-                >
-                  <p className="font-medium">
-                    {a.denumire}
-                    {a.obligatoriu === false ? (
-                      <span
-                        className="ml-1 text-xs"
-                        style={{ color: "var(--c-ink-soft)" }}
-                      >
-                        (opțional)
-                      </span>
-                    ) : null}
-                  </p>
-                  {a.institutie_nume ? (
-                    <span
-                      className="mt-1 inline-block rounded px-2 py-0.5 text-xs font-medium"
-                      style={{
-                        background: "rgba(255, 165, 0, 0.18)",
-                        color: "var(--c-dark)",
-                      }}
-                      title="Acest document trebuie obținut de la o altă instituție — eGata nu îl poate genera."
-                    >
-                      📥 De la altă instituție: {a.institutie_nume}
-                    </span>
-                  ) : a.emitent === "primarie" ? (
-                    <span
-                      className="mt-1 inline-block rounded px-2 py-0.5 text-xs font-medium"
-                      style={{
-                        background: "rgba(47, 160, 132, 0.18)",
-                        color: "var(--c-dark)",
-                      }}
-                      title="Document emis de Primăria Cluj-Napoca — completat în această aplicație."
-                    >
-                      🏛️ Emis de Primăria Cluj-Napoca
-                    </span>
-                  ) : a.emitent === "user" ? (
-                    <span
-                      className="mt-1 inline-block rounded px-2 py-0.5 text-xs font-medium"
-                      style={{
-                        background: "rgba(120, 120, 120, 0.18)",
-                        color: "var(--c-dark)",
-                      }}
-                      title="Document pe care îl ai deja (CI, acte personale)."
-                    >
-                      👤 Ai tu (acte personale)
-                    </span>
-                  ) : a.emitent === "extern" ? (
-                    <span
-                      className="mt-1 inline-block rounded px-2 py-0.5 text-xs font-medium"
-                      style={{
-                        background: "rgba(255, 165, 0, 0.18)",
-                        color: "var(--c-dark)",
-                      }}
-                      title="Document obținut din afara aplicației (chitanță, document terț)."
-                    >
-                      📥 Din afara aplicației
-                    </span>
-                  ) : null}
-                  {a.observatie ? (
-                    <p
-                      className="mt-1 text-xs"
-                      style={{ color: "var(--c-ink-soft)" }}
-                    >
-                      {a.observatie}
-                    </p>
-                  ) : null}
-                </li>
+                  act={a}
+                  onPreview={(pid, title) => setPreview({ procedureId: pid, title })}
+                />
               ))}
             </ul>
-          </section>
-        ) : (
-          <p className="text-sm" style={{ color: "var(--c-ink-soft)" }}>
-            Nu sunt acte fizice obligatorii pentru această procedură.
-          </p>
-        )}
-
-        <div className="flex justify-end">
-          <button
-            type="button"
-            className="civic-btn civic-btn-primary"
-            onClick={() => void startProcedure(top.procedure_id)}
-          >
-            Începe „{top.title}&rdquo;
-          </button>
-        </div>
-
-        {others.length > 0 ? (
-          <section>
-            <h3 className="docpane-eyebrow" style={{ marginBottom: "10px" }}>
-              Alte potriviri
-            </h3>
-            <ul className="space-y-2 text-sm">
-              {others.map((m) => (
-                <li
-                  key={m.procedure_id}
-                  className="flex items-start justify-between gap-3 rounded-lg border p-3"
-                  style={{
-                    borderColor: "var(--c-line)",
-                    background: "var(--c-bg)",
-                  }}
-                >
-                  <div>
-                    <p className="font-medium">{m.title}</p>
-                    {m.description ? (
-                      <p
-                        className="mt-1 text-xs"
-                        style={{ color: "var(--c-ink-soft)" }}
-                      >
-                        {m.description}
-                      </p>
-                    ) : null}
-                  </div>
-                  <button
-                    type="button"
-                    className="civic-btn civic-btn-ghost"
-                    onClick={() => void startProcedure(m.procedure_id)}
-                  >
-                    Începe
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-      </article>
-    </DocPane>
+          ) : (
+            <p className="text-sm" style={{ color: "var(--c-ink-soft)" }}>
+              Nu sunt acte fizice obligatorii pentru această procedură.
+            </p>
+          )}
+        </article>
+      </DocPane>
+      <PdfPreviewDialog
+        procedureId={preview?.procedureId ?? null}
+        title={preview?.title ?? ""}
+        onClose={() => setPreview(null)}
+      />
+    </>
   );
 }
