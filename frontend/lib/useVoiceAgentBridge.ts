@@ -65,6 +65,11 @@ export type VoiceAgentHook = {
   enableMic: () => Promise<void>;
   /** Stop microphone capture but keep WS open. */
   disableMic: () => void;
+  /** Send an interrupt frame to cut off the agent's current audio response.
+   * Backend will emit an `interrupted` event back, which the existing
+   * onInterrupted handler turns into state=listening + player flush. Throws
+   * when called before start() (no WS open). */
+  interrupt: () => void;
   sendText: (text: string) => Promise<void>;
   /** Submit a widget answer through the active WS bridge. Throws if the
    * bridge isn't started — callers should check `wsReady` first or fall
@@ -358,6 +363,13 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
     LOG("mic disabled");
   }, []);
 
+  const interrupt: VoiceAgentHook["interrupt"] = useCallback(() => {
+    if (!wsRef.current) {
+      throw new Error("Voice bridge not started; call start() first.");
+    }
+    wsRef.current.sendInterrupt();
+  }, []);
+
   const sendText: VoiceAgentHook["sendText"] = useCallback(async (text) => {
     if (!wsRef.current) {
       throw new Error("Voice bridge not started; call start() first.");
@@ -387,6 +399,7 @@ export function useVoiceAgentBridge(): VoiceAgentHook {
     stop,
     enableMic,
     disableMic,
+    interrupt,
     sendText,
     submitWidget,
     registerToolHandler,
