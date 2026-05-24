@@ -83,6 +83,46 @@ def get_procedure(procedure_id: str) -> ResolvedProcedure:
     )
 
 
+@router.get("/{procedure_id}/preview-pdf")
+def preview_pdf(
+    procedure_id: str,
+    citizen_id: UUID = Depends(current_citizen_id),
+):
+    """Render the procedure's LaTeX template populated with the citizen's
+    profile (and `default_from` chains) so the user can see exactly what
+    PDF would land in their inbox at the end of the conversation. Used by
+    the "Vezi documentul" preview popup in MatchesPane.
+    """
+    from fastapi import Response
+    from app.citizens import fetch_citizen_by_id
+    from app.pdf import render_and_compile
+
+    proc = get_registry().get(procedure_id)
+    if proc is None:
+        raise HTTPException(status_code=404, detail=f"Procedure '{procedure_id}' not found")
+
+    citizen = fetch_citizen_by_id(citizen_id)
+    attrs = citizen.get("attributes") or {}
+
+    # Build a sample fields dict the same way auto-fill does at chat time:
+    # direct profile match → default_from chain → suggest_default → blank.
+    sample: dict[str, str] = {}
+    for fld in proc.fields:
+        value = attrs.get(fld.name)
+        if not value and fld.default_from:
+            value = attrs.get(fld.default_from) or sample.get(fld.default_from)
+        if not value and fld.suggest_default:
+            value = fld.suggest_default
+        sample[fld.name] = str(value) if value is not None else ""
+
+    pdf_bytes = render_and_compile(proc.template, sample)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{procedure_id}-preview.pdf"'},
+    )
+
+
 @router.post("/lookup", response_model=ProcedureLookupResponse)
 def lookup(
     req: ProcedureLookupRequest,

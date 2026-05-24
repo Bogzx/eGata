@@ -25,8 +25,7 @@
     { "name": "telefon", "label": "Telefon contact", "source": "profile", "required": true },
     { "name": "email", "label": "Email", "source": "profile", "required": false },
     { "name": "grad_handicap", "label": "Grad handicap", "source": "ask", "options": ["grav", "accentuat", "mediu"], "required": true },
-    { "name": "tip_abonament", "label": "Tip abonament", "source": "ask", "options": ["nominal cu fotografie", "nenominal pentru însoțitor"], "required": true },
-    { "name": "data_cerere", "label": "Data cererii", "source": "ask", "required": true, "suggest_default": "today" }
+    { "name": "tip_abonament", "label": "Tip abonament", "source": "ask", "options": ["nominal cu fotografie", "nenominal pentru însoțitor"], "required": true }
   ],
   "template": "transport-urban-dizabilitati.tex",
   "next_steps": [

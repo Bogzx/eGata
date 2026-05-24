@@ -41,6 +41,20 @@ async def execute(
     if proc is None:
         return ToolResult(error=f"Procedura {doc['procedure_id']!r} nu există.")
 
+    # Soft-skip unknown fields: the LLM often tries to set profile attributes
+    # like `localitate` / `judet` that aren't in the current procedure's
+    # schema. Surfacing this as a user-facing error breaks the UX. Instead
+    # return success with an "ignored" note so the LLM learns to stop.
+    from app.procedure_state import find_field
+    if find_field(proc, name) is None:
+        return ToolResult(
+            output={
+                "document_id": doc_id,
+                "ignored": True,
+                "reason": f"field '{name}' nu există în schema procedurii '{proc.id}' — nu apela set_field pentru el",
+            }
+        )
+
     # Function-call schemas cap value at STRING; coerce booleans
     # ("true"/"da"/"adevărat") into Python bool so applies_if can compare
     # against literal `true`/`false` in the procedure schema.

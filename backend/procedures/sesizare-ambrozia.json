@@ -36,8 +36,7 @@
     { "name": "proprietar_teren", "label": "Proprietarul (dacă cunoscut)", "source": "ask", "required": false },
     { "name": "alte_informatii",  "label": "Alte informații utile",   "source": "ask", "required": false },
     { "name": "telefon",          "label": "Telefon",                 "source": "profile", "required": true },
-    { "name": "email",            "label": "Email",                   "source": "profile", "required": false },
-    { "name": "data_cerere",      "label": "Data cererii",            "source": "ask", "required": true, "suggest_default": "today" }
+    { "name": "email",            "label": "Email",                   "source": "profile", "required": false }
   ],
   "template": "sesizare-ambrozia.tex",
   "next_steps": [

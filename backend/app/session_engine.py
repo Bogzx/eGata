@@ -48,7 +48,7 @@ from app.text_hygiene import strip_thinking
 
 log = logging.getLogger("session_engine")
 
-_MAX_TOOL_LOOP_ITERATIONS = 5
+_MAX_TOOL_LOOP_ITERATIONS = 15
 
 
 @dataclass
@@ -84,11 +84,43 @@ def _doc_state_lines(
         f"\nDocument activ: {title} (status={doc['status']})",
         f"Câmpuri completate: {fields}",
     ]
+    if proc and proc.llm_hint:
+        lines.append(f"Indicații flow pentru procedură: {proc.llm_hint}")
     if proc:
-        from app.procedure_state import evaluate_field_states
+        from app.procedure_state import evaluate_field_states, _is_nonempty
 
         states = evaluate_field_states(proc, fields, citizen_attrs)
         lines.append(f"Câmpuri obligatorii rămase: {states.missing}")
+        # Explicit list of set_field calls the LLM should issue right now —
+        # forces auto-fill of optional fields (email, ap_domiciliu, ...) that
+        # the LLM would otherwise skip because they're not in `missing`.
+        autofillable: list[tuple[str, Any]] = []
+        # Merged context = profile attrs + already-completed doc fields. Lets
+        # `default_from` resolve to a field the LLM just auto-filled (e.g.
+        # nr_placuta defaulting to nr_domiciliu, where nr_domiciliu itself
+        # was just filled from profile).
+        merged_ctx: dict[str, Any] = {**citizen_attrs, **fields}
+        for fld in proc.fields:
+            current = fields.get(fld.name)
+            if _is_nonempty(current):
+                continue
+            # 1) direct match: profile has a value with this exact name
+            attr_value = citizen_attrs.get(fld.name)
+            if attr_value not in (None, ""):
+                autofillable.append((fld.name, attr_value))
+                continue
+            # 2) default_from: this field copies another field's value
+            if fld.default_from:
+                src_value = merged_ctx.get(fld.default_from)
+                if src_value not in (None, ""):
+                    autofillable.append((fld.name, src_value))
+        if autofillable:
+            lines.append(
+                "APELEAZĂ ACUM aceste set_field (auto-fill obligatoriu, "
+                "chiar dacă field-ul e required:false):"
+            )
+            for name, value in autofillable:
+                lines.append(f"  • set_field(name='{name}', value='{value}')")
         if proc.acte_necesare:
             lines.append("Acte fizice necesare:")
             for a in proc.acte_necesare:
@@ -120,6 +152,21 @@ def build_system_instruction(
         f"\nStare sesiune: {session.state.value}",
         f"Tool-uri permise: {permitted_tools(session.state)}",
     ]
+    if session.state == SessionState.REVIEWING:
+        state_lines.append(
+            "\n*** ÎN STAREA REVIEWING ***\n"
+            "PAS 1 — CONFIRMARE (obligatoriu primul):\n"
+            "  propose_widget(type='confirm', "
+            "question='Verifică datele din dreapta. Sunt complete și corecte?')\n"
+            "  AȘTEAPTĂ Da/Nu. NU sări la PAS 2 până nu confirmă.\n"
+            "  • Dacă Nu sau cere modificare: set_field cu noua valoare, apoi repetă PAS 1.\n"
+            "PAS 2 — LIVRARE (doar după Da la PAS 1):\n"
+            "  propose_widget(type='choice', options=["
+            "'Salvare PDF (pe email)', 'Trimitere la primărie', 'Tipărire'], "
+            "question='Cum vrei să trimitem cererea?') — O SINGURĂ DATĂ\n"
+            "  AȘTEAPTĂ alegerea, apoi complete_document cu delivery-ul ales.\n"
+            "NU apela propose_widget cu aceeași întrebare de două ori la rând."
+        )
     return base + "\n".join(citizen_lines + doc_lines + state_lines)
 
 

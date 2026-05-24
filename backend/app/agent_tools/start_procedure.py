@@ -1,8 +1,14 @@
 """start_procedure — create a Document and move the session into FILLING.
 
 Valid states: CONFIRMING_MATCH (normal path, after lookup_procedure),
-EXPLORING (skip-confirmation path when the agent is confident enough),
 DELIVERED (start the next procedure of a scenario chain).
+
+EXPLORING is intentionally NOT a valid state: the LLM must always go
+through lookup_procedure (which transitions to CONFIRMING_MATCH) so the
+user sees MatchesPane with acte_necesare and confirms via a widget
+before any document is created. Without this gate the LLM would
+sometimes jump straight from a greeting + short follow-up ("buna" +
+"postal") into FILLING, skipping the matches preview entirely.
 
 This tool replaces the frontend's "Începe" button click. In voice_only
 mode this is the ONLY path to open a document.
@@ -70,8 +76,15 @@ register(
         },
         valid_states={
             SessionState.CONFIRMING_MATCH,
-            SessionState.EXPLORING,
+            # Scenario continuation: after one procedure is delivered, the
+            # agent opens the next step of a multi-procedure plan directly.
             SessionState.DELIVERED,
+            # EXPLORING intentionally NOT included: forces the LLM to go
+            # through lookup_procedure (-> CONFIRMING_MATCH) + a confirm
+            # widget first, so MatchesPane always shows the acte_necesare
+            # before a doc opens. Without this gate the LLM was jumping
+            # straight from "Bună" / "postal" to start_procedure, skipping
+            # the matches preview entirely.
         },
         execute=execute,
     )

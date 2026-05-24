@@ -14,7 +14,12 @@ from app.scenarios import build_scenario_plan, resolve_act
 from app.sessions import Session, SessionState
 
 SCENARIO_THRESHOLD = 0.55
-MATCH_THRESHOLD = 0.45  # below this, no confidence — stay EXPLORING
+# Below this, no confidence — stay EXPLORING. Kept generous (0.30) so
+# short follow-up queries like "postal" (after the user greeted) still
+# transition to CONFIRMING_MATCH and show MatchesPane. The user-facing
+# confirm widget gates any actual procedure start, so a false-positive
+# transition is harmless.
+MATCH_THRESHOLD = 0.30
 
 
 async def execute(session: Session, ctx: ToolContext, query: str) -> ToolResult:
@@ -43,6 +48,7 @@ async def execute(session: Session, ctx: ToolContext, query: str) -> ToolResult:
                 "title": proc.title,
                 "score": float(row["score"]),
                 "description": proc.description,
+                "llm_hint": proc.llm_hint,
                 "acte_necesare": [
                     resolve_act(a).model_dump(mode="json") for a in proc.acte_necesare
                 ],
