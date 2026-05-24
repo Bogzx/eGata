@@ -82,10 +82,19 @@ describe("ghiseuStore confirmDoc + amendDoc + pickExport + backToTalk", () => {
     expect(useGhiseuStore.getState().state).toBe("export");
   });
 
-  it("amendDoc transitions review → listening", () => {
+  it("amendDoc keeps state on review (user stays on review screen)", () => {
     useGhiseuStore.setState({ state: "review" });
     useGhiseuStore.getState().amendDoc();
-    expect(useGhiseuStore.getState().state).toBe("listening");
+    expect(useGhiseuStore.getState().state).toBe("review");
+  });
+
+  it("amendDoc cancels a pending thinking-transition", () => {
+    useGhiseuStore.setState({ state: "review" });
+    useGhiseuStore.getState().commitUserMessage("hello");
+    vi.advanceTimersByTime(100);
+    useGhiseuStore.getState().amendDoc();
+    vi.advanceTimersByTime(1000);
+    expect(useGhiseuStore.getState().state).toBe("review");
   });
 
   it("pickExport transitions export → done and stores method", () => {
