@@ -76,7 +76,7 @@ export type Document = {
   status: "draft" | "finalized";
   fields: Record<string, unknown>;
   pdf_url?: string;
-  delivery?: "save" | "send" | "print";
+  delivery?: "save" | "send" | "print" | "download";
   ref_number?: string;
   created_at: string;
   delivered_at?: string;
@@ -301,7 +301,7 @@ export type FrontendEvent =
       type: "document_delivered";
       document_id: string;
       pdf_url: string;
-      delivery: "save" | "send" | "print";
+      delivery: "save" | "send" | "print" | "download";
       ref_number: string;
     }
   | { type: "redirect"; target: string; name: string; url: string }
