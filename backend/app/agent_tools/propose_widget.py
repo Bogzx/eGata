@@ -85,14 +85,19 @@ async def execute(
         and session.state == SessionState.REVIEWING
         and not is_review_confirmed(session.id)
     ):
+        # `output` (not `error`) so the frontend doesn't bubble this as a
+        # user-visible system message — this guidance is for the LLM only.
         return ToolResult(
-            error=(
-                "În starea REVIEWING trebuie să propui ÎNTÂI un widget de "
-                "confirmare. Apelează acum: propose_widget(type='confirm', "
-                "question='Verifică datele din dreapta. Sunt complete și corecte?'). "
-                "După ce cetățeanul răspunde Da, vei putea propune widget-ul "
-                "de livrare ('Cum vrei să trimitem cererea?')."
-            )
+            output={
+                "refused": True,
+                "reason": (
+                    "În starea REVIEWING trebuie să propui ÎNTÂI un widget de "
+                    "confirmare. Apelează acum: propose_widget(type='confirm', "
+                    "question='Verifică datele din dreapta. Sunt complete și corecte?'). "
+                    "După ce cetățeanul răspunde Da, vei putea propune widget-ul "
+                    "de livrare ('Cum vrei să trimitem cererea?')."
+                ),
+            }
         )
 
     # target_field binds the widget answer to a document field via set_field.
