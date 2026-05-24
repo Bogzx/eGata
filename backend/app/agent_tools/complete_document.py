@@ -59,17 +59,22 @@ async def execute(
     # Same gate as propose_widget(type='choice'): require an explicit Da on
     # a confirm widget in REVIEWING before delivering. Catches the case
     # where the LLM tries to skip the choice widget entirely.
+    # `output` (not `error`) so the frontend doesn't bubble this as a
+    # user-visible system message — guidance is for the LLM only.
     if (
         session.state == SessionState.REVIEWING
         and not is_review_confirmed(session.id)
     ):
         return ToolResult(
-            error=(
-                "Nu poți apela complete_document înainte ca cetățeanul "
-                "să confirme datele. Apelează propose_widget(type='confirm', "
-                "question='Verifică datele din dreapta. Sunt complete și corecte?'), "
-                "apoi widget-ul de livrare, abia apoi complete_document."
-            )
+            output={
+                "refused": True,
+                "reason": (
+                    "Nu poți apela complete_document înainte ca cetățeanul "
+                    "să confirme datele. Apelează propose_widget(type='confirm', "
+                    "question='Verifică datele din dreapta. Sunt complete și corecte?'), "
+                    "apoi widget-ul de livrare, abia apoi complete_document."
+                ),
+            }
         )
     # Race guard: when the LLM emits propose_widget(choice) AND
     # complete_document in the same turn, the dispatcher runs them
@@ -83,14 +88,17 @@ async def execute(
     )
     if pending_choice is not None:
         return ToolResult(
-            error=(
-                f"Nu apela complete_document în același tur cu propose_widget. "
-                f"Widget-ul {pending_choice.widget_id!r} ({pending_choice.question!r}) "
-                f"încă nu a primit răspuns. AȘTEAPTĂ alegerea cetățeanului, "
-                f"apoi apelează complete_document cu delivery-ul corespunzător "
-                f"răspunsului ('save' pentru Salvare PDF, 'send' pentru "
-                f"Trimitere la primărie, 'print' pentru Tipărire)."
-            )
+            output={
+                "refused": True,
+                "reason": (
+                    f"Nu apela complete_document în același tur cu propose_widget. "
+                    f"Widget-ul {pending_choice.widget_id!r} ({pending_choice.question!r}) "
+                    f"încă nu a primit răspuns. AȘTEAPTĂ alegerea cetățeanului, "
+                    f"apoi apelează complete_document cu delivery-ul corespunzător "
+                    f"răspunsului ('save' pentru Salvare PDF, 'send' pentru "
+                    f"Trimitere la primărie, 'print' pentru Tipărire)."
+                ),
+            }
         )
 
     doc_id = session.active_document_id
