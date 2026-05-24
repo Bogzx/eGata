@@ -1,6 +1,10 @@
 "use client";
 
 import { create } from "zustand";
+import type {
+  VoiceAgentHook,
+  VoiceAgentStartOpts,
+} from "./useVoiceAgentBridge";
 
 export type GhiseuState =
   | "idle"
@@ -15,95 +19,185 @@ export type GhiseuState =
 
 export type ExportMethod = "city" | "email" | null;
 
+export type Line = { text: string; live: boolean };
+
 type GhiseuStore = {
   state: GhiseuState;
   muted: boolean;
   exportMethod: ExportMethod;
+  caption: { user: Line | null; agent: Line | null };
+
+  /** Internal: bridge reference set by attachVoiceBridge. Read by lifecycle
+   * actions. Not part of the consumer API. */
+  _bridge: VoiceAgentHook | null;
+
+  // event handlers (fired by bridge callbacks)
+  appendUserPartial(text: string): void;
+  commitUserMessage(text: string): void;
+  appendAgentPartial(text: string): void;
+  commitAgentMessage(text: string): void;
+
+  // lifecycle
+  attachVoiceBridge(bridge: VoiceAgentHook): () => void;
+  enterVoiceMode(): Promise<void>;
+  exitVoiceMode(): void;
+  interrupt(): void;
+  setMuted(muted: boolean): void;
+
+  // existing surface
   setState(state: GhiseuState): void;
   toggleMute(): void;
-  interrupt(): void;
   confirmDoc(): void;
   amendDoc(): void;
   pickExport(method: Exclude<ExportMethod, null>): void;
   backToTalk(): void;
   reset(): void;
-  /**
-   * Stub for the real voice bridge integration. v1 is a no-op; the
-   * future implementation will subscribe to useVoiceAgentBridge events
-   * and call the store transitions instead of the scripted timers below.
-   */
-  attachVoiceBridge(bridge: unknown): () => void;
 };
 
-let activeTimers: ReturnType<typeof setTimeout>[] = [];
+let thinkingTimer: ReturnType<typeof setTimeout> | null = null;
 
-function clearActiveTimers(): void {
-  for (const id of activeTimers) clearTimeout(id);
-  activeTimers = [];
-}
-
-function schedule(fn: () => void, ms: number): void {
-  activeTimers.push(setTimeout(fn, ms));
-}
-
-function scriptedTalkingFlow(set: (patch: Partial<GhiseuStore>) => void): void {
-  // listening → thinking → speaking → review (timing matches the design's
-  // handleStartTalking in voice-app.jsx).
-  set({ state: "listening" });
-  schedule(() => set({ state: "thinking" }), 2800);
-  schedule(() => set({ state: "speaking" }), 4300);
-  schedule(() => set({ state: "review" }), 7400);
+function clearThinkingTimer(): void {
+  if (thinkingTimer !== null) {
+    clearTimeout(thinkingTimer);
+    thinkingTimer = null;
+  }
 }
 
 export const useGhiseuStore = create<GhiseuStore>((set, get) => ({
   state: "idle",
   muted: true,
   exportMethod: null,
+  caption: { user: null, agent: null },
+  _bridge: null,
+
+  appendUserPartial: (text) => {
+    set({
+      caption: { ...get().caption, user: { text, live: true } },
+    });
+  },
+
+  commitUserMessage: (text) => {
+    set({
+      caption: { ...get().caption, user: { text, live: false } },
+    });
+    clearThinkingTimer();
+    thinkingTimer = setTimeout(() => {
+      set({ state: "thinking" });
+      thinkingTimer = null;
+    }, 300);
+  },
+
+  appendAgentPartial: (text) => {
+    clearThinkingTimer();
+    set({
+      state: "speaking",
+      caption: { ...get().caption, agent: { text, live: true } },
+    });
+  },
+
+  commitAgentMessage: (text) => {
+    set({
+      state: "listening",
+      caption: { ...get().caption, agent: { text, live: false } },
+    });
+  },
+
+  attachVoiceBridge: (bridge) => {
+    set({ _bridge: bridge });
+    return () => {
+      const current = get()._bridge;
+      if (current) current.stop();
+      set({ _bridge: null });
+    };
+  },
+
+  enterVoiceMode: async () => {
+    const bridge = get()._bridge;
+    if (!bridge) {
+      throw new Error("attachVoiceBridge() must be called before enterVoiceMode()");
+    }
+    if (bridge.wsReady) bridge.stop();
+
+    const opts: VoiceAgentStartOpts = {
+      onUserDelta: (t) => get().appendUserPartial(t),
+      onUserMessage: (t) => get().commitUserMessage(t),
+      onAgentDelta: (t) => get().appendAgentPartial(t),
+      onAgentMessage: (t) => get().commitAgentMessage(t),
+    };
+
+    const startP = bridge.start(opts);
+    const micP = bridge.enableMic();
+
+    try {
+      await Promise.all([startP, micP]);
+      set({ state: "listening", muted: false });
+    } catch (err) {
+      if (err instanceof Error && err.name === "VoiceAgentMicDeniedError") {
+        set({ state: "mic-denied" });
+      } else {
+        set({ state: "error" });
+      }
+      throw err;
+    }
+  },
+
+  exitVoiceMode: () => {
+    const bridge = get()._bridge;
+    if (bridge) bridge.stop();
+  },
+
+  interrupt: () => {
+    const bridge = get()._bridge;
+    if (bridge) bridge.interrupt();
+    set({ state: "listening" });
+  },
+
+  setMuted: (muted) => set({ muted }),
 
   setState: (state) => set({ state }),
 
   toggleMute: () => {
-    const { state, muted } = get();
-    if (state === "idle" && muted) {
-      clearActiveTimers();
-      set({ muted: false });
-      scriptedTalkingFlow(set);
+    const { state, _bridge: bridge } = get();
+    if (state === "idle") {
+      void get().enterVoiceMode().catch(() => {
+        /* enterVoiceMode already sets error/mic-denied state */
+      });
       return;
     }
-    set({ muted: !muted });
-  },
-
-  interrupt: () => {
-    clearActiveTimers();
-    set({ state: "listening", muted: false });
+    if (!bridge) return;
+    if (bridge.micOn) {
+      bridge.disableMic();
+    } else {
+      void bridge.enableMic().catch(() => {
+        set({ state: "mic-denied" });
+      });
+    }
   },
 
   confirmDoc: () => {
-    clearActiveTimers();
     set({ state: "export" });
   },
 
   amendDoc: () => {
-    clearActiveTimers();
     set({ state: "listening" });
-    schedule(() => set({ state: "speaking" }), 1800);
   },
 
   pickExport: (method) => {
-    clearActiveTimers();
     set({ state: "done", exportMethod: method });
   },
 
-  backToTalk: () => set({ state: "listening", muted: false }),
-
-  reset: () => {
-    clearActiveTimers();
-    set({ state: "idle", muted: true, exportMethod: null });
+  backToTalk: () => {
+    set({ state: "listening", muted: false });
   },
 
-  attachVoiceBridge: () => {
-    // v1: no-op. v2 will wire useVoiceAgentBridge events into
-    // setState/interrupt/etc., replacing scriptedTalkingFlow.
-    return () => {};
+  reset: () => {
+    clearThinkingTimer();
+    get().exitVoiceMode();
+    set({
+      state: "idle",
+      muted: true,
+      exportMethod: null,
+      caption: { user: null, agent: null },
+    });
   },
 }));
