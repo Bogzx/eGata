@@ -27,6 +27,7 @@ const TRANSCRIPT: Transcript = {
     },
   },
   export: { user: null, agent: null },
+  submitting: { user: null, agent: null },
   done: { user: null, agent: null },
   error: { user: null, agent: null },
   "mic-denied": { user: null, agent: null },

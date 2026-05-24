@@ -29,9 +29,17 @@ const OPTIONS: Option[] = [
   },
 ];
 
-type Props = { onPick: (id: Pick) => void };
+type Props = {
+  onPick: (id: Pick) => void;
+  submitting?: boolean;
+  submittingMethod?: Pick | null;
+};
 
-export function ExportOptions({ onPick }: Props) {
+export function ExportOptions({
+  onPick,
+  submitting = false,
+  submittingMethod = null,
+}: Props) {
   return (
     <div className="gh-export">
       <div className="gh-review-head">
@@ -44,6 +52,8 @@ export function ExportOptions({ onPick }: Props) {
             type="button"
             className="gh-export-card"
             data-recommended={o.recommended ? "true" : "false"}
+            data-submitting={submittingMethod === o.id ? "true" : "false"}
+            disabled={submitting}
             onClick={() => onPick(o.id)}
           >
             <div className="ec-icon">{o.icon}</div>

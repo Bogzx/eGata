@@ -1,6 +1,8 @@
 "use client";
 
 import { create } from "zustand";
+import { api, ApiError } from "./api";
+import { useSessionStore } from "./sessionStore";
 import type {
   VoiceAgentHook,
   VoiceAgentStartOpts,
@@ -13,6 +15,7 @@ export type GhiseuState =
   | "speaking"
   | "review"
   | "export"
+  | "submitting"
   | "done"
   | "error"
   | "mic-denied";
@@ -49,7 +52,7 @@ type GhiseuStore = {
   toggleMute(): void;
   confirmDoc(): void;
   amendDoc(): void;
-  pickExport(method: Exclude<ExportMethod, null>): void;
+  pickExport(method: Exclude<ExportMethod, null>): Promise<void>;
   backToTalk(): void;
   reset(): void;
 };
@@ -198,8 +201,54 @@ export const useGhiseuStore = create<GhiseuStore>((set, get) => ({
     clearThinkingTimer();
   },
 
-  pickExport: (method) => {
-    set({ state: "done", exportMethod: method });
+  pickExport: async (method) => {
+    const docId = useSessionStore.getState().activeDocId;
+    if (!docId) {
+      // Defensive: shouldn't happen — review screen requires an active doc.
+      set({ state: "error", exportMethod: method });
+      return;
+    }
+    set({ state: "submitting", exportMethod: method });
+    try {
+      const res = await api.submitDocument(docId, { method });
+      // Refresh the document so DoneScreen picks up ref_number via the
+      // sessionStore subscription. The submit endpoint returns the ref
+      // directly, but the canonical surface for ref_number is doc.ref_number.
+      try {
+        const fresh = await api.getDocument(docId);
+        useSessionStore.setState({ document: fresh });
+      } catch {
+        // Fallback: patch the existing document object in place with the
+        // ref we already have from the submit response.
+        const current = useSessionStore.getState().document;
+        if (current) {
+          useSessionStore.setState({
+            document: { ...current, ref_number: res.ref_number },
+          });
+        }
+      }
+      set({ state: "done" });
+    } catch (err) {
+      // 409 = already delivered. Treat as success — the user has already
+      // landed on the done screen for this doc previously.
+      if (
+        err instanceof ApiError &&
+        err.status === 409 &&
+        typeof err.body === "object" &&
+        err.body !== null
+      ) {
+        const body = err.body as { ref_number?: string };
+        const current = useSessionStore.getState().document;
+        if (current && body.ref_number) {
+          useSessionStore.setState({
+            document: { ...current, ref_number: body.ref_number },
+          });
+        }
+        set({ state: "done" });
+        return;
+      }
+      set({ state: "error" });
+    }
   },
 
   backToTalk: () => {

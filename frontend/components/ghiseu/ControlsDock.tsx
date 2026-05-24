@@ -54,6 +54,14 @@ export function ControlsDock({
     );
   }
 
+  if (state === "submitting") {
+    // No interactive controls while the submit API is in flight — the
+    // user has committed to a method. ExportOptions renders the pulsing
+    // chosen card; the dock just stays empty so the focus is on the
+    // pulse + status copy above.
+    return null;
+  }
+
   if (state === "done" || state === "error" || state === "mic-denied") {
     return null;
   }

@@ -1,6 +1,26 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { useGhiseuStore } from "../ghiseuStore";
 
+vi.mock("../api", async () => {
+  const actual = await vi.importActual<typeof import("../api")>("../api");
+  return {
+    ...actual,
+    api: {
+      submitDocument: vi.fn().mockResolvedValue({
+        ref_number: "REG-2026-DEADBEEF",
+        delivery: "city",
+        delivered_at: "2026-05-24T10:00:00Z",
+      }),
+      getDocument: vi.fn().mockResolvedValue({
+        id: "d1",
+        procedure_id: "x",
+        fields: {},
+        ref_number: "REG-2026-DEADBEEF",
+      }),
+    },
+  };
+});
+
 beforeEach(() => {
   useGhiseuStore.setState({
     state: "idle",
@@ -97,11 +117,29 @@ describe("ghiseuStore confirmDoc + amendDoc + pickExport + backToTalk", () => {
     expect(useGhiseuStore.getState().state).toBe("review");
   });
 
-  it("pickExport transitions export → done and stores method", () => {
+  it("pickExport transitions export → submitting → done with real ref", async () => {
+    const { useSessionStore } = await import("../sessionStore");
+    useSessionStore.setState({ activeDocId: "d1" } as never);
     useGhiseuStore.setState({ state: "export" });
-    useGhiseuStore.getState().pickExport("city");
-    expect(useGhiseuStore.getState().state).toBe("done");
+    vi.useRealTimers();
+
+    const promise = useGhiseuStore.getState().pickExport("city");
+    // Synchronously after the call, we should be in submitting.
+    expect(useGhiseuStore.getState().state).toBe("submitting");
     expect(useGhiseuStore.getState().exportMethod).toBe("city");
+
+    await promise;
+    expect(useGhiseuStore.getState().state).toBe("done");
+  });
+
+  it("pickExport with no activeDocId goes to error (defensive)", async () => {
+    const { useSessionStore } = await import("../sessionStore");
+    useSessionStore.setState({ activeDocId: null } as never);
+    useGhiseuStore.setState({ state: "export" });
+    vi.useRealTimers();
+
+    await useGhiseuStore.getState().pickExport("city");
+    expect(useGhiseuStore.getState().state).toBe("error");
   });
 
   it("backToTalk returns to listening and unmutes", () => {
