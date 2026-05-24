@@ -157,7 +157,7 @@ export const useGhiseuStore = create<GhiseuStore>((set, get) => ({
   setState: (state) => set({ state }),
 
   toggleMute: () => {
-    const { state, _bridge: bridge } = get();
+    const { state, muted, _bridge: bridge } = get();
     if (state === "idle") {
       void get().enterVoiceMode().catch(() => {
         /* enterVoiceMode already sets error/mic-denied state */
@@ -165,7 +165,10 @@ export const useGhiseuStore = create<GhiseuStore>((set, get) => ({
       return;
     }
     if (!bridge) return;
-    if (bridge.micOn) {
+    // Use the store's `muted` (mirrored from voice.micOn by GhiseuShell)
+    // as the truth source — `bridge.micOn` is a stale snapshot from the
+    // render when attachVoiceBridge ran.
+    if (!muted) {
       bridge.disableMic();
     } else {
       void bridge.enableMic().catch(() => {
