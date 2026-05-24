@@ -231,7 +231,94 @@ Be honest. Pick one:
 
 ---
 
-## Part 4 — Numbers to memorize cold
+## Part 4 — Per-citizen pricing (individual primărie contracts)
+
+For when you want a separate contract per primărie (vs. national MCID contract in Phase 3 of business model).
+
+### A. Our cost per citizen
+
+Assumptions used in calculation:
+- ~2 interactions per active citizen per year (impozite annual + 1 ocazional)
+- 80/20 text/voice mix, voce medie 2 min (nu 5)
+- 30% adopție an 1, crescând la 60%+ an 3
+- Variable cost per interaction: $0.005 text, ~$0.20 voce 2 min → **blended ~€0.04/interacțiune**
+
+| Categorie | Per cetățean activ/an | Per locuitor total/an (30% adopție) |
+|---|---|---|
+| LLM + voce (variable) | €0.08 | €0.024 |
+| Storage + compute (fixed allocated) | €0.10 | €0.03 |
+| Customer success + audit (fixed allocated) | €0.10 | €0.03 |
+| **TOTAL cost nostru** | **~€0.28** | **~€0.08** |
+
+Asta la scară (50+ primării). Pentru pilot cu 3 primării, costul fix per primărie domină — alocările de mai sus presupun amortizare la scară.
+
+### B. Recommended pricing model
+
+**Headline: €0.30 per locuitor total/an** (echivalent cu €1 per cetățean activ/an).
+
+Per-locuitor framing e preferat — primăriile budgetează per capita oricum.
+
+**Gross margin: ~72%** — sănătos, defensible la procurement, lasă spațiu pentru negociere la contracte mari.
+
+### C. Contract structure per primărie
+
+```
+┌─────────────────────────────────────────────────┐
+│  ONE-TIME (anul 1)                              │
+│  Setup + integrare + customizare proceduri      │
+│  → finanțat din PNRR pentru primii 50 adoptanți │
+├─────────────────────────────────────────────────┤
+│  RECURRING (anual)                              │
+│  Platform fee + per-locuitor subscription       │
+│  → din bugetul propriu de digitalizare          │
+├─────────────────────────────────────────────────┤
+│  OPTIONAL (add-on)                              │
+│  Voice line dedicat (înlocuiește call-center)   │
+│  → +20% la baseline                              │
+└─────────────────────────────────────────────────┘
+```
+
+### D. Pricing pe tier-uri de populație
+
+| Tip primărie | Populație | Setup (one-time) | Annual (€0.30/loc) | An 1 total | An 2+ |
+|---|---|---|---|---|---|
+| Comună mică | 3K | €5K | €900 | €5.9K | €900 |
+| Oraș mic | 15K | €10K | €4.5K | €14.5K | €4.5K |
+| Oraș mediu | 50K | €20K | €15K | €35K | €15K |
+| Oraș mare | 150K | €40K | €45K | €85K | €45K |
+| **Cluj-Napoca** | **300K** | **€60K** | **€90K** | **€150K** | **€90K** |
+| Sector București | 200K | €50K | €60K | €110K | €60K |
+
+### E. Tier reality (be honest about this)
+
+- **Comune <10K loc**: NOT viable standalone — pricing nu acoperă fixed costs. Strategy: aggregare prin **Consiliul Județean** (un contract județean acoperă 50-100 comune), SAU finanțare națională via MCID.
+- **Tier de aur: orașe 20K-200K** (~150 în România) — primar decide, contract approval rapid, pricing acoperă costuri cu margin healthy.
+- **Mari (>200K, 6 orașe + 6 sectoare București)**: high-touch sales, multi-year contracts, deal sizes €60-150K/an.
+
+### F. Ready-to-deliver answers
+
+**Q. "Cât facturați per cetățean?"**
+> "**€0.30 per locuitor per an** sau echivalent **€1 per cetățean activ care folosește serviciul.** Plus setup fee one-time, finanțat din PNRR pentru primele 50 primării. Pentru Cluj-Napoca, asta înseamnă ~€90K/an recurring — echivalent cu 3 salarii de funcționar, dar deservind toate cele 300K de locuitori."
+
+**Q. "Și costul vostru per cetățean?"**
+> "Costul nostru efectiv la scară e **~€0.08 per locuitor per an** — variabil LLM, voce, plus alocare fixed costs (audit, customer success, infrastructură). Adică **margin brut ~72%**. Asta lasă spațiu pentru optimizare prețului la negocieri mari — și pentru investiție în R&D."
+
+**Q. "De ce per locuitor, nu per cerere?"**
+> "Două motive. Unu — primăriile bugetează per capita, nu per cerere, deci e mai ușor de aprobat. Doi — cetățeanul nu plătește per cerere, deci nu vrem să creăm friction artificială pe consum. **Modelul Netflix, nu Uber.** Cu cât mai multe cereri rezolvăm, cu atât valoarea crește, nu factura."
+
+**Q. "Cluj-Napoca plătește €90K/an pentru ce face acum cu 3 funcționari?"**
+> "Nu — Cluj plătește acum **mult mai mult**. Un funcționar primărie cu beneficii ≈ €30K/an angajator-cost, dar procesează doar 3-5K cereri/an. La 300K locuitori × 2 cereri/an = **600K cereri/an** care înseamnă ~120-200 funcționari echivalent — **€3.6-6M/an doar salarii**. Noi suntem €90K. Asta nu înlocuiește funcționarii — îi eliberează pentru cazurile complexe pe care AI-ul le escaladează."
+
+**Q. "Comparison internațional?"**
+> "Estonia cheltuiește ~€150/cetățean/an pe digital government total. România cheltuiește ~€20. Noi cerem €0.30 — adică **1.5% din bugetul digital existent al unei primării**. Practic invizibil în P&L, dar acoperă 30% din interacțiunile cetățean-stat."
+
+### G. Gotcha: "Și dacă o primărie are deja ghișeul.ro?"
+
+> "Ghișeul.ro e plată online — complement, nu competitor. Noi suntem **layer-ul conversational înainte de plată**: îți spunem ce act îți trebuie, completăm formularul, **apoi** te trimitem la ghișeul.ro pentru plată. Integrare prin API, nu duplicare. Primăria plătește amândouă pentru că rezolvă probleme diferite."
+
+---
+
+## Part 5 — Numbers to memorize cold
 
 | Metric | Number | When to use |
 |---|---|---|
@@ -250,16 +337,25 @@ Be honest. Pick one:
 | Instituții externe în catalog | **70** | "Is it real" |
 | Formulare scraped | **165** | "Is it real" |
 | Persona profiles | **3** (standard, simple, voice-only) | Accessibility |
+| **Preț per locuitor/an** | **€0.30** | Per-primărie pricing |
+| **Preț per cetățean activ/an** | **€1** | Equivalent framing |
+| **Costul nostru per locuitor/an** | **€0.08** | Margin defense |
+| Gross margin | **72%** | "Is your business viable?" |
+| Cluj-Napoca contract value | **€90K/an + €60K setup** | Big-city example |
+| Oraș mediu (50K) contract | **€15K/an + €20K setup** | Tier de aur example |
+| Interactions per active citizen/an | **~2** | Volume assumption |
+| Adopție realistă an 1 | **30%** | Pricing math basis |
+| Estonia digital gov spend | **~€150/cetățean/an** | International benchmark |
 
 ---
 
-## Part 5 — The single line if you only get 30 seconds on business
+## Part 6 — The single line if you only get 30 seconds on business
 
 > "Pilot finanțat din PNRR cu 3 primării, scalare SaaS la top 50 municipii — €3M ARR în 3 ani — apoi contract național prin MCID ca layer conversational peste ghișeul.ro. Trecerea pe model open-source pe infrastructură STS face costul per cerere sub $0.001 și rezolvă AI Act + sovereignty din start."
 
 ---
 
-## Part 6 — Pre-demo action items
+## Part 7 — Pre-demo action items
 
 1. **Create `backend/app/llm_client.py` abstraction** — even a thin wrapper around the Azure call. Makes the "we can swap to Llama in 2 weeks" claim land vs. sound aspirational. 30 min of work.
 2. **Replace seed phone numbers with real team-member numbers** (per README) so SMS confirmations actually arrive during the demo.
