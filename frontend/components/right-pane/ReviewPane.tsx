@@ -48,9 +48,9 @@ export function ReviewPane() {
 
   return (
     <DocPane
-      eyebrow="Verifică datele"
+      eyebrow=""
       title={procedure.title}
-      refNumber={refNumber}
+      titleEmphasis
       actions={
         <>
           <button

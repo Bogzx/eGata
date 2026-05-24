@@ -24,9 +24,9 @@ export function FillingPane() {
 
   return (
     <DocPane
-      eyebrow="Cerere în lucru"
+      eyebrow=""
       title={procedure.title}
-      refNumber={document.ref_number ?? document.id.slice(0, 8).toUpperCase()}
+      titleEmphasis
     >
       <DocPaper
         title={procedure.title}

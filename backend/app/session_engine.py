@@ -155,12 +155,17 @@ def build_system_instruction(
     if session.state == SessionState.REVIEWING:
         state_lines.append(
             "\n*** ÎN STAREA REVIEWING ***\n"
-            "1. propose_widget(type='choice', options=["
+            "PAS 1 — CONFIRMARE (obligatoriu primul):\n"
+            "  propose_widget(type='confirm', "
+            "question='Verifică datele din dreapta. Sunt complete și corecte?')\n"
+            "  AȘTEAPTĂ Da/Nu. NU sări la PAS 2 până nu confirmă.\n"
+            "  • Dacă Nu sau cere modificare: set_field cu noua valoare, apoi repetă PAS 1.\n"
+            "PAS 2 — LIVRARE (doar după Da la PAS 1):\n"
+            "  propose_widget(type='choice', options=["
             "'Salvare PDF (pe email)', 'Trimitere la primărie', 'Tipărire'], "
             "question='Cum vrei să trimitem cererea?') — O SINGURĂ DATĂ\n"
-            "2. AȘTEAPTĂ alegerea (NU repeta widgetul)\n"
-            "3. complete_document cu delivery-ul ales\n"
-            "NU întreba 'verifică datele' — cetățeanul vede panoul din dreapta."
+            "  AȘTEAPTĂ alegerea, apoi complete_document cu delivery-ul ales.\n"
+            "NU apela propose_widget cu aceeași întrebare de două ori la rând."
         )
     return base + "\n".join(citizen_lines + doc_lines + state_lines)
 

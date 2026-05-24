@@ -18,7 +18,7 @@ from typing import Any
 from uuid import uuid4
 
 from app.agent_tools import Tool, ToolContext, ToolResult, register
-from app.sessions import PendingWidget, Session, SessionState
+from app.sessions import PendingWidget, Session, SessionState, is_review_confirmed
 
 _ALLOWED_TYPES = {"choice", "confirm", "date"}
 
@@ -74,6 +74,26 @@ async def execute(
                     ),
                 }
             )
+
+    # Review-confirmation gate: in REVIEWING, the LLM must propose a
+    # confirm widget first ("verifică datele") and the user must answer Da
+    # before any choice widget (i.e. the delivery picker) is allowed.
+    # Without this, the LLM tends to skip straight to "Cum vrei să trimitem?"
+    # — we want the user to actually look at the auto-filled form first.
+    if (
+        type == "choice"
+        and session.state == SessionState.REVIEWING
+        and not is_review_confirmed(session.id)
+    ):
+        return ToolResult(
+            error=(
+                "În starea REVIEWING trebuie să propui ÎNTÂI un widget de "
+                "confirmare. Apelează acum: propose_widget(type='confirm', "
+                "question='Verifică datele din dreapta. Sunt complete și corecte?'). "
+                "După ce cetățeanul răspunde Da, vei putea propune widget-ul "
+                "de livrare ('Cum vrei să trimitem cererea?')."
+            )
+        )
 
     # target_field binds the widget answer to a document field via set_field.
     # set_field is only valid in FILLING/REVIEWING — there's no document to
