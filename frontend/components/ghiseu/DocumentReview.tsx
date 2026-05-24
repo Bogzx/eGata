@@ -1,27 +1,8 @@
 "use client";
 
+import { formatValue } from "@/lib/format";
+import { useSessionStore } from "@/lib/sessionStore";
 import { CheckIcon, EditIcon } from "./icons";
-
-type Field = { label: string; value: string; auto: boolean };
-
-const FIELDS: Field[] = [
-  { label: "Nume și prenume", value: "Popescu Ana-Maria", auto: true },
-  { label: "CNP", value: "2940413081265", auto: true },
-  {
-    label: "Adresa",
-    value: "Str. Memorandumului 28, ap. 14, Cluj-Napoca",
-    auto: true,
-  },
-  { label: "Email confirmare", value: "ana.popescu@gmail.com", auto: true },
-  { label: "Perioada", value: "Nov 2025 — Apr 2026 (6 luni)", auto: false },
-  {
-    label: "Instituție destinatară",
-    value: "Banca Transilvania — Cluj Centru",
-    auto: false,
-  },
-  { label: "Motiv", value: "Credit ipotecar", auto: false },
-  { label: "Limba", value: "Română", auto: false },
-];
 
 type Props = {
   onConfirm: () => void;
@@ -29,6 +10,30 @@ type Props = {
 };
 
 export function DocumentReview({ onConfirm, onAmend }: Props) {
+  const document = useSessionStore((s) => s.document);
+  const procedure = useSessionStore((s) => s.procedure);
+
+  if (!document || !procedure) {
+    return (
+      <div className="gh-review gh-review-loading">
+        <div className="gh-review-head">
+          <h2 className="gh-review-title">Se încarcă cererea...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  const fields = (document.fields ?? {}) as Record<string, unknown>;
+  const rows = procedure.fields.map((pf) => {
+    const value = fields[pf.name];
+    const hasValue = value != null && value !== "";
+    return {
+      label: pf.label,
+      value: formatValue(value),
+      auto: pf.source.includes("profile") && hasValue,
+    };
+  });
+
   return (
     <div className="gh-review">
       <div className="gh-review-head">
@@ -42,21 +47,13 @@ export function DocumentReview({ onConfirm, onAmend }: Props) {
             <div>CLUJ-NAPOCA</div>
           </div>
           <div className="doc-paper-titleblock">
-            <div className="doc-title">Adeverință de venit</div>
-            <div className="doc-paper-sub">
-              Cerere către Direcția de Taxe și Impozite
-            </div>
-          </div>
-          <div className="doc-paper-meta">
-            <div>
-              Cerere nr. <strong>2026-AV-08412</strong>
-            </div>
-            <div>Data: 24.05.2026</div>
+            <div className="doc-title">{procedure.title}</div>
+            <div className="doc-paper-sub">Cerere în curs de pregătire</div>
           </div>
         </div>
 
         <div className="doc-fields-grid">
-          {FIELDS.map((f) => (
+          {rows.map((f) => (
             <div className="dfg-row" key={f.label}>
               <div className="dfg-label">{f.label}</div>
               <div className="dfg-value">
