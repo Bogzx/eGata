@@ -46,9 +46,12 @@ export function PdfPreviewDialog({ procedureId, title, onClose }: Props) {
 
   return (
     <Dialog open={!!procedureId} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="h-[90vh] max-w-4xl">
-        <DialogTitle>{title}</DialogTitle>
-        <div className="flex-1 overflow-hidden rounded border" style={{ borderColor: "var(--c-line)" }}>
+      <DialogContent className="flex h-[90vh] max-w-4xl flex-col gap-2 p-4">
+        <DialogTitle className="pr-8">{title}</DialogTitle>
+        <div
+          className="min-h-0 flex-1 overflow-hidden rounded border"
+          style={{ borderColor: "var(--c-line)" }}
+        >
           {pdfUrl ? (
             <iframe
               src={pdfUrl}
@@ -60,7 +63,10 @@ export function PdfPreviewDialog({ procedureId, title, onClose }: Props) {
               {error}
             </div>
           ) : (
-            <div className="flex h-full items-center justify-center p-6 text-center text-sm" style={{ color: "var(--c-ink-soft)" }}>
+            <div
+              className="flex h-full items-center justify-center p-6 text-center text-sm"
+              style={{ color: "var(--c-ink-soft)" }}
+            >
               Se generează previzualizarea PDF…
             </div>
           )}

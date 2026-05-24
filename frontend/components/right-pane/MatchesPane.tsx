@@ -75,7 +75,7 @@ function ActItem({
             setExpanded((v) => !v);
           }
         }}
-        className="cursor-pointer rounded-lg border p-3 outline-none focus-visible:ring-2"
+        className="cursor-pointer rounded-lg border p-5 text-base outline-none focus-visible:ring-2"
         style={{
           borderColor: "var(--c-line)",
           background: "var(--c-bg)",
@@ -198,7 +198,7 @@ export function MatchesPane() {
       <DocPane title={top.title} titleEmphasis>
         <article className="space-y-5">
           {top.acte_necesare && top.acte_necesare.length > 0 ? (
-            <ul className="space-y-2 text-sm">
+            <ul className="space-y-3">
               {top.acte_necesare.map((a, i) => (
                 <ActItem
                   key={`${a.denumire}-${i}`}
