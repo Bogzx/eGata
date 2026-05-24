@@ -7,7 +7,7 @@ Read all paths end-to-end. No code changed. Report below ranks bugs **P0** (demo
 
 ---
 
-## Quick verdict on the 13 suspected bugs
+## Quick verdict on the 13 suspected bugs 
 
 | # | Suspected | Verdict | Notes |
 |---|---|---|---|
