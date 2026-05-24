@@ -998,6 +998,62 @@ html.dyslexic .dfg-value { line-height: 1.55; letter-spacing: 0.10em; }
   .brand-sub { display: none; }
 }
 
+/* ===================== Tablet (721px – 1280px) =====================
+   The kiosk is viewed from arm's length on a tablet, not from
+   keyboard distance like a laptop. Pump every text size up so the
+   judges can see the screen from a few steps away. Layout stays
+   the same — only the typography + paddings grow. */
+@media (min-width: 721px) and (max-width: 1280px) {
+  /* Header */
+  .gh-top { padding: 22px 36px; }
+  .brand-name { font-size: 26px; }
+  .gh-reset-btn { font-size: 16px; padding: 12px 18px; }
+  .gh-reset-btn-icon svg { width: 20px; height: 20px; }
+
+  /* Main stage */
+  .gh-status-text { font-size: clamp(56px, 7.2vw, 92px); }
+  .gh-status-hint { font-size: clamp(20px, 2.1vw, 28px); }
+
+  /* Caption bubbles */
+  .gh-cap-line { padding: 18px 24px; font-size: clamp(22px, 2.4vw, 30px); }
+  .gh-cap-tag { font-size: 16px; padding: 4px 12px; }
+
+  /* Control dock */
+  .gh-controls { padding: 24px 36px 32px; gap: 18px; }
+  .gh-ctrl { padding: 20px 32px; font-size: 20px; border-radius: 18px; }
+  .gh-ctrl .gh-ctrl-icon svg { width: 26px; height: 26px; }
+  .gh-cta { padding: 22px 40px; font-size: 22px; border-radius: 22px; }
+
+  /* Review screen */
+  .gh-review-title { font-size: clamp(34px, 3.5vw, 44px); }
+  .doc-paper { padding: 40px 48px; }
+  .doc-paper-titleblock .doc-title { font-size: 26px; }
+  .doc-paper-sub { font-size: 17px; }
+  .doc-stamp { font-size: 14px; padding: 12px 16px; }
+  .doc-paper-meta { font-size: 16px; min-width: 220px; }
+  .doc-title { font-size: 22px; margin-bottom: 28px; }
+  .doc-fields-grid { gap: 8px 56px; }
+  .dfg-row { padding: 12px 0; }
+  .dfg-label { font-size: 14px; }
+  .dfg-value { font-size: 20px; gap: 12px; }
+  .doc-auto { font-size: 13px; padding: 4px 10px; }
+
+  /* Review action cards (Da, e corect / Mai am o corectură) */
+  .gh-review-action { padding: 22px 26px; gap: 18px; border-radius: 18px; }
+  .gh-review-action .ra-icon svg { width: 30px; height: 30px; }
+  .gh-review-action .ra-body > span:first-child { font-size: 22px; }
+  .ra-hint { font-size: 16px; }
+
+  /* Export cards */
+  .gh-export-card { padding: 32px 28px; border-radius: 22px; gap: 18px; }
+  .gh-export-card .ec-icon svg { width: 48px; height: 48px; }
+  .ec-title { font-size: 24px; }
+  .ec-hint { font-size: 16px; }
+
+  /* Done screen */
+  .gh-done-check svg { width: 96px; height: 96px; }
+}
+
 /* Short viewports — collapse vertical rhythm so idle CTA + caption strip
    stay visible without forcing the user to scroll. */
 @media (max-height: 720px) {
