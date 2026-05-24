@@ -11,7 +11,7 @@ import { DocumentReview } from "./DocumentReview";
 import { DoneScreen } from "./DoneScreen";
 import { ExportOptions } from "./ExportOptions";
 import { GhiseuProfileMenu } from "./GhiseuProfileMenu";
-import { LogoIcon, RefreshIcon } from "./icons";
+import { EditIcon, LogoIcon, RefreshIcon } from "./icons";
 import { VoiceStage } from "./VoiceStage";
 
 export function GhiseuShell() {
@@ -131,6 +131,67 @@ export function GhiseuShell() {
       setKioskState("listening");
   }, [voice.state, setKioskState]);
 
+  // Demo-mode entry: drop a sample completed Certificat fiscal into the
+  // session store and jump straight to the review screen. Lets demo
+  // judges see the filled-document UI without driving the whole voice
+  // flow. Resets cleanly via the existing "Ia-o de la capăt" button.
+  function loadDemoDocument() {
+    useSessionStore.setState({
+      activeDocId: "demo-doc-0001",
+      document: {
+        id: "demo-doc-0001",
+        citizen_id: "demo-citizen",
+        procedure_id: "certificat-fiscal",
+        status: "draft",
+        fields: {
+          nume_complet: "Maria Ionescu",
+          cnp: "2851014123456",
+          ci_seria: "CJ",
+          ci_numar: "458912",
+          localitate: "Cluj-Napoca",
+          strada: "Avram Iancu",
+          numar: "5",
+          bloc: "B2",
+          scara: "1",
+          etaj: "3",
+          apartament: "12",
+          email: "maria.ionescu@example.com",
+          scop: "Credit ipotecar — Banca Transilvania",
+          data_cerere: "2026-05-24",
+        },
+      } as never,
+      procedure: {
+        id: "certificat-fiscal",
+        title: "Certificat fiscal",
+        description: "Demo",
+        scope: "primarie",
+        category: "fiscalitate-locala",
+        synonyms: [],
+        sample_queries: [],
+        acte_necesare: [],
+        template: "certificat-fiscal.tex",
+        next_steps: [],
+        fields: [
+          { name: "nume_complet", label: "Nume complet", source: "profile", required: true },
+          { name: "cnp", label: "CNP", source: "profile", required: true },
+          { name: "ci_seria", label: "Seria CI", source: "id_scan|profile", required: true },
+          { name: "ci_numar", label: "Număr CI", source: "id_scan|profile", required: true },
+          { name: "localitate", label: "Localitatea de domiciliu", source: "ask", required: true },
+          { name: "strada", label: "Strada", source: "ask", required: true },
+          { name: "numar", label: "Numărul", source: "ask", required: true },
+          { name: "bloc", label: "Blocul", source: "ask", required: false },
+          { name: "scara", label: "Scara", source: "ask", required: false },
+          { name: "etaj", label: "Etajul", source: "ask", required: false },
+          { name: "apartament", label: "Apartamentul", source: "ask", required: false },
+          { name: "email", label: "Email", source: "profile", required: false },
+          { name: "scop", label: "Scopul", source: "ask", required: true },
+          { name: "data_cerere", label: "Data cererii", source: "ask", required: true },
+        ],
+      } as never,
+    });
+    setKioskState("review");
+  }
+
   let content;
   if (state === "review") {
     content = <DocumentReview onConfirm={confirmDoc} onAmend={amendDoc} />;
@@ -162,6 +223,18 @@ export function GhiseuShell() {
           </div>
 
           <div className="gh-top-actions">
+            <button
+              type="button"
+              className="gh-reset-btn"
+              onClick={loadDemoDocument}
+              aria-label="Document demo"
+              title="Document demo"
+            >
+              <span className="gh-reset-btn-icon" aria-hidden="true">
+                <EditIcon size={15} />
+              </span>
+              <span>Document demo</span>
+            </button>
             <button
               type="button"
               className="gh-reset-btn"
