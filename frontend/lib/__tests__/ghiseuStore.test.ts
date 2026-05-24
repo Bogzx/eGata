@@ -93,6 +93,34 @@ describe("ghiseuStore caption event handlers", () => {
     expect(c.user?.text).toBe("user a");
     expect(c.agent?.text).toBe("agent a");
   });
+
+  it("appendAgentPartial does NOT override 'done' state (post-export terminal)", () => {
+    useGhiseuStore.setState({ state: "done" });
+    useGhiseuStore.getState().appendAgentPartial("accidental agent reply");
+    expect(useGhiseuStore.getState().state).toBe("done");
+    expect(useGhiseuStore.getState().caption.agent?.text).toBe(
+      "accidental agent reply",
+    );
+  });
+
+  it("appendAgentPartial does NOT override 'review' state (user is reviewing fields)", () => {
+    useGhiseuStore.setState({ state: "review" });
+    useGhiseuStore.getState().appendAgentPartial("agent saying something");
+    expect(useGhiseuStore.getState().state).toBe("review");
+  });
+
+  it("commitUserMessage does NOT schedule thinking-flash from 'done' state", () => {
+    useGhiseuStore.setState({ state: "done" });
+    useGhiseuStore.getState().commitUserMessage("accidental utterance");
+    vi.advanceTimersByTime(500);
+    expect(useGhiseuStore.getState().state).toBe("done");
+  });
+
+  it("commitAgentMessage does NOT override 'done' state", () => {
+    useGhiseuStore.setState({ state: "done" });
+    useGhiseuStore.getState().commitAgentMessage("done agent reply");
+    expect(useGhiseuStore.getState().state).toBe("done");
+  });
 });
 
 describe("ghiseuStore confirmDoc + amendDoc + pickExport + backToTalk", () => {
