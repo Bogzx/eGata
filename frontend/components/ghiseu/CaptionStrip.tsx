@@ -1,59 +1,33 @@
 "use client";
 
-import type { GhiseuState } from "@/lib/ghiseuStore";
+import { type GhiseuState, useGhiseuStore } from "@/lib/ghiseuStore";
 
 type Line = { text: string; final?: boolean } | null;
 
 type Transcript = Record<GhiseuState, { user: Line; agent: Line }>;
 
+// Design-copy fallback shown when no live caption exists yet (e.g., the
+// agent's greeting placeholder before the user has spoken).
 const TRANSCRIPT: Transcript = {
   idle: {
     user: null,
     agent: { text: "Bună! Spune-mi cu ce te pot ajuta astăzi.", final: true },
   },
   listening: {
-    user: {
-      text: "Vreau o adeverință de venit pentru bancă, pe ultimele 6 luni…",
-      final: false,
-    },
-    agent: { text: "Sigur, te ajut cu adeverința de venit.", final: true },
+    user: null,
+    agent: { text: "Te ascult.", final: true },
   },
-  thinking: {
-    user: {
-      text: "Vreau o adeverință de venit pentru bancă, pe ultimele 6 luni.",
-      final: true,
-    },
-    agent: null,
-  },
-  speaking: {
-    user: {
-      text: "Vreau o adeverință de venit pentru bancă, pe ultimele 6 luni.",
-      final: true,
-    },
-    agent: {
-      text:
-        "Bine. Am completat datele tale din ROeID. Verifică perioada și instituția destinatară…",
-      final: true,
-    },
-  },
+  thinking: { user: null, agent: null },
+  speaking: { user: null, agent: null },
   review: {
-    user: { text: "Da, e ok perioada.", final: true },
-    agent: {
-      text: "Am pregătit cererea. Te rog verifică datele înainte să o trimitem.",
-      final: true,
-    },
-  },
-  export: {
-    user: { text: "Trimite-o pe email.", final: true },
-    agent: { text: "Perfect. Pe ce email să o trimit — ana.popescu@…?", final: true },
-  },
-  done: {
     user: null,
     agent: {
-      text: "Am trimis cererea către Direcția de Taxe. O să primești o copie pe email.",
+      text: "Am pregătit cererea. Verifică datele înainte să o trimitem.",
       final: true,
     },
   },
+  export: { user: null, agent: null },
+  done: { user: null, agent: null },
   error: { user: null, agent: null },
   "mic-denied": { user: null, agent: null },
 };
@@ -61,26 +35,35 @@ const TRANSCRIPT: Transcript = {
 type Props = { state: GhiseuState };
 
 export function CaptionStrip({ state }: Props) {
-  const data = TRANSCRIPT[state];
-  if (!data.user && !data.agent) return null;
+  const liveCaption = useGhiseuStore((s) => s.caption);
+  const fallback = TRANSCRIPT[state];
+
+  const user: Line = liveCaption.user
+    ? { text: liveCaption.user.text, final: !liveCaption.user.live }
+    : fallback.user;
+  const agent: Line = liveCaption.agent
+    ? { text: liveCaption.agent.text, final: !liveCaption.agent.live }
+    : fallback.agent;
+
+  if (!user && !agent) return null;
   return (
     <div className="gh-caption" aria-live="polite">
-      {data.user ? (
+      {user ? (
         <div className="gh-cap-line" data-role="user">
           <span className="gh-cap-tag">Tu</span>
           <span className="gh-cap-text">
-            {data.user.final ? (
-              data.user.text
+            {user.final ? (
+              user.text
             ) : (
-              <span className="partial">{data.user.text}</span>
+              <span className="partial">{user.text}</span>
             )}
           </span>
         </div>
       ) : null}
-      {data.agent ? (
+      {agent ? (
         <div className="gh-cap-line" data-role="agent">
           <span className="gh-cap-tag">eGata</span>
-          <span className="gh-cap-text">{data.agent.text}</span>
+          <span className="gh-cap-text">{agent.text}</span>
         </div>
       ) : null}
     </div>
