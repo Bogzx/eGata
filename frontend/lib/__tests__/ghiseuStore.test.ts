@@ -102,3 +102,14 @@ describe("ghiseuStore reset", () => {
     expect(useGhiseuStore.getState().exportMethod).toBeNull();
   });
 });
+
+describe("ghiseuStore timer cancellation", () => {
+  it("reset() cancels pending scriptedTalkingFlow timers", () => {
+    useGhiseuStore.getState().toggleMute(); // starts flow
+    vi.advanceTimersByTime(1000); // half-way to thinking
+    useGhiseuStore.getState().reset();
+    expect(useGhiseuStore.getState().state).toBe("idle");
+    vi.advanceTimersByTime(10000); // advance past every original timer
+    expect(useGhiseuStore.getState().state).toBe("idle"); // still idle
+  });
+});

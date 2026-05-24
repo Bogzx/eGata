@@ -31,7 +31,7 @@ export function GhiseuShell() {
   } else if (state === "export") {
     content = <ExportOptions onPick={pickExport} />;
   } else if (state === "done") {
-    content = <DoneScreen method={exportMethod ?? "city"} />;
+    content = <DoneScreen method={exportMethod ?? "city"} onRestart={reset} />;
   } else {
     content = <VoiceStage state={state} />;
   }
