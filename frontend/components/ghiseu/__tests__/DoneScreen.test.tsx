@@ -1,7 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { DoneScreen } from "../DoneScreen";
+import { useSessionStore } from "@/lib/sessionStore";
+
+beforeEach(() => {
+  useSessionStore.setState({ document: null });
+});
 
 describe("DoneScreen", () => {
   it("renders the city-method headline", () => {
@@ -20,9 +24,23 @@ describe("DoneScreen", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the registration number", () => {
+  it("renders REG-PENDING when document has no ref_number", () => {
     render(<DoneScreen method="city" onRestart={() => {}} />);
-    expect(screen.getByText(/REG-2026-08412/)).toBeInTheDocument();
+    expect(screen.getByText("REG-PENDING")).toBeInTheDocument();
+  });
+
+  it("renders the real ref_number from sessionStore when present", () => {
+    useSessionStore.setState({
+      document: {
+        id: "d1",
+        procedure_id: "x",
+        fields: {},
+        ref_number: "REG-2026-08412",
+      } as never,
+    });
+    render(<DoneScreen method="city" onRestart={() => {}} />);
+    expect(screen.getByText("REG-2026-08412")).toBeInTheDocument();
+    expect(screen.queryByText("REG-PENDING")).toBeNull();
   });
 
   it("fires onRestart when the restart CTA is clicked", () => {
