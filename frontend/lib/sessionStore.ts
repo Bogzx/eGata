@@ -582,23 +582,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       });
       get().setSession(res.snapshot);
 
-      if (res.requires_chat_followup) {
-        // Confirm widget without a target_field — the agent must run a
-        // turn to decide what to do (typically start_procedure). sendText
-        // appends the user bubble + streams the agent's response, so we
-        // don't append a user bubble ourselves here.
-        await get().sendText(value);
-        return;
-      }
-
-      // Direct set_field path: append the user bubble and process any
-      // side-effect events from the dispatcher (field_updated, etc.).
-      get().appendMessage({
-        id: makeId(),
-        role: "user",
-        text: value,
-        via: "text",
-      });
+      // Process side-effect events (field_updated, etc.) regardless of which
+      // path comes next. When set_field ran server-side in widget_result and
+      // flipped FILLING→REVIEWING, requires_chat_followup is true AND the
+      // events array carries the field_updated for the just-set field; if we
+      // skip processing here the right pane never reflects that value.
       for (const ev of res.events) {
         if (ev.kind === "frontend_event" && ev.event) {
           void enqueueFrontendEvent(
@@ -612,6 +600,23 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           });
         }
       }
+
+      if (res.requires_chat_followup) {
+        // Confirm widget without a target_field — the agent must run a
+        // turn to decide what to do (typically start_procedure). sendText
+        // appends the user bubble + streams the agent's response, so we
+        // don't append a user bubble ourselves here.
+        await get().sendText(value);
+        return;
+      }
+
+      // Direct set_field path: append the user bubble (events already processed above).
+      get().appendMessage({
+        id: makeId(),
+        role: "user",
+        text: value,
+        via: "text",
+      });
       // Direct set_field path completed — clear the loading bubble we
       // turned on at click time. The chat-followup branch above returned
       // early so sendText owns the flag in that case.

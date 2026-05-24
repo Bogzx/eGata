@@ -78,6 +78,13 @@ function ghiseuForProcedure(procedureId: string | undefined): GhiseuInfo {
       observatie: "Pentru Serviciul Urbanism",
     };
   }
+  if (procedureId === "taiere-arbore-curte-privata") {
+    return {
+      nume: "Ghișeul Spații Verzi",
+      adresa: "Calea Moților nr. 1-3, et. 2, Cluj-Napoca",
+      observatie: "Direcția Ecologie Urbană — tel. 0264 336 234",
+    };
+  }
   return {
     nume: "Ghișeul CIC — Centrul de Informare Cetățeni",
     adresa: "str. Moților nr. 3, parter, Cluj-Napoca",

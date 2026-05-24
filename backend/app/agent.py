@@ -320,6 +320,7 @@ async def widget_result(
                 citizen_id=str(citizen_id), citizen_attributes=citizen_attrs
             )
             field_value = _coerce_widget_value(req.value, widget.type)
+            prev_state = session.state
             result = await dispatch(
                 session,
                 "set_field",
@@ -362,6 +363,37 @@ async def widget_result(
                     WidgetResultEvent(
                         kind="frontend_event", event=result.frontend_event
                     )
+                )
+
+            # If this set_field flipped the session into REVIEWING (i.e. it
+            # was the last required field), the agent MUST run a turn so it
+            # can propose the verification widget. Without this, a choice
+            # widget bound to the last required field (e.g. `numar_arbori`
+            # for taiere-arbore) leaves the session in REVIEWING with no
+            # follow-up — user is stuck after answering the picker.
+            # Skip the synthetic history line; sendText on the frontend
+            # will append the real user message for the chat turn.
+            log.info(
+                "widget_result: post-dispatch conv=%s prev_state=%s new_state=%s",
+                session.id,
+                prev_state.value,
+                session.state.value,
+            )
+            if (
+                prev_state == SessionState.FILLING
+                and session.state == SessionState.REVIEWING
+            ):
+                log.info(
+                    "widget_result: FILLING→REVIEWING transition, returning requires_chat_followup=True conv=%s",
+                    session.id,
+                )
+                update_session(session)
+                return WidgetResultResponse(
+                    conversation_id=session.id,
+                    snapshot=session.snapshot(),
+                    user_message=user_visible,
+                    events=events,
+                    requires_chat_followup=True,
                 )
 
             # OpenAI message shape — matches the new session.history format.
