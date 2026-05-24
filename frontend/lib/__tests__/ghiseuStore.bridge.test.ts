@@ -144,25 +144,25 @@ describe("ghiseuStore.reset stops the bridge", () => {
 });
 
 describe("ghiseuStore.toggleMute", () => {
-  it("calls enableMic when bridge.micOn is false", async () => {
+  it("calls enableMic when ghiseuStore.muted is true (mic is off)", async () => {
     const mock = createMockVoiceAgentHook();
     useGhiseuStore.getState().attachVoiceBridge(mock.hook);
     await useGhiseuStore.getState().enterVoiceMode();
-    mock.setMicOn(false);
     (mock.hook.enableMic as ReturnType<typeof vi.fn>).mockClear();
 
-    useGhiseuStore.setState({ state: "listening" });
+    // Simulate the GhiseuShell mirror: voice.micOn=false → store.muted=true
+    useGhiseuStore.setState({ state: "listening", muted: true });
     useGhiseuStore.getState().toggleMute();
 
     expect(mock.hook.enableMic).toHaveBeenCalledTimes(1);
   });
 
-  it("calls disableMic when bridge.micOn is true", async () => {
+  it("calls disableMic when ghiseuStore.muted is false (mic is on)", async () => {
     const mock = createMockVoiceAgentHook();
     useGhiseuStore.getState().attachVoiceBridge(mock.hook);
     await useGhiseuStore.getState().enterVoiceMode();
-    mock.setMicOn(true);
 
+    // After enterVoiceMode, muted=false (the success path sets it).
     useGhiseuStore.setState({ state: "listening" });
     useGhiseuStore.getState().toggleMute();
 
