@@ -19,6 +19,7 @@ export function GhiseuShell() {
 
   const voice = useVoiceContext();
   const citizen = useSessionStore((s) => s.citizen);
+  const hydrateCitizen = useSessionStore((s) => s.hydrateCitizen);
   const setKioskMode = useSessionStore((s) => s.setKioskMode);
 
   const state = useGhiseuStore((s) => s.state);
@@ -44,6 +45,13 @@ export function GhiseuShell() {
       setKioskMode(false);
     };
   }, [voice, attachVoiceBridge, setKioskMode]);
+
+  // Hydrate citizen once. Without this the kiosk sits in idle forever
+  // because Effect B is gated on citizen being non-null.
+  useEffect(() => {
+    if (citizen) return;
+    void hydrateCitizen().catch(() => {});
+  }, [citizen, hydrateCitizen]);
 
   // Effect B: auto-enter voice mode once a citizen is hydrated, but only
   // once per mount. Guard with a ref so re-renders don't re-fire.

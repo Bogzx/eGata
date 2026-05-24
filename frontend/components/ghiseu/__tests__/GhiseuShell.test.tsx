@@ -28,6 +28,7 @@ beforeEach(() => {
     caption: { user: null, agent: null },
     _bridge: null,
   });
+  // Override hydrateCitizen with a noop so tests don't hit the network.
   useSessionStore.setState({
     kioskMode: false,
     citizen: {
@@ -36,6 +37,7 @@ beforeEach(() => {
       name: "Test User",
       roeid_attributes: {},
     } as never,
+    hydrateCitizen: vi.fn().mockResolvedValue(undefined) as never,
   });
 });
 
@@ -71,5 +73,26 @@ describe("GhiseuShell lifecycle", () => {
     render(<GhiseuShell />);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(currentMock.hook.start).not.toHaveBeenCalled();
+  });
+
+  it("calls hydrateCitizen when citizen is null on mount", async () => {
+    const hydrateSpy = vi.fn().mockResolvedValue(undefined);
+    useSessionStore.setState({
+      citizen: null,
+      hydrateCitizen: hydrateSpy as never,
+    });
+    render(<GhiseuShell />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(hydrateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT call hydrateCitizen when citizen is already hydrated", async () => {
+    const hydrateSpy = vi.fn().mockResolvedValue(undefined);
+    useSessionStore.setState({
+      hydrateCitizen: hydrateSpy as never,
+    });
+    render(<GhiseuShell />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(hydrateSpy).not.toHaveBeenCalled();
   });
 });
