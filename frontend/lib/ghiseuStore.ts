@@ -35,13 +35,24 @@ type GhiseuStore = {
   attachVoiceBridge(bridge: unknown): () => void;
 };
 
+let activeTimers: ReturnType<typeof setTimeout>[] = [];
+
+function clearActiveTimers(): void {
+  for (const id of activeTimers) clearTimeout(id);
+  activeTimers = [];
+}
+
+function schedule(fn: () => void, ms: number): void {
+  activeTimers.push(setTimeout(fn, ms));
+}
+
 function scriptedTalkingFlow(set: (patch: Partial<GhiseuStore>) => void): void {
   // listening → thinking → speaking → review (timing matches the design's
   // handleStartTalking in voice-app.jsx).
   set({ state: "listening" });
-  setTimeout(() => set({ state: "thinking" }), 2800);
-  setTimeout(() => set({ state: "speaking" }), 4300);
-  setTimeout(() => set({ state: "review" }), 7400);
+  schedule(() => set({ state: "thinking" }), 2800);
+  schedule(() => set({ state: "speaking" }), 4300);
+  schedule(() => set({ state: "review" }), 7400);
 }
 
 export const useGhiseuStore = create<GhiseuStore>((set, get) => ({
@@ -54,6 +65,7 @@ export const useGhiseuStore = create<GhiseuStore>((set, get) => ({
   toggleMute: () => {
     const { state, muted } = get();
     if (state === "idle" && muted) {
+      clearActiveTimers();
       set({ muted: false });
       scriptedTalkingFlow(set);
       return;
@@ -62,21 +74,32 @@ export const useGhiseuStore = create<GhiseuStore>((set, get) => ({
   },
 
   interrupt: () => {
+    clearActiveTimers();
     set({ state: "listening", muted: false });
   },
 
-  confirmDoc: () => set({ state: "export" }),
-
-  amendDoc: () => {
-    set({ state: "listening" });
-    setTimeout(() => set({ state: "speaking" }), 1800);
+  confirmDoc: () => {
+    clearActiveTimers();
+    set({ state: "export" });
   },
 
-  pickExport: (method) => set({ state: "done", exportMethod: method }),
+  amendDoc: () => {
+    clearActiveTimers();
+    set({ state: "listening" });
+    schedule(() => set({ state: "speaking" }), 1800);
+  },
+
+  pickExport: (method) => {
+    clearActiveTimers();
+    set({ state: "done", exportMethod: method });
+  },
 
   backToTalk: () => set({ state: "listening", muted: false }),
 
-  reset: () => set({ state: "idle", muted: true, exportMethod: null }),
+  reset: () => {
+    clearActiveTimers();
+    set({ state: "idle", muted: true, exportMethod: null });
+  },
 
   attachVoiceBridge: () => {
     // v1: no-op. v2 will wire useVoiceAgentBridge events into

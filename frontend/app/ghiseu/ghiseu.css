@@ -277,9 +277,9 @@
     0 4px 14px -4px rgba(15, 31, 26, 0.18);
   padding: 18px;
   z-index: 50;
-  animation: vo-pm-in 0.18s ease;
+  animation: gh-pm-in 0.18s ease;
 }
-@keyframes vo-pm-in {
+@keyframes gh-pm-in {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
@@ -396,6 +396,18 @@ html.high-contrast .gh-bg { background: #ffffff; }
 html.high-contrast :focus-visible {
   outline: 3px solid #ffbf00;
   outline-offset: 2px;
+}
+
+html.high-contrast .gh-root {
+  --c-ink: #000000;
+  --c-ink-soft: #1a1a1a;
+  --c-bg: #ffffff;
+  --c-line: rgba(0, 0, 0, 0.6);
+  --c-card: #ffffff;
+  --c-card-solid: #ffffff;
+  --c-dark: #08362e;
+  --c-mid: #08362e;
+  --c-light: #08362e;
 }
 
 /* Dyslexic: generous letter / word / line spacing for runs of text. */

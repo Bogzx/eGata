@@ -3,7 +3,10 @@
 import type { ExportMethod } from "@/lib/ghiseuStore";
 import { CheckIcon, MicIcon } from "./icons";
 
-type Props = { method: Exclude<ExportMethod, null> };
+type Props = {
+  method: Exclude<ExportMethod, null>;
+  onRestart: () => void;
+};
 
 const METHOD_LABEL: Record<Exclude<ExportMethod, null>, string> = {
   city: "trimis direct la primărie",
@@ -12,7 +15,7 @@ const METHOD_LABEL: Record<Exclude<ExportMethod, null>, string> = {
 
 const REF_NO = "REG-2026-08412";
 
-export function DoneScreen({ method }: Props) {
+export function DoneScreen({ method, onRestart }: Props) {
   const methodLabel = METHOD_LABEL[method];
   return (
     <div className="gh-stage">
@@ -33,7 +36,7 @@ export function DoneScreen({ method }: Props) {
           · Vei primi confirmarea pe email.
         </p>
       </div>
-      <button type="button" className="gh-cta">
+      <button type="button" className="gh-cta" onClick={onRestart}>
         <MicIcon size={18} />
         Începe o nouă conversație
       </button>
