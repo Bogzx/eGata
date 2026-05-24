@@ -143,6 +143,23 @@ export interface SessionState {
 // state (it's not serializable and triggers needless re-renders).
 let _currentAbort: AbortController | null = null;
 
+// Serialize all frontend events through a single FIFO. Without this,
+// `document_opened` (which awaits two fetches inside loadDocument) races
+// against the `field_updated` events that arrive milliseconds later in the
+// same stream — and field_updated guards on `document.id`, so the early
+// ones get silently dropped while loadDocument is still in flight. That
+// manifested as missing email / nr_placuta after auto-fill. The queue
+// makes each event await the previous one's full async tail.
+let _eventQueue: Promise<unknown> = Promise.resolve();
+
+export function enqueueFrontendEvent(event: FrontendEvent): Promise<void> {
+  const next = _eventQueue
+    .catch(() => undefined)
+    .then(() => useSessionStore.getState().handleFrontendEvent(event));
+  _eventQueue = next;
+  return next;
+}
+
 // Helper: optimistically toggle a widget's submittedValue in the messages
 // array (and persist). Passing `null` rolls back a prior submission on
 // error. Shared between submitWidget's two branches and its catch block.
@@ -376,6 +393,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   async loadDocument(docId: string) {
+    // Idempotent for the same docId. Without this guard, `document_opened`
+    // calls loadDocument → set store + pushPath; pushPath flips the URL,
+    // ChatSurface's activeDocId effect fires loadDocument AGAIN, and that
+    // second GET can land while the agent is still mid-stream writing
+    // set_field updates. The stale-ish API response then overwrites the
+    // optimistic `document.fields` built up by the FIFO of field_updated
+    // events — exactly why filled values briefly appeared and then
+    // disappeared ("refresh weird") after the transition.
+    const current = get();
+    if (current.activeDocId === docId && current.document?.id === docId) {
+      return;
+    }
     const doc = await api.getDocument(docId);
     const procedure = await api.getProcedure(doc.procedure_id);
     const messages = loadMessages(docId);
@@ -452,7 +481,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             get().setSession(snapshot);
           },
           onFrontendEvent: (event) => {
-            void get().handleFrontendEvent(event);
+            void enqueueFrontendEvent(event);
           },
           onDone: (final) => {
             finalText = final.message;
@@ -572,7 +601,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       });
       for (const ev of res.events) {
         if (ev.kind === "frontend_event" && ev.event) {
-          void get().handleFrontendEvent(
+          void enqueueFrontendEvent(
             ev.event as unknown as FrontendEvent,
           );
         } else if (ev.kind === "tool_result" && ev.error) {
