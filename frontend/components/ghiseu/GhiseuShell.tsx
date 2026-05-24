@@ -68,18 +68,15 @@ export function GhiseuShell() {
     void hydrateCitizen().catch(() => {});
   }, [citizen, hydrateCitizen]);
 
-  // Effect B: auto-enter voice mode once a citizen is hydrated. Guarded
-  // BOTH by enteredRef (per-mount one-shot) AND by voice.wsReady/state
-  // (singleton bridge — never double-start). voice.state in deps so
-  // post-handshake re-render satisfies the guard.
-  useEffect(() => {
-    if (!citizen || enteredRef.current) return;
-    if (voice.wsReady || voice.state === "connecting") return;
-    enteredRef.current = true;
-    void enterVoiceMode().catch(() => {
-      // already logged + state set on the store; do NOT reset enteredRef
-    });
-  }, [citizen, voice.wsReady, voice.state, enterVoiceMode]);
+  // Auto-enter voice mode is DISABLED by design: the kiosk lands on an
+  // idle screen with the mic visibly off. User clicks the mic button
+  // ("Pornește microfonul") to engage — that routes through
+  // ghiseuStore.toggleMute → enterVoiceMode. Keeps the page silent until
+  // the user explicitly invites the agent in, which is the right behavior
+  // for a kiosk that may be facing a desk where someone is mid-conversation.
+  // (enteredRef is unused now; left in place because Effect A's cleanup
+  // still resets it as a defensive measure if we ever re-introduce auto-enter.)
+  void enteredRef; // silence unused-ref warning
 
   // Effect C: mirror voice.micOn into store.muted so the UI's ripple +
   // mic button label stay in sync with the actual hardware state.

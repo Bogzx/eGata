@@ -62,11 +62,11 @@ describe("GhiseuShell lifecycle", () => {
     expect(useGhiseuStore.getState()._bridge).toBeNull();
   });
 
-  it("auto-calls enterVoiceMode when a citizen is hydrated", async () => {
+  it("does NOT auto-call enterVoiceMode on mount (user must click mic)", async () => {
     render(<GhiseuShell />);
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(currentMock.hook.start).toHaveBeenCalledTimes(1);
-    expect(currentMock.hook.enableMic).toHaveBeenCalledTimes(1);
+    expect(currentMock.hook.start).not.toHaveBeenCalled();
+    expect(currentMock.hook.enableMic).not.toHaveBeenCalled();
   });
 
   it("does NOT call enterVoiceMode when citizen is null", async () => {
