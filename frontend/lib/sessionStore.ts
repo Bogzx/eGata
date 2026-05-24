@@ -321,6 +321,19 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         } catch {
           // best effort
         }
+        if (event.delivery === "download" && event.pdf_url) {
+          // Auto-trigger a browser download of the finalized PDF.
+          if (typeof window !== "undefined") {
+            const a = window.document.createElement("a");
+            a.href = event.pdf_url;
+            a.download = `${event.ref_number || event.document_id}.pdf`;
+            a.rel = "noopener";
+            a.target = "_blank";
+            window.document.body.appendChild(a);
+            a.click();
+            a.remove();
+          }
+        }
         return;
       }
       case "redirect": {
