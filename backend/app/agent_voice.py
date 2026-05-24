@@ -52,7 +52,7 @@ from app.azure_clients import (
     history_to_user_only_texts,
     tools_for_realtime,
 )
-from app.citizens import fetch_citizen_by_id
+from app.citizens import enrich_citizen_attrs, fetch_citizen_by_id
 from app.config import get_settings
 from app.security import decode_token
 from app.sessions import (
@@ -253,7 +253,7 @@ class VoiceBridgeSession:
 
         try:
             citizen = fetch_citizen_by_id(UUID(self.citizen_id))
-            citizen_attrs = citizen.get("attributes") or {}
+            citizen_attrs = enrich_citizen_attrs(citizen)
         except Exception:
             citizen_attrs = {}
         self.tool_ctx = ToolContext(

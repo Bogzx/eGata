@@ -14,6 +14,31 @@ from app.security import current_citizen_id
 router = APIRouter(prefix="/citizens", tags=["citizens"])
 
 
+def enrich_citizen_attrs(citizen: dict[str, Any]) -> dict[str, Any]:
+    """Build the citizen-attribute dict the agent reads in its prompt context.
+
+    Merges top-level columns (cnp, nume, prenume, email, phone, data_nasterii)
+    into the `attributes` jsonb so the agent can see them as if they were
+    profile attributes. Adds a derived `nume_complet` ("Prenume Nume") since
+    several procedure schemas reference that field name.
+
+    Top-level columns take precedence over keys with the same name in
+    attributes (defensive: avoids a malformed attributes dict shadowing
+    authoritative column data).
+    """
+    base = dict(citizen.get("attributes") or {})
+    for col in ("cnp", "nume", "prenume", "email", "phone", "data_nasterii"):
+        value = citizen.get(col)
+        if value is not None and value != "":
+            base[col] = value
+    prenume = citizen.get("prenume") or ""
+    nume = citizen.get("nume") or ""
+    full = f"{prenume} {nume}".strip()
+    if full:
+        base["nume_complet"] = full
+    return base
+
+
 def fetch_citizen_by_id(citizen_id: UUID) -> dict[str, Any]:
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
