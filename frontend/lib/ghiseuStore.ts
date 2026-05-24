@@ -66,6 +66,20 @@ function clearThinkingTimer(): void {
   }
 }
 
+/** Voice-driven states are the only ones whose transitions are owned by
+ * agent events. UI-flow states (review/export/submitting/done) and failure
+ * states (error/mic-denied) must NOT be transitioned out of by an
+ * incoming agent delta — otherwise an accidental utterance on the done
+ * screen would yank the user back to the voice ripple. */
+function isVoiceDrivenState(state: GhiseuState): boolean {
+  return (
+    state === "idle" ||
+    state === "listening" ||
+    state === "thinking" ||
+    state === "speaking"
+  );
+}
+
 export const useGhiseuStore = create<GhiseuStore>((set, get) => ({
   state: "idle",
   muted: true,
@@ -84,7 +98,13 @@ export const useGhiseuStore = create<GhiseuStore>((set, get) => ({
       caption: { ...get().caption, user: { text, live: false } },
     });
     clearThinkingTimer();
+    // Don't schedule the thinking-flash when the UI is in a non-voice
+    // state (review/export/submitting/done/error/mic-denied). Otherwise
+    // an accidental utterance after the done screen lands would flip
+    // the kiosk back to the voice ripple.
+    if (!isVoiceDrivenState(get().state)) return;
     thinkingTimer = setTimeout(() => {
+      if (!isVoiceDrivenState(get().state)) return;
       set({ state: "thinking" });
       thinkingTimer = null;
     }, 300);
@@ -92,6 +112,13 @@ export const useGhiseuStore = create<GhiseuStore>((set, get) => ({
 
   appendAgentPartial: (text) => {
     clearThinkingTimer();
+    const current = get().state;
+    if (!isVoiceDrivenState(current)) {
+      // Update the caption (in case some surface wants to show it), but
+      // do NOT transition state — the done/review/export screen stays.
+      set({ caption: { ...get().caption, agent: { text, live: true } } });
+      return;
+    }
     set({
       state: "speaking",
       caption: { ...get().caption, agent: { text, live: true } },
@@ -99,6 +126,11 @@ export const useGhiseuStore = create<GhiseuStore>((set, get) => ({
   },
 
   commitAgentMessage: (text) => {
+    const current = get().state;
+    if (!isVoiceDrivenState(current)) {
+      set({ caption: { ...get().caption, agent: { text, live: false } } });
+      return;
+    }
     set({
       state: "listening",
       caption: { ...get().caption, agent: { text, live: false } },
