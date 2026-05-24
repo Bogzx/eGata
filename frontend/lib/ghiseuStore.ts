@@ -182,7 +182,10 @@ export const useGhiseuStore = create<GhiseuStore>((set, get) => ({
   },
 
   amendDoc: () => {
-    set({ state: "listening" });
+    // Stay on the review screen. The user speaks corrections; the agent
+    // fires set_field; sessionStore.document.fields updates; the field
+    // grid re-renders in place. No state transition needed.
+    clearThinkingTimer();
   },
 
   pickExport: (method) => {
