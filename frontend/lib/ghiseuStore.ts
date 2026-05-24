@@ -130,7 +130,17 @@ export const useGhiseuStore = create<GhiseuStore>((set, get) => ({
 
     try {
       await Promise.all([startP, micP]);
-      set({ state: "listening", muted: false });
+      // Don't clobber a UI-flow state (review/export/done) that the
+      // sessionStore.session.state mirror or the user's clicks may have set
+      // while we were waiting on the WS handshake. Only update mic-driven
+      // state when we're in a voice-driven state or fresh-idle.
+      const current = get().state;
+      const voiceDriven =
+        current === "idle" ||
+        current === "listening" ||
+        current === "thinking" ||
+        current === "speaking";
+      set(voiceDriven ? { state: "listening", muted: false } : { muted: false });
     } catch (err) {
       if (err instanceof Error && err.name === "VoiceAgentMicDeniedError") {
         set({ state: "mic-denied" });
