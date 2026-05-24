@@ -538,6 +538,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     // immediately — protects against double-click.
     _markWidgetSubmitted(get, set, activeDocId, widgetSpec.widgetId, value);
 
+    // Show the loading bubble immediately on click. Without this, the
+    // user clicks a button and stares at silence for ~300-800ms while
+    // /agent/widget-result is in flight before sendText eventually flips
+    // sending=true. sendText idempotently re-sets the same flag, so this
+    // is safe even on the chat-followup path.
+    set({ sending: true });
+
     try {
       const res = await api.submitWidget({
         conversation_id: conversationId,
@@ -576,6 +583,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           });
         }
       }
+      // Direct set_field path completed — clear the loading bubble we
+      // turned on at click time. The chat-followup branch above returned
+      // early so sendText owns the flag in that case.
+      set({ sending: false });
     } catch (err) {
       const detail = err instanceof Error ? err.message : "necunoscută";
       get().appendMessage({
@@ -585,6 +596,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       });
       // Roll back the optimistic submittedValue so user can retry.
       _markWidgetSubmitted(get, set, activeDocId, widgetSpec.widgetId, null);
+      set({ sending: false });
     }
   },
 

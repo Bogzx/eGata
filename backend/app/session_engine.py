@@ -152,21 +152,15 @@ def build_system_instruction(
         f"\nStare sesiune: {session.state.value}",
         f"Tool-uri permise: {permitted_tools(session.state)}",
     ]
-    # Explicit REVIEWING checklist — LLMs often jump from "all fields filled"
-    # straight to complete_document(delivery="send") without asking. Inject
-    # the mandatory 4-step flow as a reminder right at end of system prompt.
     if session.state == SessionState.REVIEWING:
         state_lines.append(
-            "\n*** ÎN STAREA REVIEWING — FLOW OBLIGATORIU ***\n"
-            "1. ÎNTÂI: propose_widget(type='confirm', question='Verifică "
-            "datele în panoul din dreapta. Sunt corecte?')\n"
-            "2. AȘTEAPTĂ răspunsul cetățeanului\n"
-            "3. Dacă DA: propose_widget(type='choice', options=["
+            "\n*** ÎN STAREA REVIEWING ***\n"
+            "1. propose_widget(type='choice', options=["
             "'Salvare PDF (pe email)', 'Trimitere la primărie', 'Tipărire'], "
-            "question='Cum vrei să trimitem cererea?')\n"
-            "4. AȘTEAPTĂ alegerea\n"
-            "5. DOAR ATUNCI: complete_document cu delivery-ul ales\n"
-            "INTERDICȚIE: NU apela complete_document înainte de pașii 1-4."
+            "question='Cum vrei să trimitem cererea?') — O SINGURĂ DATĂ\n"
+            "2. AȘTEAPTĂ alegerea (NU repeta widgetul)\n"
+            "3. complete_document cu delivery-ul ales\n"
+            "NU întreba 'verifică datele' — cetățeanul vede panoul din dreapta."
         )
     return base + "\n".join(citizen_lines + doc_lines + state_lines)
 

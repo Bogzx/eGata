@@ -13,10 +13,10 @@
     "tocmai m-am mutat în casa nouă și nu are număr"
   ],
   "acte_necesare": [
-    { "denumire": "Cerere eliberare plăcuță (cod 446.011)", "emitent": "primarie" },
-    { "denumire": "Carte de identitate (cea mai simplă opțiune)", "emitent_id": "spclep-mai", "observatie": "Alegere recomandată — deja scanată la onboarding. Una dintre cele 3 variante." },
+    { "denumire": "Cerere eliberare plăcuță (cod 446.011)", "emitent": "primarie", "linked_procedure_id": "placuta-numar-postal" },
+    { "denumire": "Carte de identitate (cea mai simplă opțiune)", "emitent": "user", "emitent_id": "spclep-mai", "format": "copie", "observatie": "Alegere recomandată — deja scanată la onboarding. Una dintre cele 3 variante." },
     { "denumire": "Extras carte funciară", "emitent_id": "ocpi-ancpi", "format": "original", "obligatoriu": false, "observatie": "Alternativă — doar dacă nu folosești CI. Cost ~25 RON la OCPI." },
-    { "denumire": "Certificat de nomenclatură stradală", "emitent": "primarie", "obligatoriu": false, "observatie": "Alternativă — necesar pentru adrese noi. Îl poți obține în această aplicație: procedura „certificat-nomenclatura-stradala\" (cod 431.003, Serviciul Urbanism)." }
+    { "denumire": "Certificat de nomenclatură stradală", "emitent": "primarie", "obligatoriu": false, "linked_procedure_id": "certificat-nomenclatura-stradala", "observatie": "Alternativă — necesar pentru adrese noi. Cod 431.003, Serviciul Urbanism." }
   ],
   "fields": [
     { "name": "nume_complet",     "label": "Nume complet / Denumire SC",  "source": "profile",         "required": true },

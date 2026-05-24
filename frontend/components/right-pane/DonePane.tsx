@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSessionStore } from "@/lib/sessionStore";
+// Note: "Conversație nouă" button lives in the topbar (TopBar.tsx) so it's
+// always reachable. Don't duplicate it here.
 
 function nextWorkdayAt(daysAhead: number, hour: number, minute: number): Date {
   const d = new Date();
@@ -85,12 +87,8 @@ function ghiseuForProcedure(procedureId: string | undefined): GhiseuInfo {
 export function DonePane() {
   const document = useSessionStore((s) => s.document);
   const citizen = useSessionStore((s) => s.citizen);
-  const reset = useSessionStore((s) => s.reset);
   const [appointmentBooked, setAppointmentBooked] = useState(false);
 
-  const refNumber =
-    document?.ref_number ??
-    (document ? document.id.slice(0, 8).toUpperCase() : "—");
   const delivery = document?.delivery;
   const ghiseu = ghiseuForProcedure(document?.procedure_id);
   const appointment = nextWorkdayAt(3, 10, 30);
@@ -101,32 +99,24 @@ export function DonePane() {
 
       {delivery === "save" ? (
         <>
-          <h2 className="flex items-center gap-2 text-2xl font-semibold">
-            <Mail size={24} /> PDF trimis pe email
+          <h2 className="flex items-center gap-2 text-3xl font-semibold">
+            <Mail size={32} /> PDF trimis pe email
           </h2>
-          <p className="text-sm">
+          <p className="text-lg">
             Verifică inbox-ul tău:
             <br />
-            <strong>{citizen?.email ?? "adresa ta de email"}</strong>
-          </p>
-          <p className="text-xs" style={{ color: "var(--c-ink-soft)" }}>
-            Număr referință:{" "}
-            <strong className="font-mono">{refNumber}</strong>
+            <strong className="text-xl">{citizen?.email ?? "adresa ta de email"}</strong>
           </p>
         </>
       ) : delivery === "send" ? (
         <>
-          <h2 className="flex items-center gap-2 text-2xl font-semibold">
-            <Building2 size={24} /> Cererea a fost trimisă la primărie
+          <h2 className="flex items-center gap-2 text-3xl font-semibold">
+            <Building2 size={32} /> Cererea a fost trimisă la primărie
           </h2>
-          <p className="text-sm">
+          <p className="text-lg">
             Cererea ta a ajuns la Primăria Cluj-Napoca.
             <br />
             Vei primi un răspuns în câteva zile lucrătoare.
-          </p>
-          <p className="text-xs" style={{ color: "var(--c-ink-soft)" }}>
-            Număr referință:{" "}
-            <strong className="font-mono">{refNumber}</strong>
           </p>
 
           {!appointmentBooked ? (
@@ -168,15 +158,15 @@ export function DonePane() {
         </>
       ) : delivery === "print" ? (
         <>
-          <h2 className="flex items-center gap-2 text-2xl font-semibold">
-            <Printer size={24} /> PDF trimis la imprimantă
+          <h2 className="flex items-center gap-2 text-3xl font-semibold">
+            <Printer size={32} /> PDF trimis la imprimantă
           </h2>
-          <p className="text-sm">
+          <p className="text-lg">
             După printare, semnează pe linia de Semnătură și completează data cu
             pixul, apoi depune-l la ghișeu:
           </p>
           <div
-            className="w-full rounded-lg border p-3 text-left text-sm"
+            className="w-full rounded-lg border p-3 text-left text-base"
             style={{
               borderColor: "var(--c-line)",
               background: "var(--c-bg)",
@@ -185,28 +175,15 @@ export function DonePane() {
             <p className="flex items-center gap-2 font-semibold">
               <MapPin size={16} /> {ghiseu.nume}
             </p>
-            <p className="text-xs" style={{ color: "var(--c-ink-soft)" }}>
+            <p className="text-sm" style={{ color: "var(--c-ink-soft)" }}>
               {ghiseu.adresa}
             </p>
           </div>
-          <p className="text-xs" style={{ color: "var(--c-ink-soft)" }}>
-            Număr referință:{" "}
-            <strong className="font-mono">{refNumber}</strong>
-          </p>
         </>
       ) : (
-        <>
-          <h2 className="text-2xl font-semibold">Gata.</h2>
-          <p className="text-sm">
-            Număr referință:{" "}
-            <strong className="font-mono">{refNumber}</strong>
-          </p>
-        </>
+        <h2 className="text-3xl font-semibold">Gata.</h2>
       )}
 
-      <Button onClick={() => reset()} className="mt-4">
-        Conversație nouă
-      </Button>
     </div>
   );
 }
