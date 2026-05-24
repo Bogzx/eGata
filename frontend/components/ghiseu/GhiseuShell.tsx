@@ -134,8 +134,14 @@ export function GhiseuShell() {
   let content;
   if (state === "review") {
     content = <DocumentReview onConfirm={confirmDoc} onAmend={amendDoc} />;
-  } else if (state === "export") {
-    content = <ExportOptions onPick={pickExport} />;
+  } else if (state === "export" || state === "submitting") {
+    content = (
+      <ExportOptions
+        onPick={pickExport}
+        submitting={state === "submitting"}
+        submittingMethod={state === "submitting" ? exportMethod : null}
+      />
+    );
   } else if (state === "done") {
     content = <DoneScreen method={exportMethod ?? "city"} onRestart={reset} />;
   } else {

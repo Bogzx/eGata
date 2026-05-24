@@ -26,6 +26,10 @@ const STATUS_COPY: Record<GhiseuState, { title: string; hint: string }> = {
     title: "Cum trimitem actul?",
     hint: "Alege o opțiune. Pot să-l trimit eu sau să-l înregistrez direct la primărie.",
   },
+  submitting: {
+    title: "Trimit cererea…",
+    hint: "Durează câteva secunde. Te rog să aștepți confirmarea.",
+  },
   done: {
     title: "Gata. Cererea a fost trimisă.",
     hint: "Vei primi confirmarea pe email. Mulțumesc!",

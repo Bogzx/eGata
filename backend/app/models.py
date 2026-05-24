@@ -138,7 +138,7 @@ class DocumentResponse(BaseModel):
     status: Literal["draft", "finalized"]
     fields: dict[str, Any]
     pdf_url: str | None = None
-    delivery: Literal["save", "send", "print"] | None = None
+    delivery: Literal["save", "send", "print", "city", "email"] | None = None
     ref_number: str | None = None
     created_at: datetime
     delivered_at: datetime | None = None
@@ -154,6 +154,20 @@ class GeneratePDFResponse(BaseModel):
 
 class DeliverRequest(BaseModel):
     delivery: Literal["save", "send", "print"]
+
+
+class SubmitDocumentRequest(BaseModel):
+    """Kiosk-flow submit request. `city` → routes to the destination
+    department; `email` → emails the PDF to the citizen (or to the
+    provided email_address override)."""
+    method: Literal["city", "email"]
+    email_address: str | None = None
+
+
+class SubmitDocumentResponse(BaseModel):
+    ref_number: str
+    delivery: Literal["city", "email"]
+    delivered_at: datetime
 
 
 class LedgerEntry(BaseModel):
