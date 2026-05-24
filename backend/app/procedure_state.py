@@ -203,3 +203,28 @@ def coerce_field_value(procedure: Procedure, name: str, value: Any) -> Any:
     # No match — return the original so the validator surfaces the exact
     # mismatch to the model for a deliberate retry.
     return value
+
+
+def compute_profile_prefill(
+    procedure: Procedure,
+    citizen_attrs: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return a {field_name: value} map for fields the procedure schema
+    declares as profile-sourced, when the citizen profile actually has a
+    matching value.
+
+    A field is profile-prefill-eligible when `source` mentions "profile"
+    (literal "profile" or "id_scan|profile" etc.) AND `citizen_attrs` has
+    a non-empty value under the field's name.
+
+    Caller is expected to write the returned map to the document via
+    update_document_fields — this function only computes, never persists.
+    """
+    out: dict[str, Any] = {}
+    for fld in procedure.fields:
+        if not fld.source or "profile" not in fld.source:
+            continue
+        value = citizen_attrs.get(fld.name)
+        if _is_nonempty(value):
+            out[fld.name] = value
+    return out

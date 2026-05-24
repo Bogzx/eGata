@@ -7,6 +7,7 @@ from app.models import Procedure, ProcedureField
 from app.procedure_state import (
     FieldValidationError,
     all_required_satisfied,
+    compute_profile_prefill,
     evaluate_field_states,
     find_field,
     validate_field_value,
@@ -182,3 +183,55 @@ def test_find_field_returns_none_on_miss():
     proc = _proc([_field("nume")])
     assert find_field(proc, "nume") is not None
     assert find_field(proc, "missing") is None
+
+
+def _profile_field(name: str, source: str = "profile") -> ProcedureField:
+    return ProcedureField(
+        name=name,
+        label=name.title(),
+        source=source,
+        required=True,
+    )
+
+
+def test_compute_profile_prefill_pulls_profile_values():
+    proc = _proc(
+        [
+            _profile_field("cnp"),
+            _profile_field("nume_complet", source="id_scan|profile"),
+            _field("scop"),  # source="ask" → ignored
+        ]
+    )
+    citizen_attrs = {
+        "cnp": "2851014123456",
+        "nume_complet": "Maria Ionescu",
+        "scop": "should be ignored — not profile-sourced",
+        "owns_vehicle": True,
+    }
+    out = compute_profile_prefill(proc, citizen_attrs)
+    assert out == {"cnp": "2851014123456", "nume_complet": "Maria Ionescu"}
+
+
+def test_compute_profile_prefill_skips_missing_attrs():
+    proc = _proc([_profile_field("cnp"), _profile_field("email")])
+    out = compute_profile_prefill(proc, {"cnp": "123"})
+    assert out == {"cnp": "123"}
+
+
+def test_compute_profile_prefill_skips_empty_string_attrs():
+    proc = _proc([_profile_field("cnp"), _profile_field("email")])
+    out = compute_profile_prefill(proc, {"cnp": "123", "email": "   "})
+    assert out == {"cnp": "123"}
+
+
+def test_compute_profile_prefill_ignores_non_profile_sources():
+    proc = _proc(
+        [
+            _profile_field("cnp"),
+            _field("scop"),  # source="ask"
+            ProcedureField(name="other", label="Other", source="id_scan", required=False),
+        ]
+    )
+    citizen_attrs = {"cnp": "X", "scop": "Y", "other": "Z"}
+    out = compute_profile_prefill(proc, citizen_attrs)
+    assert out == {"cnp": "X"}
