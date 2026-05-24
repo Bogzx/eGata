@@ -31,6 +31,7 @@ beforeEach(() => {
   // Override hydrateCitizen with a noop so tests don't hit the network.
   useSessionStore.setState({
     kioskMode: false,
+    session: null,
     citizen: {
       id: "c1",
       phone: "+40700000000",
@@ -94,5 +95,50 @@ describe("GhiseuShell lifecycle", () => {
     render(<GhiseuShell />);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(hydrateSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("GhiseuShell session.state mirror", () => {
+  it("transitions ghiseu state to 'review' when session.state becomes 'reviewing'", async () => {
+    const { rerender } = render(<GhiseuShell />);
+    useSessionStore.setState({ session: { state: "reviewing" } as never });
+    rerender(<GhiseuShell />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(useGhiseuStore.getState().state).toBe("review");
+  });
+
+  it("transitions ghiseu state to 'done' when session.state becomes 'delivered'", async () => {
+    const { rerender } = render(<GhiseuShell />);
+    useSessionStore.setState({ session: { state: "delivered" } as never });
+    rerender(<GhiseuShell />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(useGhiseuStore.getState().state).toBe("done");
+  });
+
+  it("does NOT override ghiseu state when it's already 'error'", async () => {
+    useGhiseuStore.setState({ state: "error" });
+    const { rerender } = render(<GhiseuShell />);
+    useSessionStore.setState({ session: { state: "reviewing" } as never });
+    rerender(<GhiseuShell />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(useGhiseuStore.getState().state).toBe("error");
+  });
+
+  it("does NOT override ghiseu state when it's already 'mic-denied'", async () => {
+    useGhiseuStore.setState({ state: "mic-denied" });
+    const { rerender } = render(<GhiseuShell />);
+    useSessionStore.setState({ session: { state: "reviewing" } as never });
+    rerender(<GhiseuShell />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(useGhiseuStore.getState().state).toBe("mic-denied");
+  });
+
+  it("ignores other session.state values (e.g., 'filling')", async () => {
+    useGhiseuStore.setState({ state: "listening" });
+    const { rerender } = render(<GhiseuShell />);
+    useSessionStore.setState({ session: { state: "filling" } as never });
+    rerender(<GhiseuShell />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(useGhiseuStore.getState().state).toBe("listening");
   });
 });

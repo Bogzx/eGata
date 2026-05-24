@@ -35,6 +35,7 @@ export function GhiseuShell() {
   const attachVoiceBridge = useGhiseuStore((s) => s.attachVoiceBridge);
   const enterVoiceMode = useGhiseuStore((s) => s.enterVoiceMode);
   const setMuted = useGhiseuStore((s) => s.setMuted);
+  const setKioskState = useGhiseuStore((s) => s.setState);
 
   // enteredRef gates the auto-enter so it only fires once per mount. Reset
   // in A's cleanup so React StrictMode's synthetic remount can re-enter
@@ -86,13 +87,31 @@ export function GhiseuShell() {
     setMuted(!voice.micOn);
   }, [voice.micOn, setMuted]);
 
+  // Effect E: mirror sessionStore.session.state -> ghiseu state for
+  // "reviewing" / "delivered" transitions. The backend flips session.state
+  // when the agent fills the last required field (-> reviewing) or after
+  // a successful deliver (-> delivered). Skip when ghiseu state is already
+  // in a user-facing error/permission state.
+  const sessionStateValue = useSessionStore((s) => s.session?.state ?? null);
+  useEffect(() => {
+    if (sessionStateValue !== "reviewing" && sessionStateValue !== "delivered") {
+      return;
+    }
+    const ghiseuState = useGhiseuStore.getState().state;
+    if (ghiseuState === "error" || ghiseuState === "mic-denied") return;
+    if (sessionStateValue === "reviewing" && ghiseuState !== "review") {
+      setKioskState("review");
+    } else if (sessionStateValue === "delivered" && ghiseuState !== "done") {
+      setKioskState("done");
+    }
+  }, [sessionStateValue, setKioskState]);
+
   // Effect D: mirror voice.state -> ghiseu state for "speaking" detection.
   // The bridge's voice.state goes to "speaking" on the first onAgentDelta;
   // some backend configs only emit audio (no transcript deltas), in which
   // case appendAgentPartial never fires and our state machine stays at
   // "listening". This mirror is a fallback so the Întrerupe button still
   // activates when the agent is actively talking.
-  const setKioskState = useGhiseuStore((s) => s.setState);
   useEffect(() => {
     if (voice.state !== "speaking" && voice.state !== "listening") return;
     // Don't overwrite UI-flow states (review/export/done/error/mic-denied)
