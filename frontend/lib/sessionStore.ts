@@ -143,6 +143,23 @@ export interface SessionState {
 // state (it's not serializable and triggers needless re-renders).
 let _currentAbort: AbortController | null = null;
 
+// Serialize all frontend events through a single FIFO. Without this,
+// `document_opened` (which awaits two fetches inside loadDocument) races
+// against the `field_updated` events that arrive milliseconds later in the
+// same stream — and field_updated guards on `document.id`, so the early
+// ones get silently dropped while loadDocument is still in flight. That
+// manifested as missing email / nr_placuta after auto-fill. The queue
+// makes each event await the previous one's full async tail.
+let _eventQueue: Promise<unknown> = Promise.resolve();
+
+export function enqueueFrontendEvent(event: FrontendEvent): Promise<void> {
+  const next = _eventQueue
+    .catch(() => undefined)
+    .then(() => useSessionStore.getState().handleFrontendEvent(event));
+  _eventQueue = next;
+  return next;
+}
+
 // Helper: optimistically toggle a widget's submittedValue in the messages
 // array (and persist). Passing `null` rolls back a prior submission on
 // error. Shared between submitWidget's two branches and its catch block.
@@ -376,6 +393,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   async loadDocument(docId: string) {
+    // Idempotent for the same docId. Without this guard, `document_opened`
+    // calls loadDocument → set store + pushPath; pushPath flips the URL,
+    // ChatSurface's activeDocId effect fires loadDocument AGAIN, and that
+    // second GET can land while the agent is still mid-stream writing
+    // set_field updates. The stale-ish API response then overwrites the
+    // optimistic `document.fields` built up by the FIFO of field_updated
+    // events — exactly why filled values briefly appeared and then
+    // disappeared ("refresh weird") after the transition.
+    const current = get();
+    if (current.activeDocId === docId && current.document?.id === docId) {
+      return;
+    }
     const doc = await api.getDocument(docId);
     const procedure = await api.getProcedure(doc.procedure_id);
     const messages = loadMessages(docId);
@@ -452,7 +481,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             get().setSession(snapshot);
           },
           onFrontendEvent: (event) => {
-            void get().handleFrontendEvent(event);
+            void enqueueFrontendEvent(event);
           },
           onDone: (final) => {
             finalText = final.message;
@@ -503,7 +532,22 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   appendMessage(m) {
-    const next = [...get().messages, m];
+    // When the user replies via text/voice (not by clicking a widget),
+    // dismiss every still-pending widget so the buttons disappear from
+    // earlier agent bubbles. submittedValue is the same marker
+    // ChatStream filters on — '__dismissed__' is distinguishable from
+    // a real value if downstream code ever needs to tell them apart.
+    const prior = get().messages;
+    const cleaned = m.role === "user"
+      ? prior.map((msg) => {
+          if (msg.role !== "agent" || !msg.widgets) return msg;
+          const widgets = msg.widgets.map((w) =>
+            w.submittedValue ? w : { ...w, submittedValue: "__dismissed__" },
+          );
+          return { ...msg, widgets };
+        })
+      : prior;
+    const next = [...cleaned, m];
     set({ messages: next });
     const id = get().activeDocId;
     if (id) saveMessages(id, next);
@@ -523,6 +567,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     // immediately — protects against double-click.
     _markWidgetSubmitted(get, set, activeDocId, widgetSpec.widgetId, value);
 
+    // Show the loading bubble immediately on click. Without this, the
+    // user clicks a button and stares at silence for ~300-800ms while
+    // /agent/widget-result is in flight before sendText eventually flips
+    // sending=true. sendText idempotently re-sets the same flag, so this
+    // is safe even on the chat-followup path.
+    set({ sending: true });
+
     try {
       const res = await api.submitWidget({
         conversation_id: conversationId,
@@ -531,26 +582,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       });
       get().setSession(res.snapshot);
 
-      if (res.requires_chat_followup) {
-        // Confirm widget without a target_field — the agent must run a
-        // turn to decide what to do (typically start_procedure). sendText
-        // appends the user bubble + streams the agent's response, so we
-        // don't append a user bubble ourselves here.
-        await get().sendText(value);
-        return;
-      }
-
-      // Direct set_field path: append the user bubble and process any
-      // side-effect events from the dispatcher (field_updated, etc.).
-      get().appendMessage({
-        id: makeId(),
-        role: "user",
-        text: value,
-        via: "text",
-      });
+      // Process side-effect events (field_updated, etc.) regardless of which
+      // path comes next. When set_field ran server-side in widget_result and
+      // flipped FILLING→REVIEWING, requires_chat_followup is true AND the
+      // events array carries the field_updated for the just-set field; if we
+      // skip processing here the right pane never reflects that value.
       for (const ev of res.events) {
         if (ev.kind === "frontend_event" && ev.event) {
-          void get().handleFrontendEvent(
+          void enqueueFrontendEvent(
             ev.event as unknown as FrontendEvent,
           );
         } else if (ev.kind === "tool_result" && ev.error) {
@@ -561,6 +600,27 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           });
         }
       }
+
+      if (res.requires_chat_followup) {
+        // Confirm widget without a target_field — the agent must run a
+        // turn to decide what to do (typically start_procedure). sendText
+        // appends the user bubble + streams the agent's response, so we
+        // don't append a user bubble ourselves here.
+        await get().sendText(value);
+        return;
+      }
+
+      // Direct set_field path: append the user bubble (events already processed above).
+      get().appendMessage({
+        id: makeId(),
+        role: "user",
+        text: value,
+        via: "text",
+      });
+      // Direct set_field path completed — clear the loading bubble we
+      // turned on at click time. The chat-followup branch above returned
+      // early so sendText owns the flag in that case.
+      set({ sending: false });
     } catch (err) {
       const detail = err instanceof Error ? err.message : "necunoscută";
       get().appendMessage({
@@ -570,6 +630,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       });
       // Roll back the optimistic submittedValue so user can retry.
       _markWidgetSubmitted(get, set, activeDocId, widgetSpec.widgetId, null);
+      set({ sending: false });
     }
   },
 

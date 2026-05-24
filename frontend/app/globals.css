@@ -187,11 +187,19 @@ html.dyslexic select {
 }
 html.dyslexic p,
 html.dyslexic li,
-html.dyslexic .bubble,
 html.dyslexic .doc-value,
 html.dyslexic .reminder-title,
 html.dyslexic .welcome-sub {
   max-width: 65ch;
+}
+/* Chat user bubble is right-aligned; inherited letter/word-spacing from
+   body would widen the text → bubble grows → its left edge drifts left
+   ("messages moved left" report). Reset spacing for the user bubble so
+   its visual position stays put when dyslexic mode is toggled. Agent
+   bubbles keep the dyslexic spacing — they hold longer reads. */
+html.dyslexic .bubble-user {
+  letter-spacing: normal;
+  word-spacing: normal;
 }
 html.dyslexic .hello,
 html.dyslexic .docpane-title,
@@ -1036,22 +1044,10 @@ html.dyslexic .doc-detail-h {
   position: relative;
 }
 .doc-paper::before {
-  content: "DRAFT";
-  position: absolute;
-  right: 24px;
-  top: 24px;
-  font-size: 10px;
-  letter-spacing: 0.2em;
-  font-weight: 600;
-  color: rgba(200, 140, 80, 0.7);
-  border: 1px solid rgba(200, 140, 80, 0.5);
-  padding: 3px 8px;
-  border-radius: 4px;
+  display: none;
 }
 .doc-paper.is-final::before {
-  content: "FINALIZAT";
-  color: var(--c-dark);
-  border-color: var(--c-dark);
+  display: none;
 }
 .doc-paper-detail {
   padding: 36px 40px;

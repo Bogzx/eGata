@@ -47,6 +47,7 @@ export function RightPane() {
   const session = useSessionStore((s) => s.session);
   const scenarioPlan = useSessionStore((s) => s.scenarioPlan);
   const document = useSessionStore((s) => s.document);
+  const sending = useSessionStore((s) => s.sending);
 
   // No session yet (initial paint, fresh visit). If we have a document
   // already loaded — which happens on direct /r/<id> URLs — assume the
@@ -54,6 +55,16 @@ export function RightPane() {
   if (!session) {
     if (document) return <FillingPane />;
     return <WelcomePane />;
+  }
+
+  // Keep FillingPane visible while the agent is still streaming, even if
+  // the backend has already flipped to REVIEWING. The last set_field in a
+  // batch (e.g. optional `email`) often arrives AFTER the transition, so
+  // swapping mid-stream both flashes the panel ("refresh mid completare")
+  // and risks the new ReviewPane mounting before the trailing field_updated
+  // has been applied. Wait until the turn settles, then show ReviewPane.
+  if (session.state === "reviewing" && sending) {
+    return <FillingPane />;
   }
 
   return paneForSessionState(session.state, scenarioPlan !== null);

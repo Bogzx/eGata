@@ -24,8 +24,7 @@
     { "name": "email", "label": "Email", "source": "profile", "required": false },
     { "name": "adresa_imobil", "label": "Adresa imobil", "source": "ask", "required": true },
     { "name": "tip_lucrare", "label": "Tip lucrare", "source": "ask", "required": true },
-    { "name": "afectare_arbori", "label": "Arbori/plantări afectate", "source": "ask", "required": false },
-    { "name": "data_cerere", "label": "Data cererii", "source": "ask", "required": true, "suggest_default": "today" }
+    { "name": "afectare_arbori", "label": "Arbori/plantări afectate", "source": "ask", "required": false }
   ],
   "template": "aviz-principiu-constructii.tex",
   "next_steps": []

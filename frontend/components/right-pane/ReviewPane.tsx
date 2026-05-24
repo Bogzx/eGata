@@ -43,14 +43,11 @@ export function ReviewPane() {
     }
   }
 
-  const refNumber =
-    document.ref_number ?? document.id.slice(0, 8).toUpperCase();
-
   return (
     <DocPane
-      eyebrow="Verifică datele"
+      eyebrow=""
       title={procedure.title}
-      refNumber={refNumber}
+      titleEmphasis
       actions={
         <>
           <button
@@ -91,9 +88,6 @@ export function ReviewPane() {
             CLUJ-NAPOCA
           </div>
           <div className="doc-paper-meta">
-            <div>
-              Cerere nr. <strong>{refNumber}</strong>
-            </div>
             <div>
               Data:{" "}
               {new Date(document.created_at).toLocaleDateString("ro-RO")}

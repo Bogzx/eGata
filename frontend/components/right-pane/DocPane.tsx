@@ -3,8 +3,12 @@
 import type { ReactNode } from "react";
 
 type Props = {
-  eyebrow: string;
+  /** Small label above title. Pass empty string to hide. */
+  eyebrow?: string;
   title: string;
+  /** When true, the title renders at a larger size (used for the
+   * procedure-match pane where the title IS the focal point). */
+  titleEmphasis?: boolean;
   refNumber?: string;
   /** Main paper / form body. */
   children: ReactNode;
@@ -16,13 +20,25 @@ type Props = {
  * Right-column document preview shell. Wraps any pane's content with the
  * eGata eyebrow + title + ref + scrollable body + footer actions.
  */
-export function DocPane({ eyebrow, title, refNumber, children, actions }: Props) {
+export function DocPane({
+  eyebrow,
+  title,
+  titleEmphasis,
+  refNumber,
+  children,
+  actions,
+}: Props) {
   return (
     <div className="docpane">
       <div className="docpane-head">
         <div>
-          <div className="docpane-eyebrow">{eyebrow}</div>
-          <h3 className="docpane-title">{title}</h3>
+          {eyebrow ? <div className="docpane-eyebrow">{eyebrow}</div> : null}
+          <h3
+            className="docpane-title"
+            style={titleEmphasis ? { fontSize: "1.75rem", lineHeight: 1.2 } : undefined}
+          >
+            {title}
+          </h3>
         </div>
         {refNumber ? <div className="docpane-ref">{refNumber}</div> : null}
       </div>

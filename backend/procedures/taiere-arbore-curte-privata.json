@@ -1,32 +1,36 @@
 {
   "id": "taiere-arbore-curte-privata",
   "title": "Aviz tăiere arbore din curte privată",
-  "description": "Cerere pentru eliberarea AVIZULUI de doborâre a unuia sau mai multor arbori situați în curte privată — Direcția Ecologie Urbană și Spații Verzi, Primăria Cluj-Napoca.",
+  "description": "Cerere pentru eliberarea AVIZULUI de doborâre a unuia sau mai multor arbori din curtea privată. Cod 460.007 — Direcția Ecologie Urbană și Spații Verzi, Serviciul Spații Verzi. Bază legală: Legea 24/2007. Termen: max 30 zile lucrătoare.",
+  "llm_hint": "Procedura: aviz pentru tăiere unul sau mai mulți arbori din 'curtea privată' = terenul cu casa cetățeanului. Tăierea fără aviz e sancționabilă (1.000-5.000 RON PF). \n\nFLOW OBLIGATORIU (în această ordine):\n\n1) Confirmare comasată cu adresa EXPLICITĂ. Citește strada_domiciliu și nr_domiciliu din Atribute (sau din câmpurile deja completate) și pune-le în întrebare. Apelează propose_widget type='confirm', question='Începem cererea pentru avizul de tăiere arbori? Arborii sunt în curtea de la domiciliu (str. <strada_domiciliu> nr. <nr_domiciliu>), corect?'. NU continua până nu răspunde.\n\n2) După DA: într-un SINGUR batch de tool calls, apelează ATÂT set_field pentru toate auto-fill-urile (nume_complet, telefon, email, ap_domiciliu, strada_domiciliu, nr_domiciliu, strada_arbori=strada_domiciliu, nr_arbori=nr_domiciliu) CÂT ȘI propose_widget(type='choice', options=['1','2','3','4+'], target_field='numar_arbori', question='Câți arbori vrei să tai?'). După batch scrie un mesaj scurt de tipul 'Am completat datele tale. Alege câți arbori vrei să tai.' și AȘTEAPTĂ răspunsul widget-ului.\n\n3) După NU (arborii sunt la altă adresă): întreabă printr-un singur mesaj 'Pe ce strada și numărul casei sunt arborii?' (răspuns text liber, NU widget). După ce răspunde, într-un SINGUR batch apelează set_field pentru strada_arbori și nr_arbori cu valorile primite PLUS propose_widget(type='choice', options=['1','2','3','4+'], target_field='numar_arbori', question='Câți arbori vrei să tai?'). AȘTEAPTĂ răspunsul widget-ului.\n\nINTERDICȚII:\n- NU întreba 'Câți arbori vrei să tai?' în text — folosește MEREU propose_widget cu butoane ['1','2','3','4+'] și target_field='numar_arbori'. Nu enumera opțiunile în text ca substitut.\n- NU spune 'am completat numărul de arbori' până nu primești răspuns la widget-ul pentru numar_arbori. Asta e ultimul câmp și e completat de cetățean prin click, nu de tine.\n- NU presupune că strada_domiciliu/nr_domiciliu sunt deja în profil — dacă nu le ai în Atribute, parsează din current_address (ex. 'Str. Avram Iancu 5, Cluj-Napoca' → strada='Avram Iancu', nr='5').\n- NU menționa localitatea (mereu Cluj-Napoca, implicit).",
   "scope": "primarie",
   "category": "ecologie-spatii-verzi",
-  "synonyms": ["taiere copac", "doborare arbore", "aviz copac", "arbore uscat curte", "tai arbore", "scot copac curte"],
+  "synonyms": ["taiere copac", "doborare arbore", "aviz copac", "arbore uscat curte", "tai arbore", "scot copac curte", "copac periculos curte", "doborare copaci"],
   "sample_queries": [
     "am un copac uscat în curte și vreau să-l tai",
     "cum obțin aviz pentru doborare arbore",
     "vreau să tai un arbore periculos de pe terenul meu",
-    "trebuie să scot un copac din grădină"
+    "trebuie să scot un copac din grădină",
+    "copacul din curte e uscat, cum îl tai legal"
   ],
   "acte_necesare": [
-    { "denumire": "Cerere AVIZ doborâre arbori curte privată", "emitent": "primarie" },
-    { "denumire": "Copie după Extrasul de Carte Funciară (max 3 luni)", "emitent_id": "ocpi-ancpi", "format": "original" },
-    { "denumire": "Documente fotografice pentru fiecare arbore", "emitent": "user" },
-    { "denumire": "Cupon de pensie", "emitent_id": "casa-pensii", "obligatoriu": false, "observatie": "Doar dacă solicitantul este pensionar" },
-    { "denumire": "Acord coproprietari (notarial)", "emitent_id": "notariat", "obligatoriu": false, "observatie": "Dacă terenul are mai mulți coproprietari" }
+    { "denumire": "Cerere AVIZ doborâre arbori (cod 460.007)", "emitent": "primarie", "linked_procedure_id": "taiere-arbore-curte-privata" },
+    { "denumire": "Carte de identitate", "emitent": "user", "emitent_id": "spclep-mai", "format": "copie", "observatie": "Pentru identificare la depunere — deja scanată la onboarding." },
+    { "denumire": "Extras Carte Funciară (max 3 luni vechime)", "emitent_id": "ocpi-ancpi", "format": "original", "observatie": "Dovada proprietății terenului. Cost ~25 RON la OCPI." },
+    { "denumire": "Documente fotografice pentru fiecare arbore", "emitent": "user", "format": "copie", "observatie": "Câte o fotografie pentru fiecare arbore care urmează să fie tăiat — dovedește necesitatea." },
+    { "denumire": "Cupon de pensie", "emitent_id": "casa-pensii", "format": "copie", "obligatoriu": false, "observatie": "Doar dacă solicitantul este pensionar (atestare pentru taxe reduse)." },
+    { "denumire": "Acord coproprietari (notarial)", "emitent_id": "notariat", "format": "original", "obligatoriu": false, "observatie": "Doar dacă terenul are mai mulți coproprietari în CF." }
   ],
   "fields": [
-    { "name": "nume_complet",   "label": "Nume complet / Denumire SC",   "source": "profile",         "required": true },
-    { "name": "adresa",         "label": "Adresa / Sediul",               "source": "id_scan|profile", "required": true },
-    { "name": "telefon",        "label": "Telefon",                       "source": "profile",         "required": true },
-    { "name": "numar_arbori",   "label": "Numărul de arbori",             "source": "ask",             "required": true, "suggest_default": "1" },
-    { "name": "strada_arbori",  "label": "Strada unde sunt arborii",      "source": "id_scan|profile", "required": true },
-    { "name": "nr_arbori",      "label": "Număr stradă",                  "source": "id_scan|profile", "required": true },
-    { "name": "email",          "label": "Email pentru comunicare",       "source": "profile",         "required": false },
-    { "name": "data_cerere",    "label": "Data cererii",                  "source": "ask",             "required": true, "suggest_default": "today" }
+    { "name": "nume_complet",     "label": "Nume complet / Denumire SC",  "source": "profile",         "required": true },
+    { "name": "strada_domiciliu", "label": "Strada domiciliu",             "source": "id_scan|profile", "required": true },
+    { "name": "nr_domiciliu",     "label": "Număr domiciliu",              "source": "id_scan|profile", "required": true },
+    { "name": "ap_domiciliu",     "label": "Apartament domiciliu",         "source": "id_scan|profile", "required": false },
+    { "name": "telefon",          "label": "Telefon",                       "source": "profile",         "required": true },
+    { "name": "numar_arbori",     "label": "Numărul de arbori",             "source": "ask",             "required": true, "suggest_default": "1", "observatie": "Câți arbori urmează a fi tăiați" },
+    { "name": "strada_arbori",    "label": "Strada unde sunt arborii",      "source": "ask",             "required": true, "default_from": "strada_domiciliu", "observatie": "Implicit, aceeași cu strada de domiciliu" },
+    { "name": "nr_arbori",        "label": "Numărul casei (unde sunt arborii)", "source": "ask",         "required": true, "default_from": "nr_domiciliu", "observatie": "Implicit, același cu numărul de domiciliu" },
+    { "name": "email",            "label": "Email pentru comunicare",       "source": "profile",         "required": false }
   ],
   "template": "taiere-arbore-curte-privata.tex",
   "next_steps": [

@@ -69,6 +69,12 @@ class ProcedureField(BaseModel):
     # {citizen.attributes, document.fields}. Inapplicable fields are not
     # counted as required even if `required: true`. See app.applies_if.
     applies_if: str | None = None
+    # When set, the auto-fill engine suggests `value(default_from)` for this
+    # field if it's empty. Lets us model "fill X with the value of Y by
+    # default" (e.g. strada_placuta defaults to strada_domiciliu). The LLM
+    # sees this as an extra set_field suggestion in the system prompt.
+    observatie: str | None = None
+    default_from: str | None = None
 
 
 class NextStep(BaseModel):
@@ -96,6 +102,11 @@ class ActNecesar(BaseModel):
     observatie: str | None = None
     obligatoriu: bool = True
     alternative: list[str] = Field(default_factory=list)
+    # If set, the frontend renders a "Vezi documentul" button that opens a
+    # PDF preview of /procedures/<id>/preview-pdf in a modal. Use for acts
+    # that ARE one of our procedure templates (e.g. the cerere itself, or
+    # an alternative that's also bookable in-app like CNS).
+    linked_procedure_id: str | None = None
 
 
 class Procedure(BaseModel):
@@ -110,6 +121,11 @@ class Procedure(BaseModel):
     fields: list[ProcedureField]
     template: str
     next_steps: list[NextStep] = Field(default_factory=list)
+    # Free-form flow instructions for the LLM only — never rendered in UI.
+    # Use for per-procedure prompt tuning (e.g. auto-fill defaults, question
+    # phrasing, what to do on YES vs NO). Plain Romanian, no JSON or tool
+    # syntax — the LLM's prompt already explains how to call tools.
+    llm_hint: str | None = None
 
 
 class ProcedureLookupRequest(BaseModel):
@@ -311,6 +327,7 @@ class ResolvedActeNecesareItem(BaseModel):
     observatie: str | None = None
     obligatoriu: bool = True
     alternative: list[str] = Field(default_factory=list)
+    linked_procedure_id: str | None = None
 
 
 class ResolvedInScopeStep(BaseModel):

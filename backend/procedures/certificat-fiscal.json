@@ -27,8 +27,7 @@
     { "name": "etaj", "label": "Etajul", "source": "ask", "required": false },
     { "name": "apartament", "label": "Apartamentul", "source": "ask", "required": false },
     { "name": "email", "label": "Email", "source": "profile", "required": false },
-    { "name": "scop", "label": "Scopul", "source": "ask", "required": true },
-    { "name": "data_cerere", "label": "Data cererii", "source": "ask", "required": true, "suggest_default": "today" }
+    { "name": "scop", "label": "Scopul", "source": "ask", "required": true }
   ],
   "template": "certificat-fiscal.tex",
   "next_steps": []

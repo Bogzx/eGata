@@ -94,15 +94,23 @@ function MsgAgent({
           {text}
           {streaming && text.length > 0 ? <StreamingCaret /> : null}
         </div>
-        {widgets && widgets.length > 0 ? (
-          <div className="widget">
-            {widgets.map((w) => (
-              <div key={w.widgetId}>
-                {renderWidget(w, (v) => onWidgetSubmit(w, v))}
-              </div>
-            ))}
-          </div>
-        ) : null}
+        {widgets && widgets.length > 0 ? (() => {
+          // Hide widgets that have been answered (via click) or dismissed
+          // (user typed/spoke instead of clicking). submittedValue is the
+          // single source of truth — set by the store on submit OR by
+          // dismissPendingWidgets on user text input.
+          const active = widgets.filter((w) => !w.submittedValue);
+          if (active.length === 0) return null;
+          return (
+            <div className="widget">
+              {active.map((w) => (
+                <div key={w.widgetId}>
+                  {renderWidget(w, (v) => onWidgetSubmit(w, v))}
+                </div>
+              ))}
+            </div>
+          );
+        })() : null}
       </div>
     </div>
   );
@@ -125,12 +133,15 @@ export function ChatStream({ onWidgetSubmit }: Props) {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, sending]);
 
-  // Show the typing dots only when we are sending and there is no live
-  // agent message yet (the live message itself shows the streaming caret).
-  const hasLiveAgent = messages.some(
-    (m) => m.role === "agent" && m.live && m.text.trim().length > 0,
+  // Loading bubble shows when we are sending AND no live agent bubble has
+  // produced text yet. An empty live agent message (placeholder before
+  // the first delta) is rendered as null in the map below, so without
+  // this typing bubble the user would see complete silence during the
+  // multi-second tool loop.
+  const liveAgentWithText = messages.some(
+    (m) => m.role === "agent" && m.live && cleanText(m.text).length > 0,
   );
-  const showTyping = sending && !hasLiveAgent;
+  const showTyping = sending && !liveAgentWithText;
 
   return (
     <ol
@@ -140,31 +151,44 @@ export function ChatStream({ onWidgetSubmit }: Props) {
       aria-relevant="additions"
       aria-label="Conversație cu asistentul eGata"
     >
-      {messages.map((m: Message) => (
-        <li
-          key={m.id}
-          aria-label={
-            m.role !== "system" && m.live
-              ? m.role === "user"
-                ? "Mesajul tău se transcrie"
-                : "Asistentul răspunde"
-              : undefined
-          }
-        >
-          {m.role === "user" ? (
-            <MsgUser text={cleanText(m.text)} streaming={m.live} />
-          ) : m.role === "agent" ? (
-            <MsgAgent
-              text={cleanText(m.text)}
-              widgets={m.widgets}
-              streaming={m.live}
-              onWidgetSubmit={onWidgetSubmit}
-            />
-          ) : (
-            <MsgSystem text={cleanText(m.text)} />
-          )}
-        </li>
-      ))}
+      {messages.map((m: Message) => {
+        // Skip empty live agent messages — the loading bubble below covers
+        // this state. Without this, the user sees a phantom "eGata" header
+        // with no body while the model is still mid-tool-loop.
+        if (
+          m.role === "agent" &&
+          m.live &&
+          !cleanText(m.text) &&
+          (!m.widgets || m.widgets.length === 0)
+        ) {
+          return null;
+        }
+        return (
+          <li
+            key={m.id}
+            aria-label={
+              m.role !== "system" && m.live
+                ? m.role === "user"
+                  ? "Mesajul tău se transcrie"
+                  : "Asistentul răspunde"
+                : undefined
+            }
+          >
+            {m.role === "user" ? (
+              <MsgUser text={cleanText(m.text)} streaming={m.live} />
+            ) : m.role === "agent" ? (
+              <MsgAgent
+                text={cleanText(m.text)}
+                widgets={m.widgets}
+                streaming={m.live}
+                onWidgetSubmit={onWidgetSubmit}
+              />
+            ) : (
+              <MsgSystem text={cleanText(m.text)} />
+            )}
+          </li>
+        );
+      })}
 
       {showTyping ? (
         <li aria-label="Asistentul scrie">

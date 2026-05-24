@@ -178,6 +178,7 @@ export type ResolvedActeNecesareItem = {
   observatie?: string;
   obligatoriu?: boolean;
   alternative?: string[];
+  linked_procedure_id?: string;
 };
 
 export type ResolvedInScopeStep = {

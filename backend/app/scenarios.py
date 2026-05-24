@@ -68,6 +68,7 @@ def resolve_act(act) -> ResolvedActeNecesareItem:
         observatie=act.observatie,
         obligatoriu=act.obligatoriu,
         alternative=list(act.alternative),
+        linked_procedure_id=act.linked_procedure_id,
     )
 
 
