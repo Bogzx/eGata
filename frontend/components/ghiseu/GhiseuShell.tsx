@@ -1,7 +1,10 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useAccessibilityClasses } from "@/lib/accessibilityStore";
 import { useGhiseuStore } from "@/lib/ghiseuStore";
+import { useSessionStore } from "@/lib/sessionStore";
+import { useVoiceContext } from "@/lib/voiceContext";
 import { AnimatedMesh } from "./AnimatedMesh";
 import { ControlsDock } from "./ControlsDock";
 import { DocumentReview } from "./DocumentReview";
@@ -14,6 +17,10 @@ import { VoiceStage } from "./VoiceStage";
 export function GhiseuShell() {
   useAccessibilityClasses();
 
+  const voice = useVoiceContext();
+  const citizen = useSessionStore((s) => s.citizen);
+  const setKioskMode = useSessionStore((s) => s.setKioskMode);
+
   const state = useGhiseuStore((s) => s.state);
   const muted = useGhiseuStore((s) => s.muted);
   const exportMethod = useGhiseuStore((s) => s.exportMethod);
@@ -24,6 +31,36 @@ export function GhiseuShell() {
   const pickExport = useGhiseuStore((s) => s.pickExport);
   const backToTalk = useGhiseuStore((s) => s.backToTalk);
   const reset = useGhiseuStore((s) => s.reset);
+  const attachVoiceBridge = useGhiseuStore((s) => s.attachVoiceBridge);
+  const enterVoiceMode = useGhiseuStore((s) => s.enterVoiceMode);
+  const setMuted = useGhiseuStore((s) => s.setMuted);
+
+  // Effect A: attach bridge + flip kioskMode on mount; reverse on unmount.
+  useEffect(() => {
+    setKioskMode(true);
+    const cleanup = attachVoiceBridge(voice);
+    return () => {
+      cleanup();
+      setKioskMode(false);
+    };
+  }, [voice, attachVoiceBridge, setKioskMode]);
+
+  // Effect B: auto-enter voice mode once a citizen is hydrated, but only
+  // once per mount. Guard with a ref so re-renders don't re-fire.
+  const enteredRef = useRef(false);
+  useEffect(() => {
+    if (!citizen || enteredRef.current) return;
+    enteredRef.current = true;
+    void enterVoiceMode().catch(() => {
+      // enterVoiceMode already sets error / mic-denied state on the store.
+    });
+  }, [citizen, enterVoiceMode]);
+
+  // Effect C: mirror voice.micOn into store.muted so the UI's ripple +
+  // mic button label stay in sync with the actual hardware state.
+  useEffect(() => {
+    setMuted(!voice.micOn);
+  }, [voice.micOn, setMuted]);
 
   let content;
   if (state === "review") {
