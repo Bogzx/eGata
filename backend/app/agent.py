@@ -42,6 +42,7 @@ from app.sessions import (
     Session,
     SessionState,
     fetch_or_create_session,
+    mark_review_confirmed,
     session_lock,
     transition,
     update_session,
@@ -282,6 +283,17 @@ async def widget_result(
             widget.type,
             widget.target_field,
         )
+
+        # A confirm widget answered Da in REVIEWING is the user's go-ahead
+        # for the form. Unlocks the delivery `choice` widget — propose_widget
+        # otherwise refuses to keep the LLM from skipping the verification
+        # step (it tends to jump straight to the delivery picker).
+        if (
+            widget.type == "confirm"
+            and session.state == SessionState.REVIEWING
+            and str(req.value).strip().lower() in {"da", "true", "yes"}
+        ):
+            mark_review_confirmed(session.id)
 
         events: list[WidgetResultEvent] = []
         user_visible = (

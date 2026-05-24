@@ -39,7 +39,7 @@ from app.ledger import LedgerEventType, append_ledger
 from app.pdf import render_and_compile
 from app.procedures import get_registry
 from app.procedure_state import all_required_satisfied
-from app.sessions import Session, SessionState
+from app.sessions import Session, SessionState, is_review_confirmed
 from app.storage import upload_pdf_to_storage
 
 log = logging.getLogger("complete_document")
@@ -56,6 +56,42 @@ async def execute(
         )
     if not session.active_document_id:
         return ToolResult(error="Niciun document activ.")
+    # Same gate as propose_widget(type='choice'): require an explicit Da on
+    # a confirm widget in REVIEWING before delivering. Catches the case
+    # where the LLM tries to skip the choice widget entirely.
+    if (
+        session.state == SessionState.REVIEWING
+        and not is_review_confirmed(session.id)
+    ):
+        return ToolResult(
+            error=(
+                "Nu poți apela complete_document înainte ca cetățeanul "
+                "să confirme datele. Apelează propose_widget(type='confirm', "
+                "question='Verifică datele din dreapta. Sunt complete și corecte?'), "
+                "apoi widget-ul de livrare, abia apoi complete_document."
+            )
+        )
+    # Race guard: when the LLM emits propose_widget(choice) AND
+    # complete_document in the same turn, the dispatcher runs them
+    # sequentially and complete_document beats the user's click on the
+    # delivery picker — locking the document to a guessed delivery.
+    # If there's still a pending widget on the session, the user hasn't
+    # answered yet; refuse and tell the LLM to wait.
+    pending_choice = next(
+        (w for w in session.pending_widgets if w.type == "choice"),
+        None,
+    )
+    if pending_choice is not None:
+        return ToolResult(
+            error=(
+                f"Nu apela complete_document în același tur cu propose_widget. "
+                f"Widget-ul {pending_choice.widget_id!r} ({pending_choice.question!r}) "
+                f"încă nu a primit răspuns. AȘTEAPTĂ alegerea cetățeanului, "
+                f"apoi apelează complete_document cu delivery-ul corespunzător "
+                f"răspunsului ('save' pentru Salvare PDF, 'send' pentru "
+                f"Trimitere la primărie, 'print' pentru Tipărire)."
+            )
+        )
 
     doc_id = session.active_document_id
     doc_uuid = UUID(doc_id)

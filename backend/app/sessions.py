@@ -284,6 +284,11 @@ def transition(session: Session, to_state: SessionState) -> Session:
         raise IllegalTransitionError(
             f"Illegal transition {session.state.value} -> {to_state.value}"
         )
+    # Leaving REVIEWING invalidates any prior review confirmation — if the
+    # user edits a field (REVIEWING -> FILLING) or starts over, they must
+    # re-confirm the form before the delivery widget unlocks again.
+    if session.state == SessionState.REVIEWING and to_state != SessionState.REVIEWING:
+        clear_review_confirmed(session.id)
     session.state = to_state
     return session
 
@@ -305,6 +310,27 @@ class IllegalTransitionError(ValueError):
 # hackathon demo.
 
 _SESSION_LOCKS: dict[str, asyncio.Lock] = {}
+
+
+# Transient per-process flag: set when the user answers Da to a confirm
+# widget while the session is in REVIEWING. Acts as a gate so the LLM
+# can't jump straight to the delivery `choice` widget without first
+# asking the user to verify the auto-filled form. Cleared when the
+# session transitions away from REVIEWING (e.g. back to FILLING for an
+# edit). Lost on process restart — the LLM will re-ask, which is fine.
+_REVIEW_CONFIRMED: set[str] = set()
+
+
+def mark_review_confirmed(session_id: str) -> None:
+    _REVIEW_CONFIRMED.add(session_id)
+
+
+def is_review_confirmed(session_id: str) -> bool:
+    return session_id in _REVIEW_CONFIRMED
+
+
+def clear_review_confirmed(session_id: str) -> None:
+    _REVIEW_CONFIRMED.discard(session_id)
 
 
 @asynccontextmanager
