@@ -162,9 +162,11 @@ def build_system_instruction(
             "  • Dacă Nu sau cere modificare: set_field cu noua valoare, apoi repetă PAS 1.\n"
             "PAS 2 — LIVRARE (doar după Da la PAS 1):\n"
             "  propose_widget(type='choice', options=["
-            "'Salvare PDF (pe email)', 'Trimitere la primărie', 'Tipărire'], "
+            "'Salvare PDF', 'Trimitere la primărie', 'Tipărire', "
+            "'Descarcă PDF'], "
             "question='Cum vrei să trimitem cererea?') — O SINGURĂ DATĂ\n"
-            "  AȘTEAPTĂ alegerea, apoi complete_document cu delivery-ul ales.\n"
+            "  AȘTEAPTĂ alegerea, apoi complete_document cu delivery-ul ales "
+            "('Descarcă PDF' → delivery='download').\n"
             "NU apela propose_widget cu aceeași întrebare de două ori la rând."
         )
     return base + "\n".join(citizen_lines + doc_lines + state_lines)
