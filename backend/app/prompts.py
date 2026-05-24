@@ -77,10 +77,11 @@ Reguli stricte:
      valoare. Apoi repetă PAS 1 (confirmare din nou).
 
    PAS 2 — LIVRARE: apelezi O SINGURĂ DATĂ `propose_widget` type="choice",
-   options=["Salvare PDF (pe email)", "Trimitere la primărie", "Tipărire"],
+   options=["Salvare PDF", "Trimitere la primărie", "Tipărire", "Descarcă PDF"],
    question="Cum vrei să trimitem cererea?". AȘTEPȚI alegerea.
    DOAR DUPĂ ce a ales, apelezi `complete_document` cu delivery="save"/
-   "send"/"print" corespunzător alegerii.
+   "send"/"print"/"download" corespunzător alegerii ("Descarcă PDF" → "download",
+   declanșează automat descărcarea PDF-ului în browser-ul cetățeanului).
 
    INTERDICȚII STRICTE:
    • NU sari peste PAS 1 (confirmarea) direct la PAS 2.

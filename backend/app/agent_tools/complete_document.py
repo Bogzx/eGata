@@ -44,7 +44,13 @@ from app.storage import upload_pdf_to_storage
 
 log = logging.getLogger("complete_document")
 
-_VALID_DELIVERY = {"save", "send", "print"}
+_VALID_DELIVERY = {"save", "send", "print", "download"}
+
+
+def _db_delivery(delivery: str) -> str:
+    # "download" is a frontend-only signal (auto-trigger browser download).
+    # Persist as "save" so we don't have to alter the DB CHECK constraint.
+    return "save" if delivery == "download" else delivery
 
 
 async def execute(
@@ -96,7 +102,8 @@ async def execute(
                     f"încă nu a primit răspuns. AȘTEAPTĂ alegerea cetățeanului, "
                     f"apoi apelează complete_document cu delivery-ul corespunzător "
                     f"răspunsului ('save' pentru Salvare PDF, 'send' pentru "
-                    f"Trimitere la primărie, 'print' pentru Tipărire)."
+                    f"Trimitere la primărie, 'print' pentru Tipărire, "
+                    f"'download' pentru Descarcă PDF)."
                 ),
             }
         )
@@ -117,7 +124,12 @@ async def execute(
             doc_id,
         )
         cached_pdf_url = doc.get("pdf_url") or ""
-        cached_delivery = doc.get("delivery") or delivery
+        # On retry the caller may pass "download" even though the row is
+        # persisted as "save" — preserve the caller's intent so the UI
+        # re-triggers the browser download.
+        cached_delivery = delivery if delivery == "download" else (
+            doc.get("delivery") or delivery
+        )
         cached_ref = doc["ref_number"]
         return ToolResult(
             output={
@@ -167,7 +179,7 @@ async def execute(
     # 2. Finalize + deliver
     ref_number = generate_ref_number(doc_uuid)
     finalized = await asyncio.to_thread(
-        finalize_document, doc_uuid, delivery, ref_number
+        finalize_document, doc_uuid, _db_delivery(delivery), ref_number
     )
     await asyncio.to_thread(
         append_ledger,
@@ -199,7 +211,9 @@ async def execute(
         output={
             "document_id": doc_id,
             "pdf_url": pdf_url,
-            "delivery": finalized["delivery"],
+            # Echo the original delivery (incl. "download") back to the agent
+            # so it can phrase the closing message correctly.
+            "delivery": delivery,
             "ref_number": finalized["ref_number"],
             "status": finalized["status"],
         },
@@ -227,7 +241,7 @@ register(
             "properties": {
                 "delivery": {
                     "type": "STRING",
-                    "enum": ["save", "send", "print"],
+                    "enum": ["save", "send", "print", "download"],
                 },
             },
             "required": ["delivery"],
