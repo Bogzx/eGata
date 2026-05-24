@@ -36,6 +36,11 @@ export function GhiseuShell() {
   const enterVoiceMode = useGhiseuStore((s) => s.enterVoiceMode);
   const setMuted = useGhiseuStore((s) => s.setMuted);
 
+  // enteredRef gates the auto-enter so it only fires once per mount. Reset
+  // in A's cleanup so React StrictMode's synthetic remount can re-enter
+  // after the bridge gets torn down between setup-cleanup-setup cycles.
+  const enteredRef = useRef(false);
+
   // Effect A: attach bridge + flip kioskMode on mount; reverse on unmount.
   useEffect(() => {
     setKioskMode(true);
@@ -43,6 +48,7 @@ export function GhiseuShell() {
     return () => {
       cleanup();
       setKioskMode(false);
+      enteredRef.current = false;
     };
   }, [voice, attachVoiceBridge, setKioskMode]);
 
@@ -54,13 +60,14 @@ export function GhiseuShell() {
   }, [citizen, hydrateCitizen]);
 
   // Effect B: auto-enter voice mode once a citizen is hydrated, but only
-  // once per mount. Guard with a ref so re-renders don't re-fire.
-  const enteredRef = useRef(false);
+  // once per attach. Reset enteredRef in the catch so a failed first attempt
+  // (e.g., StrictMode tearing down mid-handshake) gets retried by the next
+  // re-render.
   useEffect(() => {
     if (!citizen || enteredRef.current) return;
     enteredRef.current = true;
     void enterVoiceMode().catch(() => {
-      // enterVoiceMode already sets error / mic-denied state on the store.
+      enteredRef.current = false;
     });
   }, [citizen, enterVoiceMode]);
 
