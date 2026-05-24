@@ -1,6 +1,7 @@
 "use client";
 
 import type { ExportMethod } from "@/lib/ghiseuStore";
+import { useSessionStore } from "@/lib/sessionStore";
 import { CheckIcon, MicIcon } from "./icons";
 
 type Props = {
@@ -13,10 +14,13 @@ const METHOD_LABEL: Record<Exclude<ExportMethod, null>, string> = {
   email: "trimis pe email",
 };
 
-const REF_NO = "REG-2026-08412";
+const REF_FALLBACK = "REG-PENDING";
 
 export function DoneScreen({ method, onRestart }: Props) {
   const methodLabel = METHOD_LABEL[method];
+  const refNumber = useSessionStore(
+    (s) => s.document?.ref_number ?? REF_FALLBACK,
+  );
   return (
     <div className="gh-stage">
       <div className="gh-done-check" aria-hidden="true">
@@ -31,7 +35,7 @@ export function DoneScreen({ method, onRestart }: Props) {
           <strong
             style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.04em" }}
           >
-            {REF_NO}
+            {refNumber}
           </strong>{" "}
           · Vei primi confirmarea pe email.
         </p>
