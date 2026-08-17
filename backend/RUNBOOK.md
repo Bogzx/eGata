@@ -7,7 +7,7 @@ cd backend
 py -3.12 -m venv .venv
 .venv/Scripts/activate     # Windows; on Linux/Mac: source .venv/bin/activate
 pip install -e ".[dev]"
-cp .env.example .env       # fill in values
+cp ../.env.example .env    # single canonical example, at the repo root
 pytest
 uvicorn app.main:app --reload
 ```
@@ -24,12 +24,17 @@ uvicorn app.main:app --reload
    ```bash
    python scripts/embed_procedures.py
    ```
-5. Create a public `pdfs` storage bucket (auto-created on first PDF upload).
+5. The `pdfs` storage bucket is auto-created on first upload, and is
+   **private** — downloads go through short-lived signed URLs (app/storage.py).
+
+> For local work you do not need Supabase at all: `docker compose up` brings
+> up Postgres+pgvector with the migrations and seed applied, and the backend
+> stores PDFs on a local volume. See the repo README.
 
 ## Railway deploy
 
 1. `railway login` and `railway link` (or use the web UI).
-2. Set environment variables from `.env.example` in the Railway dashboard.
+2. Set environment variables from the repo-root `.env.example` in the Railway dashboard.
    - `MOCK_OTP=0` for production. `MOCK_OTP=1` during demo.
 3. Deploy:
    ```bash
