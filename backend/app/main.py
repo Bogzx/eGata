@@ -70,6 +70,7 @@ from app.citizens import router as citizens_router
 from app.config import get_settings
 from app.demo import router as demo_router
 from app.documents import router as documents_router
+from app.files import router as files_router
 from app.health import router as health_router
 from app.procedures import router as procedures_router
 from app.scenarios import router as scenarios_router
@@ -177,6 +178,7 @@ app.include_router(citizens_router)
 app.include_router(procedures_router)
 app.include_router(scenarios_router)
 app.include_router(documents_router)
+app.include_router(files_router)
 app.include_router(agent_router)
 app.include_router(agent_voice_router)
 app.include_router(reminders_router)

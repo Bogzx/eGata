@@ -55,7 +55,11 @@ def _copy_assets(dest: Path) -> None:
 
 
 def compile_pdf(tex_source: str) -> bytes:
-    with tempfile.TemporaryDirectory() as tmp:
+    # ignore_cleanup_errors: on Windows the TeX distribution can still hold
+    # doc.log open when the context manager exits, and the resulting
+    # PermissionError would surface as a failure *after* a perfectly good PDF
+    # had already been produced.
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         d = Path(tmp)
         tex_path = d / "doc.tex"
         tex_path.write_text(tex_source, encoding="utf-8")

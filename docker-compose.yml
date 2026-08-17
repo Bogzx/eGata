@@ -1,18 +1,120 @@
+# eGata — full local stack.
+#
+#   docker compose up --build
+#   → http://localhost:3000
+#
+# No Supabase project, no cloud database, no API key required to get a
+# running system. Postgres+pgvector replaces Supabase's database, and the
+# backend writes PDFs to a local volume instead of Supabase Storage
+# (STORAGE_BACKEND=local, see backend/app/storage.py).
+#
+# What works with nothing configured: login with the three demo personas
+# (mock OTP 123456), the procedure catalogue, filling a document, real
+# pdflatex rendering, delivery, and the audit ledger.
+#
+# What does NOT: the agent chat. It calls Azure OpenAI for both the model and
+# the RAG embeddings, and there is no offline substitute. Put AZURE_OPENAI_*
+# in a root `.env` and run the index step printed by the migrate service.
+#
+# Copy .env.example to .env to override anything below.
+
+name: egata
+
 services:
+  db:
+    # pgvector ships the `vector` extension 001_initial_schema.sql needs.
+    image: pgvector/pgvector:pg16
+    container_name: egata-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-egata}
+    ports:
+      # Exposed so you can psql in, or point a local (non-Docker) backend at it.
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - egata-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-egata}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  # One-shot: applies migrations/*.sql and seeds the three demo citizens.
+  # Idempotent, so it is safe on every `up`.
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: egata-backend:local
+    container_name: egata-migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SUPABASE_DB_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-egata}
+      JWT_SIGNING_SECRET: ${JWT_SIGNING_SECRET:-dev-only-not-a-secret}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      AZURE_OPENAI_EMBED_DEPLOYMENT: ${AZURE_OPENAI_EMBED_DEPLOYMENT:-text-embedding-3-large}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-2024-10-21}
+    command: ["python", "-m", "scripts.bootstrap_local_db"]
+    restart: "no"
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     image: egata-backend:local
     container_name: egata-backend
-    env_file:
-      - ./backend/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       PORT: "8000"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+
+      SUPABASE_DB_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-egata}
+
+      # PDFs go to the volume below, served by /files/pdf with short-lived
+      # HMAC-signed links. Set this to `supabase` (and fill SUPABASE_URL +
+      # SUPABASE_SERVICE_ROLE_KEY) to use Supabase Storage instead.
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
+      PDF_STORAGE_DIR: /data/pdfs
+      # Must be the URL the *browser* uses — signed PDF links are built from it.
+      PUBLIC_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+
+      # The demo stack turns the OTP bypass on deliberately and visibly.
+      # It is off by default in code (backend/app/config.py) precisely so a
+      # real deploy that forgets this variable is not wide open.
+      MOCK_OTP: ${MOCK_OTP:-1}
+      DEMO_RESET_TOKEN: ${DEMO_RESET_TOKEN:-}
+
+      JWT_SIGNING_SECRET: ${JWT_SIGNING_SECRET:-dev-only-not-a-secret}
+      LEDGER_GENESIS_HASH: ${LEDGER_GENESIS_HASH:-0x0000000000000000000000000000000000000000000000000000000000000000}
+      ALLOW_ORIGINS: ${ALLOW_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+
+      # Agent chat only. Everything else runs without these.
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      AZURE_OPENAI_CHAT_DEPLOYMENT: ${AZURE_OPENAI_CHAT_DEPLOYMENT:-gpt-5-mini}
+      AZURE_OPENAI_EMBED_DEPLOYMENT: ${AZURE_OPENAI_EMBED_DEPLOYMENT:-text-embedding-3-large}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-2024-10-21}
+      AZURE_VOICELIVE_ENDPOINT: ${AZURE_VOICELIVE_ENDPOINT:-}
+      AZURE_VOICELIVE_API_KEY: ${AZURE_VOICELIVE_API_KEY:-}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
+      - egata-pdfs:/data/pdfs
+      # Edit a procedure or template and restart the backend — no rebuild.
       - ./backend/procedures:/app/procedures
       - ./backend/templates:/app/templates
       - ./backend/scenarios:/app/scenarios
@@ -47,3 +149,7 @@ services:
       retries: 5
       start_period: 30s
     restart: unless-stopped
+
+volumes:
+  egata-db-data:
+  egata-pdfs:
