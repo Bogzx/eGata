@@ -19,6 +19,7 @@ EXPECTED_IDS = {
     "anevar",
     "banca",
     "spital-medic",
+    "stare-civila",
 }
 
 

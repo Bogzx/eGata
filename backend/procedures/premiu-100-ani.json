@@ -12,7 +12,7 @@
   ],
   "acte_necesare": [
     { "denumire": "Cerere premiu 100 ani (cod 310.001)", "emitent": "primarie" },
-    { "denumire": "CI beneficiar", "emitent_id": "spclep-depabd", "format": "original" },
+    { "denumire": "CI beneficiar", "emitent_id": "spclep-mai", "format": "original" },
     { "denumire": "Certificat de naștere beneficiar", "emitent_id": "stare-civila", "format": "original", "observatie": "Pentru atestarea vârstei de 100 ani" },
     { "denumire": "Extras de cont bancar (IBAN) beneficiar", "emitent_id": "banca", "format": "copie", "observatie": "Pentru plata premiului de 2000 lei" },
     { "denumire": "Procură specială (mandatar)", "emitent_id": "notariat", "obligatoriu": false, "observatie": "Doar dacă depune o rudă în numele beneficiarului" }

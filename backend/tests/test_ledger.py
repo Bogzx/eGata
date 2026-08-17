@@ -45,6 +45,9 @@ def test_event_type_enum_matches_spec() -> None:
         "delivered",
         "redirected",
         "reminder_created",
+        # Appended by POST /demo/reset in place of the hard delete it used to
+        # do — the ledger became append-only in migrations/009.
+        "demo_reset",
     }
     assert {e.value for e in LedgerEventType} == expected
 
