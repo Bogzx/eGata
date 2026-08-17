@@ -24,12 +24,20 @@ class Settings(BaseSettings):
     twilio_auth_token: str = Field(default="")
     twilio_verify_service_sid: str = Field(default="")
     twilio_phone_number: str = Field(default="")
-    mock_otp: bool = Field(default=True)
+    # Fails closed. With mock_otp on, /auth/login-roeid hands a challenge to
+    # anyone naming a persona and /auth/otp accepts the literal code 123456
+    # (auth.py:142-148) — i.e. anyone can log in as anyone. Defaulting this to
+    # True meant any deploy that forgot the env var was wide open. Same
+    # posture as DEMO_RESET_TOKEN in demo.py:48-51, which already refuses to
+    # work unless explicitly enabled. Set MOCK_OTP=1 for local dev and demos;
+    # tests set it in conftest.py:15.
+    mock_otp: bool = Field(default=False)
 
     # Azure OpenAI — used for text chat (session_engine) + embeddings.
-    azure_openai_endpoint: str = Field(
-        default="https://mihaikun2501-5356-resource.openai.azure.com/"
-    )
+    # No default: a personal resource name here leaked a tenant and silently
+    # misrouted a stranger's requests to somebody else's endpoint. Empty means
+    # the SDK raises at startup, which is the loud failure we want.
+    azure_openai_endpoint: str = Field(default="")
     azure_openai_api_key: str = Field(default="")
     azure_openai_chat_deployment: str = Field(default="gpt-5-mini")
     azure_openai_embed_deployment: str = Field(default="text-embedding-3-large")
@@ -38,9 +46,8 @@ class Settings(BaseSettings):
     # Azure VoiceLive — used for browser voice WS + Twilio phone bridge.
     # Direct model mode: we own system_instruction + tool declarations
     # client-side.
-    azure_voicelive_endpoint: str = Field(
-        default="https://mihaikun2501-5356-resource.services.ai.azure.com/"
-    )
+    # Empty for the same reason as azure_openai_endpoint above.
+    azure_voicelive_endpoint: str = Field(default="")
     azure_voicelive_api_key: str = Field(default="")
     azure_voicelive_model: str = Field(default="gpt-realtime")
     azure_voicelive_voice: str = Field(default="en-US-Ava:DragonHDLatestNeural")
