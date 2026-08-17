@@ -21,12 +21,11 @@ Two things happen here that `apply_migrations.py` alone could not:
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
 import psycopg
-
-from app.config import get_settings
 
 MIG_DIR = Path(__file__).resolve().parents[1] / "migrations"
 
@@ -89,11 +88,23 @@ def _count(cur: psycopg.Cursor, table: str) -> int:
     return int(row[0]) if row else 0
 
 
+def _dsn() -> str:
+    """Read SUPABASE_DB_URL directly rather than through app.config.
+
+    Settings also demands JWT_SIGNING_SECRET and would refuse to build without
+    it — applying migrations should not require an unrelated secret.
+    """
+    return os.environ.get("SUPABASE_DB_URL", "").strip()
+
+
 def main() -> int:
-    settings = get_settings()
-    dsn = settings.supabase_db_url
+    dsn = _dsn()
     if not dsn:
-        print("SUPABASE_DB_URL is not set", file=sys.stderr)
+        print(
+            "SUPABASE_DB_URL is not set. Point it at your Postgres, e.g.\n"
+            "  postgresql://postgres:postgres@localhost:5432/egata",
+            file=sys.stderr,
+        )
         return 1
 
     files = sorted(MIG_DIR.glob("*.sql"))
