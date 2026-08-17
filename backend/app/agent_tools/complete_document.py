@@ -40,7 +40,11 @@ from app.pdf import render_and_compile
 from app.procedures import get_registry
 from app.procedure_state import all_required_satisfied
 from app.sessions import Session, SessionState, is_review_confirmed
-from app.storage import upload_pdf_to_storage
+from app.storage import (
+    create_signed_pdf_url,
+    pdf_object_path,
+    upload_pdf_to_storage,
+)
 
 log = logging.getLogger("complete_document")
 
@@ -123,7 +127,19 @@ async def execute(
             "complete_document: doc %s already finalized, returning cached result",
             doc_id,
         )
-        cached_pdf_url = doc.get("pdf_url") or ""
+        # `pdf_url` holds the storage object path, and the bucket is
+        # private — mint a fresh signed link rather than replaying whatever
+        # is in the row (which for pre-private rows is a permanent public
+        # URL, and for post-private rows would be a path the browser cannot
+        # fetch).
+        cached_pdf_url = ""
+        if doc.get("pdf_url"):
+            cached_path = str(doc["pdf_url"])
+            if cached_path.startswith("http"):
+                cached_path = pdf_object_path(doc["citizen_id"], doc["id"])
+            cached_pdf_url = await asyncio.to_thread(
+                create_signed_pdf_url, cached_path
+            ) or ""
         # On retry the caller may pass "download" even though the row is
         # persisted as "save" — preserve the caller's intent so the UI
         # re-triggers the browser download.
@@ -163,18 +179,19 @@ async def execute(
 
     # 1. PDF — pdflatex blocks ~5-15s, runs in worker thread.
     pdf_bytes = await asyncio.to_thread(render_and_compile, proc.template, fields)
-    object_path = f"{session.citizen_id}/{doc_id}.pdf"
-    pdf_url = await asyncio.to_thread(
-        upload_pdf_to_storage, object_path, pdf_bytes
-    )
-    await asyncio.to_thread(set_document_pdf_url, doc_uuid, pdf_url)
+    object_path = pdf_object_path(session.citizen_id, doc_id)
+    await asyncio.to_thread(upload_pdf_to_storage, object_path, pdf_bytes)
+    await asyncio.to_thread(set_document_pdf_url, doc_uuid, object_path)
+    # The ledger stores the location, never the signed link: ledger rows are
+    # permanent and a credential-bearing URL in one outlives its own expiry.
     await asyncio.to_thread(
         append_ledger,
         citizen_id=citizen_uuid,
         event_type=LedgerEventType.PDF_GENERATED,
-        payload={"document_id": doc_id, "pdf_url": pdf_url},
+        payload={"document_id": doc_id, "object_path": object_path},
         document_id=doc_uuid,
     )
+    pdf_url = await asyncio.to_thread(create_signed_pdf_url, object_path) or ""
 
     # 2. Finalize + deliver
     ref_number = generate_ref_number(doc_uuid)

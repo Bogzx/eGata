@@ -29,13 +29,60 @@ from app.models import (
 from app.pdf import render_and_compile
 from app.procedures import get_registry
 from app.security import current_citizen_id
-from app.storage import upload_pdf_to_storage
+from app.storage import (
+    create_signed_pdf_url,
+    create_signed_pdf_urls,
+    pdf_object_path,
+    upload_pdf_to_storage,
+)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 
 def _jsonb(value: Any) -> str:
     return _json.dumps(value, ensure_ascii=False)
+
+
+
+def _document_response(row: dict[str, Any]) -> DocumentResponse:
+    """Serialize a document row, exchanging the stored object path for a
+    freshly signed, short-lived download URL.
+
+    `documents.pdf_url` holds the storage object path, not a URL: the bucket
+    is private (storage.py), so a link is minted per response and expires.
+    Rows written before that change hold a permanent public URL — those are
+    exactly the leak, so they are re-derived and re-signed rather than
+    handed back.
+    """
+    data = dict(row)
+    stored = data.get("pdf_url")
+    if stored:
+        path = str(stored)
+        if path.startswith("http"):
+            path = pdf_object_path(data["citizen_id"], data["id"])
+        data["pdf_url"] = create_signed_pdf_url(path)
+    return DocumentResponse(**data)
+
+
+def _document_responses(rows: list[dict[str, Any]]) -> list[DocumentResponse]:
+    """List form — one signing round trip for the whole page."""
+    paths: dict[int, str] = {}
+    for i, row in enumerate(rows):
+        stored = row.get("pdf_url")
+        if not stored:
+            continue
+        path = str(stored)
+        if path.startswith("http"):
+            path = pdf_object_path(row["citizen_id"], row["id"])
+        paths[i] = path
+
+    signed = create_signed_pdf_urls(sorted(set(paths.values())))
+    out: list[DocumentResponse] = []
+    for i, row in enumerate(rows):
+        data = dict(row)
+        data["pdf_url"] = signed.get(paths[i]) if i in paths else None
+        out.append(DocumentResponse(**data))
+    return out
 
 
 def insert_document(citizen_id: UUID, procedure_id: str) -> dict[str, Any]:
@@ -177,7 +224,7 @@ def create_document(
         payload={"document_id": str(doc["id"]), "procedure_id": req.procedure_id},
         document_id=doc["id"],
     )
-    return DocumentResponse(**doc)
+    return _document_response(doc)
 
 
 @router.get("", response_model=list[DocumentResponse])
@@ -185,7 +232,7 @@ def list_my_documents(
     citizen_id: UUID = Depends(current_citizen_id),
 ) -> list[DocumentResponse]:
     rows = list_documents_for_citizen(citizen_id)
-    return [DocumentResponse(**r) for r in rows]
+    return _document_responses(rows)
 
 
 @router.get("/{document_id}", response_model=DocumentResponse)
@@ -195,7 +242,7 @@ def get_document(
 ) -> DocumentResponse:
     doc = fetch_document(document_id)
     _require_owner(doc, citizen_id)
-    return DocumentResponse(**doc)
+    return _document_response(doc)
 
 
 @router.patch("/{document_id}/fields", response_model=DocumentResponse)
@@ -216,7 +263,7 @@ def patch_fields(
             payload={"document_id": str(document_id)},
             document_id=document_id,
         )
-    return DocumentResponse(**updated)
+    return _document_response(updated)
 
 
 @router.post("/{document_id}/generate-pdf", response_model=GeneratePDFResponse)
@@ -233,18 +280,24 @@ def generate_pdf(
         raise HTTPException(status_code=400, detail=f"Procedure {doc['procedure_id']} not found")
 
     pdf_bytes = render_and_compile(proc.template, doc["fields"])
-    object_path = f"{citizen_id}/{document_id}.pdf"
-    pdf_url = upload_pdf_to_storage(object_path, pdf_bytes)
-    set_document_pdf_url(document_id, pdf_url)
+    object_path = pdf_object_path(citizen_id, document_id)
+    upload_pdf_to_storage(object_path, pdf_bytes)
+    set_document_pdf_url(document_id, object_path)
 
+    # The ledger records *that* a PDF exists and where, never a signed link:
+    # ledger rows are permanent and a credential-bearing URL in one would
+    # outlive its own expiry as a written-down secret.
     append_ledger(
         citizen_id=citizen_id,
         event_type=LedgerEventType.PDF_GENERATED,
-        payload={"document_id": str(document_id), "pdf_url": pdf_url},
+        payload={"document_id": str(document_id), "object_path": object_path},
         document_id=document_id,
     )
 
-    return GeneratePDFResponse(pdf_url=pdf_url)
+    signed = create_signed_pdf_url(object_path)
+    if signed is None:
+        raise HTTPException(status_code=502, detail="Could not sign the PDF download URL")
+    return GeneratePDFResponse(pdf_url=signed)
 
 
 @router.post("/{document_id}/deliver", response_model=DocumentResponse)
@@ -274,7 +327,7 @@ def deliver(
         phone = fetch_phone_for_citizen(citizen_id)
         send_delivery_sms(phone, ref_number)
 
-    return DocumentResponse(**finalized)
+    return _document_response(finalized)
 
 
 @router.get("/{document_id}/ledger", response_model=LedgerResponse)

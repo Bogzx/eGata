@@ -74,7 +74,8 @@ def _doc_row(status: str = "draft", fields: dict | None = None) -> dict:
 @patch("app.documents.append_ledger")
 @patch("app.documents.fetch_ledger_for_document")
 @patch("app.documents.finalize_document")
-@patch("app.documents.upload_pdf_to_storage", return_value="https://x/pdf.pdf")
+@patch("app.documents.create_signed_pdf_url", return_value="https://x/pdf.pdf?token=sig")
+@patch("app.documents.upload_pdf_to_storage", return_value="11111111-1111-1111-1111-111111111111/doc.pdf")
 @patch("app.documents.render_and_compile", return_value=b"%PDF-1.4 fake")
 @patch("app.documents.set_document_pdf_url")
 @patch("app.documents.fetch_phone_for_citizen", return_value="+40712345678")
@@ -99,6 +100,7 @@ def test_full_happy_path(
     mock_set_pdf: MagicMock,
     mock_compile: MagicMock,
     mock_upload: MagicMock,
+    mock_sign: MagicMock,
     mock_finalize: MagicMock,
     mock_fetch_ledger: MagicMock,
     mock_ledger: MagicMock,
@@ -162,6 +164,11 @@ def test_full_happy_path(
     # 5) generate pdf
     r6 = client.post(f"/documents/{doc_id}/generate-pdf", headers=hdr)
     assert r6.status_code == 200
+    # The response carries a freshly signed link, and what got persisted is
+    # the storage object path — not a permanent public URL (storage.py).
+    assert r6.json()["pdf_url"] == "https://x/pdf.pdf?token=sig"
+    assert mock_upload.call_args.args[0] == f"{CITIZEN}/{doc_id}.pdf"
+    assert mock_set_pdf.call_args.args[1] == f"{CITIZEN}/{doc_id}.pdf"
 
     # 6) deliver
     r7 = client.post(f"/documents/{doc_id}/deliver", json={"delivery": "send"}, headers=hdr)
