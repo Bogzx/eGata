@@ -15,10 +15,22 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    supabase_url: str = Field(...)
-    supabase_anon_key: str = Field(...)
-    supabase_service_role_key: str = Field(...)
+    # Only the DB URL is mandatory. The Supabase *client* (the three keys
+    # above it) is used by exactly one module — app/storage.py — so a local
+    # `docker compose up` runs against plain Postgres with no Supabase
+    # project at all. get_supabase() raises a clear error if something asks
+    # for the client while these are empty.
+    supabase_url: str = Field(default="")
+    supabase_anon_key: str = Field(default="")
+    supabase_service_role_key: str = Field(default="")
     supabase_db_url: str = Field(...)
+
+    # "auto" picks supabase when a project is configured and local otherwise.
+    # Set explicitly to make a deployment fail loudly on a missing variable
+    # rather than quietly writing citizens' PDFs to a container filesystem.
+    storage_backend: str = Field(default="auto")
+    # Where the local backend keeps PDFs. Mount a volume here in compose.
+    pdf_storage_dir: str = Field(default="./.data/pdfs")
 
     twilio_account_sid: str = Field(default="")
     twilio_auth_token: str = Field(default="")
