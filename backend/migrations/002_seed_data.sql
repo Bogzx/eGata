@@ -63,10 +63,13 @@ insert into reminders (id, citizen_id, trigger_doc_id, kind, procedure_id, redir
  'După schimbarea domiciliului trebuie să-ți actualizezi certificatul de înmatriculare la DRPCIV',
  current_date + interval '30 days', 'pending');
 
--- Genesis ledger row (required for hash chain to have a prev_hash to reference)
-insert into ledger (citizen_id, document_id, event_type, payload, payload_hash, prev_hash, row_hash)
-values ('11111111-1111-1111-1111-111111111111', null, 'doc_created',
-        '{}'::jsonb,
-        '0x' || encode(digest('{}', 'sha256'), 'hex'),
-        '0x0000000000000000000000000000000000000000000000000000000000000000',
-        '0x' || encode(digest('genesis', 'sha256'), 'hex'));
+-- No seeded ledger row.
+--
+-- There used to be one here, described as "required for hash chain to have a
+-- prev_hash to reference". It was not required — ledger_tip_hash() falls back
+-- to the genesis constant on an empty chain — and its row_hash was
+-- sha256('genesis'), which is not what the hashing rule produces for any
+-- payload. It was a fabricated row in an append-only ledger, and because the
+-- old chain was global it became the tip that every real row chained against,
+-- so the first verification against LEDGER_GENESIS_HASH failed. See
+-- migrations/009_ledger_scope_and_immutability.sql.

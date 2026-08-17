@@ -17,6 +17,7 @@ queues proactive reminders for the next legal steps.
 ## Table of contents
 
 - [What's in the box](#whats-in-the-box)
+- [What's demo-only](#whats-demo-only)
 - [Architecture at a glance](#architecture-at-a-glance)
 - [Repository layout](#repository-layout)
 - [Quick start](#quick-start)
@@ -43,23 +44,79 @@ queues proactive reminders for the next legal steps.
 
 ## What's in the box
 
-| Capability | Status |
-|---|---|
-| Romanian voice + text chat with a stateful agent (6-state machine) | shipped |
-| 23 primărie procedures with field schemas, LaTeX templates, conditional logic | shipped |
-| 5 multi-step real-life scenarios (e.g. *cumpărare apartament*) | shipped |
-| 16 external institutions catalog (ANAF, CNAS, DRPCIV, SPCLEP-MAI, …) | shipped |
-| RAG over procedures + scenarios via pgvector (768-d embeddings) | shipped |
-| LaTeX → `pdflatex` → Supabase Storage PDF pipeline | shipped |
-| Three delivery modes: **save**, **send** (Twilio SMS), **print** | shipped |
-| Hash-chain ledger (sha256) — every event signed, chain-verified on read | shipped |
-| Background worker — `next_steps[]` → reminders with `applies_if` filtering | shipped |
-| Azure VoiceLive browser WebSocket bridge (PCM16, streaming partials) | shipped |
-| Twilio Media Streams ↔ VoiceLive phone bridge (μ-law 8 kHz) | shipped |
-| Accessibility: simple-language, voice-only, large-text, kiosk modes | shipped |
-| MRZ scanner via tesseract.js (camera / upload / manual) | shipped |
-| ROeID + OTP login (Twilio Verify, with `MOCK_OTP=1` for demo) | shipped |
-| Demo reset endpoint, MSW mocks, three pre-seeded personas | shipped |
+This is a three-day hackathon build. The table below is triaged honestly:
+
+- **shipped** — works, tested, runs offline from `docker compose up`.
+- **partial** — works, with a caveat named in the row.
+- **demo-only** — real code, but standing in for something that would have to
+  exist before anyone could use this for real. See
+  [What's demo-only](#whats-demo-only).
+
+| Capability | Status | |
+|---|---|---|
+| 23 primărie procedures — field schemas, LaTeX templates, conditional logic | shipped | |
+| 5 multi-step real-life scenarios (e.g. *cumpărare apartament*) | shipped | |
+| 17 external institutions catalog (ANAF, CNAS, DRPCIV, SPCLEP-MAI, …) | shipped | |
+| LaTeX → `pdflatex` → PDF pipeline, all 23 templates rendered in CI | shipped | |
+| Hash-chain ledger (sha256), append-only, chain-verified per document | shipped | |
+| Background worker — `next_steps[]` → reminders with `applies_if` filtering | shipped | |
+| Accessibility: simple-language, voice-only, large-text, kiosk modes | shipped | |
+| Stateful agent, 6-state machine with state-gated tool dispatch | shipped | |
+| Romanian text chat with the agent | partial | needs a paid Azure OpenAI key; no offline fallback |
+| RAG over procedures + scenarios via pgvector (768-d) | partial | index must be built with a paid embedding deployment |
+| Azure VoiceLive browser WebSocket bridge (PCM16, streaming partials) | partial | needs a separate Azure VoiceLive resource |
+| Twilio Media Streams ↔ VoiceLive phone bridge (μ-law 8 kHz) | partial | needs Twilio + a public tunnel; not exercised by tests |
+| Delivery mode **send** (Twilio SMS) | partial | needs Twilio credentials; `save`/`print` work offline |
+| MRZ scanner via tesseract.js (camera / upload / manual) | partial | parses the MRZ, then looks the CNP up in the seed table |
+| ROeID login | demo-only | there is no ROeID integration; it maps a persona name to a seeded citizen |
+| OTP login with `MOCK_OTP=1` | demo-only | accepts the literal `123456`; off by default in code |
+| `POST /demo/reset`, three pre-seeded personas | demo-only | |
+| MSW frontend mocks | partial | cover the REST surface, **not** `/agent/chat/stream` |
+| Row-level security policies | demo-only | defined, but the backend connects as owner and bypasses them |
+
+---
+
+## What's demo-only
+
+Naming these plainly, because each one looks finished from the outside and is
+not. None of them is hidden — they are all one grep away — but a reader
+shouldn't have to grep.
+
+**There is no ROeID integration.** `POST /auth/login-roeid` takes a persona
+name (`maria-ionescu`, `andrei-popa`, `elena-dumitru`), looks up a hardcoded
+CNP in `backend/app/auth.py`, and finds the matching seeded citizen. A real
+integration would be an OAuth flow against the ROeID broker. The MRZ path
+(`POST /auth/login-mrz`) does genuinely parse the machine-readable zone
+client-side, but then it, too, only matches against the three seeded rows.
+
+**`MOCK_OTP=1` is an authentication bypass.** It skips Twilio and accepts the
+literal code `123456` for any challenge. It is **off by default in code** —
+`docker compose` turns it on explicitly for the demo stack, and a deployment
+that forgets the variable fails closed rather than open.
+
+**There is no citizen registry.** Everything runs against three citizens
+seeded by `migrations/002_seed_data.sql`. There is no sign-up, no identity
+proofing, no way to add a fourth person short of writing SQL.
+
+**Nothing is submitted anywhere.** "Delivery" means the PDF is stored and a
+reference number of the form `CV-XXXX` is generated from the document UUID.
+No primărie receives anything; the number is not a real registration number.
+
+**Row-level security is decorative.** `migrations/004_rls_policies.sql`
+defines per-citizen policies, but the backend connects with the owner /
+service-role credential and bypasses all of them. Authorization is entirely
+application-level (`_require_owner` in `backend/app/documents.py`). The
+policies would start mattering the day a client talked to the database
+directly, which nothing does.
+
+**The ledger is tamper-evident, not tamper-proof.** Rows are chained,
+`UPDATE`/`DELETE` are revoked and blocked by a trigger, and hashes are
+recomputed server-side — but the database owner can still drop the trigger.
+It detects casual and accidental mutation. It is not an external anchor and
+does not pretend to be one.
+
+**The reminders worker runs in-process.** `APScheduler` inside the FastAPI
+process, so two replicas would do the work twice. Fine for one container.
 
 ---
 
@@ -89,9 +146,11 @@ queues proactive reminders for the next legal steps.
                 │  └─────────────────────────────────────────────┘ │
                 └─────┬────────────────────────────────────────┬───┘
                       │                                        │
-       Azure OpenAI   │   Azure VoiceLive   Twilio    Supabase │
-       (gpt-5-mini +  │   (gpt-realtime,    (Verify, │ Postgres + RLS,
-        embed-3-large)│    24 kHz PCM16)    Media)   │ pgvector, Storage
+       Azure OpenAI   │   Azure VoiceLive   Twilio    Postgres │
+       (gpt-5-mini +  │   (gpt-realtime,    (Verify, │ + pgvector
+        embed-3-large)│    24 kHz PCM16)    Media)   │ (local or Supabase)
+                      │                              │ PDFs: volume or
+                      │                              │ private bucket
 ```
 
 ---
@@ -101,13 +160,13 @@ queues proactive reminders for the next legal steps.
 ```
 backend/
   app/                 FastAPI routers, agent engine, tools, ledger, pdf, voice bridges
-  migrations/          001…008 SQL migrations (schema, RLS, ledger fn, sessions, RAG)
+  migrations/          001…011 SQL migrations (schema, RLS, ledger fn, sessions, RAG)
   procedures/          23 JSON procedure definitions (fields, templates, next_steps)
   scenarios/           5 multi-step real-life scenarios (in-scope + external steps)
-  institutions/        16 external-institution definitions (ANAF, ANEVAR, …)
+  institutions/        17 external-institution definitions (ANAF, ANEVAR, …)
   templates/           LaTeX templates (.tex) + base.tex + assets/
-  scripts/             apply_migrations, index_rag, export_openapi, …
-  tests/               17 pytest modules (state machine, ledger, RAG, end-to-end)
+  scripts/             bootstrap_local_db, index_rag, export_openapi, …
+  tests/               22 pytest modules (state machine, ledger, storage, PDF, end-to-end)
 
 frontend/
   app/                 Next.js App Router (/, /login, /home, /req, /doc, /p, /r)
@@ -118,7 +177,9 @@ frontend/
 
 contracts/openapi.yaml OpenAPI 3.1 spec exported from FastAPI
 docs/superpowers/      Design specs + four implementation plans + execution roadmap
-docker-compose.yml     One-command stack (backend healthcheck-gated, frontend follows)
+docs/archive/          Superseded docs from the Gemini-era architecture
+.github/workflows/     CI: pytest · ledger-vs-Postgres · vitest + tsc · pdflatex
+docker-compose.yml     Full stack: Postgres+pgvector, migrate, backend, frontend
 ```
 
 See `docs/superpowers/specs/2026-05-23-egata-design.md` for the full product +
@@ -128,24 +189,53 @@ architecture spec.
 
 ## Quick start
 
-### Prerequisites
+### The short version
 
-- Python 3.12 (FastAPI backend)
-- Node 20+ (Next.js frontend)
-- A Supabase project in the EU region with `vector` + `pgcrypto` extensions
-- Azure OpenAI resource (chat + embedding deployment)
-- *(optional)* Azure VoiceLive resource for voice, Twilio for real SMS/phone
-- `pdflatex` on PATH (TeX Live or MiKTeX) for PDF generation
+```bash
+git clone https://github.com/Bogzx/eGata && cd eGata
+docker compose up --build
+```
 
-### 1. Backend
+Open <http://localhost:3000>. Nothing else to configure: compose brings up
+Postgres+pgvector, applies the migrations, seeds three citizens, and stores
+PDFs on a local volume. No Supabase project, no cloud database, no API key.
+
+**What works with zero configuration:** login (persona → OTP `123456`) ·
+profile · the 23-procedure catalogue · creating and filling a document ·
+real `pdflatex` rendering · save/print delivery · the audit ledger and its
+timeline · reminders.
+
+**What does not:** the agent chat. It calls Azure OpenAI for both the model
+and the RAG embeddings, and there is no offline substitute — so the
+conversational flow, which is the headline feature, needs a paid key. See
+[Turning the chat on](#turning-the-chat-on).
+
+### Turning the chat on
+
+```bash
+cp .env.example .env
+# fill AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY
+docker compose up -d --build
+docker compose run --rm migrate python -m scripts.index_rag   # ~28 embedding calls
+```
+
+The embedding deployment used to build the index must be the same one used at
+query time, or retrieval degrades silently with no error.
+
+### Running it without Docker
+
+Prerequisites: Python 3.12, Node 20+, `pdflatex` on PATH (TeX Live or
+MiKTeX), and a Postgres 14+ with the `vector` and `pgcrypto` extensions —
+either a local one (`docker compose up -d db` gives you one on `:5432`) or a
+Supabase project.
 
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-cp ../.env.example .env                                # fill SUPABASE_*, AZURE_*, JWT_*
-python scripts/apply_migrations.py                     # 8 migrations, seeds 3 demo citizens
-python -m scripts.index_rag                            # embeds procedures + scenarios
+cp ../.env.example .env                                # set SUPABASE_DB_URL at minimum
+python -m scripts.bootstrap_local_db                   # migrations + seed; safe to re-run
+python -m scripts.index_rag                            # only if you have an Azure key
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -153,23 +243,19 @@ Verify:
 
 ```bash
 curl http://localhost:8000/health        # {"status":"ok","service":"egata-backend"}
-curl http://localhost:8000/healthz       # liveness — used by Railway healthcheck
+curl http://localhost:8000/healthz       # liveness — used by the Railway healthcheck
 ```
 
-### 2. Frontend
+Frontend:
 
 ```bash
 cd frontend
 npm install --legacy-peer-deps
 cp .env.local.example .env.local
-# In .env.local set:
-#   NEXT_PUBLIC_USE_MOCKS=0
-#   NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-#   NEXT_PUBLIC_DEMO_MODE=1
 npm run dev                                            # http://localhost:3000
 ```
 
-### 3. Demo walk-through
+### Demo walk-through
 
 1. Open `http://localhost:3000` → **Intră în cont**
 2. Pick persona **Maria Ionescu** → **Login cu ROeID**
@@ -181,11 +267,18 @@ npm run dev                                            # http://localhost:3000
 8. After delivery, the ref number (`CV-XXXX`) appears and the ledger records the event
 9. Click the document on `/home` to see the full `AuditTimeline` (every hashed event)
 
-### 4. Frontend-only dev (no backend)
+### Frontend-only dev (no backend)
 
-Set `NEXT_PUBLIC_USE_MOCKS=1` and run `npm run dev`. MSW serves the full
-contract from `frontend/mocks/handlers.ts` with the same three personas and
-fixtures that match the seeded backend.
+Set `NEXT_PUBLIC_USE_MOCKS=1` and run `npm run dev`. MSW serves the REST
+surface from `frontend/mocks/handlers.ts` — `/auth`, `/citizens`,
+`/procedures`, `/documents`, `/reminders` — with the same three personas as
+the seeded backend.
+
+It does **not** cover `/agent/chat/stream`, `/agent/widget-result` or
+`/scenarios/*`. Those fall through (`onUnhandledRequest: "warn"`) to the real
+backend carrying a mock JWT it rejects, so **the chat does not work in mocks
+mode**. Use this for component and layout work, not for the agent flow. Same
+caveat is in `frontend/.env.local.example`.
 
 ---
 
@@ -193,13 +286,15 @@ fixtures that match the seeded backend.
 
 ### Identity & authentication
 
-- **`POST /auth/login-roeid`** — mock ROeID broker (returns a challenge for the
-  persona's CNP). In demo mode, the LoginButton shows a persona dropdown.
+- **`POST /auth/login-roeid`** — **mock** ROeID broker. Takes a persona name,
+  maps it to a hardcoded CNP, finds the seeded citizen, issues a challenge.
+  There is no ROeID integration; see [What's demo-only](#whats-demo-only).
 - **`POST /auth/login-mrz`** — MRZ-derived login. The frontend's `MrzScanner`
   component uses **tesseract.js** to OCR the back of the CI in three modes
   (camera, upload, manual entry) — see `frontend/components/MrzScanner.tsx`.
 - **`POST /auth/otp`** — challenge + 6-digit code → JWT. Real OTP goes through
-  **Twilio Verify**; `MOCK_OTP=1` accepts the static code `123456`.
+  **Twilio Verify**; `MOCK_OTP=1` accepts the static code `123456` for anyone,
+  which is why it defaults to off.
 - JWTs are HS256, 24 h TTL by default, issued by `app.security.mint_access_token`.
 - All authenticated routes accept the JWT as `Authorization: Bearer <token>`.
 
@@ -307,7 +402,25 @@ Full document lifecycle is auditable end-to-end:
 
 **PDF pipeline** (`backend/app/pdf.py`): LaTeX template + `{{ field }}`
 placeholders → safe LaTeX escaping (`\&`, `\%`, `\_`, …) → `pdflatex`
-subprocess → Supabase Storage bucket `pdfs` → public URL.
+subprocess → object storage → **short-lived signed URL**.
+
+The completed forms carry full name, CNP and home address, so the bucket is
+private and links expire after 15 minutes. Two storage backends, same
+contract (`backend/app/storage.py`):
+
+- `local` (compose default) — a Docker volume, served by `GET /files/pdf`
+  behind an HMAC over the object path and an expiry. No Supabase needed.
+- `supabase` — a **private** bucket, links via `create_signed_url`.
+
+Nothing persists a URL. `documents.pdf_url` holds the storage object path and
+a fresh signature is minted per response, so a link's lifetime is decided when
+it is handed out rather than baked into a row that outlives it. Ledger
+payloads record the object path, never a credential-bearing link.
+
+Every template is rendered through real `pdflatex` in CI, with values full of
+LaTeX metacharacters (`backend/tests/test_template_rendering.py`), and
+`backend/tests/test_template_field_parity.py` asserts each procedure's field
+schema matches its template's placeholders in both directions.
 
 A **preview PDF without persisting a draft** is available via
 `GET /procedures/{id}/preview-pdf` — used by the right-pane "Vezi documentul"
@@ -322,23 +435,36 @@ button for citizens who want to see the form before starting.
 ### Hash-chain audit ledger
 
 Every state-changing event is appended to the `ledger` table via the Postgres
-`append_ledger()` function (migration `003_ledger_function.sql`):
+`append_ledger()` function (migrations `003` + `009`):
 
 ```
-row_hash = sha256(event_type || payload_hash || prev_hash || iso_ts)
+row_hash = sha256(event_type || payload_hash || prev_hash || ts_iso)
 ```
 
 - `payload_hash = sha256(canonical_json(payload))` — keys sorted, no
   whitespace, UTF-8, `ensure_ascii=False` (Romanian characters survive verbatim).
-- `prev_hash` = tip of the chain for that citizen; genesis is configurable via
-  `LEDGER_GENESIS_HASH`.
+- `prev_hash` = tip of the chain for **that (citizen, document) pair**, which
+  is the same slice `GET /documents/{id}/ledger` reads back and verifies.
+  Events with no document (reminders) form one per-citizen chain. Genesis is
+  configurable via `LEDGER_GENESIS_HASH`.
+- Nothing hash-shaped crosses the wire. The function receives the canonical
+  JSON and derives prev_hash, both hashes and the timestamp itself, so a
+  caller cannot store a hash that disagrees with its payload.
+- Append-only: `UPDATE`/`DELETE` are revoked and rejected by a trigger.
+  `POST /demo/reset` appends a `demo_reset` marker rather than deleting.
 - `GET /documents/{id}/ledger` returns the rows **and** a `verified: bool`
   recomputed server-side — the AuditTimeline UI surfaces this badge.
-- Six event types: `doc_created`, `completed_draft`, `pdf_generated`,
-  `delivered`, `redirected`, `reminder_created`.
+- Seven event types: `doc_created`, `completed_draft`, `pdf_generated`,
+  `delivered`, `redirected`, `reminder_created`, `demo_reset`.
 
-Tests cover canonical JSON stability, tamper detection, and broken-link
-rejection (`backend/tests/test_ledger.py`).
+Scope note: this is tamper-**evident**, not tamper-proof — see
+[What's demo-only](#whats-demo-only).
+
+Tests: canonical JSON stability, tamper detection and broken-link rejection
+(`test_ledger.py`); two interleaved documents each verifying on their own
+(`test_ledger_chain_scope.py`); and the same against a real Postgres in CI,
+which is the only way to check that the timestamp string the database hashes
+and the one Python rehashes are byte-identical (`test_ledger_postgres.py`).
 
 ### Proactive reminders worker
 
@@ -378,20 +504,21 @@ preferences ride along on every `/agent/chat/stream` call as `preferences`.
 
 ### Demo controls
 
-- **`POST /demo/reset`** — wipes a citizen's documents, reminders, ledger
-  rows, processed-events watermarks, then re-applies their seeded reminders.
-  Guarded by `DEMO_RESET_TOKEN` env var; unset = always 401 (safe in prod).
+- **`POST /demo/reset`** — deletes a citizen's documents and reminders,
+  appends a `demo_reset` marker to the (append-only) ledger, then re-applies
+  their seeded reminders. Guarded by `DEMO_RESET_TOKEN`; unset = always 401,
+  so a production deploy is safe by default.
 - `DemoResetButton.tsx` — floating button in the bottom corner when
   `NEXT_PUBLIC_DEMO_MODE=1`.
-- **MSW mocks** (`frontend/mocks/`) — full contract mirroring `/auth`,
-  `/citizens`, `/procedures`, `/documents`, `/agent/chat/stream`, `/reminders`.
-  Set `NEXT_PUBLIC_USE_MOCKS=1` and frontend runs without a backend.
+- **MSW mocks** (`frontend/mocks/`) — `/auth`, `/citizens`, `/procedures`,
+  `/documents`, `/reminders`. **Not** `/agent/chat/stream`, so the chat does
+  not work under `NEXT_PUBLIC_USE_MOCKS=1`.
 
 ---
 
 ## HTTP / WebSocket API
 
-Routes mounted in `backend/app/main.py`. Run `python scripts/export_openapi.py`
+Routes mounted in `backend/app/main.py`. Run `python -m scripts.export_openapi`
 to regenerate `contracts/openapi.yaml` after route changes.
 
 | Method | Path | Purpose |
@@ -411,7 +538,7 @@ to regenerate `contracts/openapi.yaml` after route changes.
 | GET | `/documents` | List citizen's documents |
 | GET | `/documents/{id}` | Fetch one document |
 | PATCH | `/documents/{id}/fields` | Patch fields (validated against schema) |
-| POST | `/documents/{id}/generate-pdf` | Compile LaTeX → upload PDF |
+| POST | `/documents/{id}/generate-pdf` | Compile LaTeX → store → return a signed URL |
 | POST | `/documents/{id}/deliver` | save / send / print + ledger write |
 | GET | `/documents/{id}/ledger` | Hash-chain with `verified` flag |
 | POST | `/agent/chat` | Non-streaming agent turn |
@@ -424,7 +551,8 @@ to regenerate `contracts/openapi.yaml` after route changes.
 | PATCH | `/reminders/{id}` | Update reminder status |
 | POST | `/reminders/{id}/start` | Open the linked procedure as a draft |
 | POST | `/reminders/{id}/dismiss` | Mark dismissed |
-| POST | `/demo/reset` | Wipe + reseed a citizen's demo state |
+| GET | `/files/pdf/{citizen}/{file}` | Signed PDF download (local storage backend only) |
+| POST | `/demo/reset` | Clear documents/reminders, mark the ledger, reseed |
 | GET | `/health` | App-level health |
 | GET | `/healthz` | Liveness probe (no Postgres dependency) |
 
@@ -470,16 +598,22 @@ lucide-react icons · tesseract.js (OCR for MRZ) · `mrz` (parser) · MSW 2.6
 
 ## Environment variables
 
-`.env.example` at the repo root is the canonical reference. Highlights:
+`.env.example` at the repo root is the single canonical reference — there is
+no second one under `backend/`. Every variable has a working default in
+`docker-compose.yml`, so a `.env` is optional. Highlights:
 
 | Variable | Purpose |
 |---|---|
-| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL` | Database + storage |
+| `SUPABASE_DB_URL` | Postgres connection string. The only database variable that is ever required |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | Only for `STORAGE_BACKEND=supabase` |
+| `STORAGE_BACKEND` | `local` (volume + signed `/files/pdf` links), `supabase` (private bucket), or `auto` |
+| `PDF_STORAGE_DIR` | Where the local backend keeps PDFs |
+| `PUBLIC_BASE_URL` | Browser-reachable backend URL; local signed PDF links are built from it |
 | `AZURE_OPENAI_*` | Chat (`gpt-5-mini`) + embeddings (`text-embedding-3-large`) |
 | `AZURE_VOICELIVE_*` | Realtime voice (`gpt-realtime`, `gpt-4o-mini-transcribe`) |
 | `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` | Parallel Speech SDK for streaming user transcript partials |
 | `JWT_SIGNING_SECRET`, `JWT_ALGORITHM`, `JWT_EXPIRES_SECONDS` | Token signing (`openssl rand -hex 32`) |
-| `MOCK_OTP=1` | Skip Twilio, accept `123456` |
+| `MOCK_OTP` | `1` skips Twilio and accepts `123456` — an auth bypass. **Defaults to `0`** |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`, `TWILIO_PHONE_NUMBER` | Real SMS + voice |
 | `ALLOW_ORIGINS` | CORS allow-list (comma-separated; covers `:3000/:3001/:3030` by default) |
 | `LEDGER_GENESIS_HASH` | Genesis hash for the audit chain |
@@ -496,16 +630,44 @@ lucide-react icons · tesseract.js (OCR for MRZ) · `mrz` (parser) · MSW 2.6
 ## Running tests
 
 ```bash
-cd backend && pytest                        # 17 test modules
-cd frontend && npm test                     # Vitest unit tests
-cd frontend && npm run e2e                  # Playwright + axe-core a11y
+cd backend  && pytest                       # 175 pass, 56 skipped (opt-in suites)
+cd frontend && npm run test                 # 27 Vitest tests
+cd frontend && npx tsc --noEmit             # typecheck
+cd frontend && npm run e2e                  # Playwright + axe — needs a LIVE backend
 ```
+
+Two backend suites are opt-in and skip by default, because they need something
+the machine may not have. CI runs both:
+
+```bash
+RUN_PDF_TESTS=1 pytest tests/test_template_rendering.py    # needs pdflatex (~70s)
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/egata   pytest tests/test_ledger_postgres.py                     # needs Postgres+pgvector
+```
+
+`.github/workflows/ci.yml` runs four jobs on every PR: backend pytest,
+the ledger suite against a `pgvector/pgvector:pg16` service, frontend
+`tsc --noEmit` + vitest, and all 23 templates through real `pdflatex`.
+Playwright is deliberately excluded — `frontend/e2e/` drives a live
+Azure-backed backend and cannot run without a paid key.
 
 Backend coverage:
 
 - `test_sessions_state_machine.py` — every legal/illegal transition
 - `test_agent_tools_dispatch.py` — state-gating refusal logic
 - `test_ledger.py` — canonical JSON, tamper detection, broken-link rejection
+- `test_ledger_chain_scope.py` — two interleaved documents, each chain
+  verifying on its own; caller-supplied hashes refused
+- `test_ledger_postgres.py` — the same against a real Postgres, plus the
+  append-only trigger (opt-in)
+- `test_storage_privacy.py` — private bucket, bounded TTL, no public URLs
+- `test_local_storage.py` — signed-link tampering, expiry, cross-document
+  reuse and path traversal all refused
+- `test_template_field_parity.py` — all 23 procedures: field set ↔ placeholder
+  set, in both directions
+- `test_template_rendering.py` — all 23 templates through real `pdflatex`
+  with LaTeX-hostile input (opt-in)
+- `test_config_defaults.py` — settings fail closed
+- `test_prompt_tool_references.py` — every tool a system prompt names exists
 - `test_applies_if.py` — conditional field expression evaluator
 - `test_pdf.py` — LaTeX escape + render security
 - `test_embeddings.py` — cosine, source text, registry validation
@@ -513,25 +675,39 @@ Backend coverage:
 - `test_reminders_selection.py` — applies_if filtering for next_steps
 - `test_scenarios.py`, `test_institutions.py` — catalog integrity
 - `test_security_token.py` — JWT mint/verify round-trip
-- `test_sanitize_history.py` — chat history strip-thinking + PII redaction
-- `test_end_to_end_mocked.py` — login → otp → me → create → patch → generate-pdf → deliver → ledger
-- `test_smoke_deployed.py` — production smoke against a live URL
+- `test_end_to_end_mocked.py` — login → otp → me → create → patch →
+  generate-pdf → deliver → ledger
+- `test_smoke_deployed.py` — production smoke against a live URL (opt-in)
 - `test_health.py` — health endpoint
 
 ---
 
 ## Docker compose
 
-One-command stack (uses the same `.env.example` variables):
-
 ```bash
 docker compose up --build
-# backend:  http://localhost:8000  (health-gated)
-# frontend: http://localhost:3000  (depends_on backend healthy)
+# frontend: http://localhost:3000
+# backend:  http://localhost:8000   (health-gated)
+# db:       localhost:5432          (postgres/postgres, database `egata`)
 ```
 
-Procedures, scenarios, institutions, and templates are mounted as volumes so
-edits hot-reload without a rebuild.
+Four services:
+
+| Service | What it does |
+|---|---|
+| `db` | `pgvector/pgvector:pg16` on a named volume; healthchecked |
+| `migrate` | one-shot — applies `migrations/*.sql`, seeds three citizens, prints what does and doesn't work offline. Idempotent |
+| `backend` | waits for `migrate` to succeed; PDFs on the `egata-pdfs` volume |
+| `frontend` | waits for backend health |
+
+Procedures, scenarios, institutions and templates are bind-mounted, so editing
+a JSON schema or a `.tex` only needs a backend restart, not a rebuild.
+
+Everything has a default, so no `.env` is required. Copy `.env.example` to
+`.env` to change ports, plug in Azure keys, or switch `STORAGE_BACKEND` to
+`supabase`.
+
+Reset the whole thing: `docker compose down -v` (drops both volumes).
 
 ---
 
@@ -543,8 +719,10 @@ edits hot-reload without a rebuild.
   worker, accessibility final pass, demo polish).
 - **Checkpoint 2 (shipped)** — full agent-driven flow + reminders worker +
   a11y certification.
-- **Post-hackathon** — multi-language (en/hu/de), real ROeID broker
-  integration, signed PDF (eIDAS QES), per-procedure analytics dashboard.
+- **Post-hackathon (not started)** — multi-language (en/hu/de), real ROeID
+  broker integration, signed PDF (eIDAS QES), per-procedure analytics
+  dashboard, a staff panel for adding procedures without editing JSON and
+  writing LaTeX.
 
 See `docs/superpowers/plans/2026-05-23-egata-execution-roadmap.md` for the full
 execution model.
@@ -560,6 +738,15 @@ execution model.
 - `docs/superpowers/plans/` — four implementation plans (one per wave/team)
 - `backend/RUNBOOK.md` — Supabase setup, Railway deploy, demo prep checklist
 - `backend/CHECKPOINT_1.md` — backend Wave 1 acceptance notes
+- `docs/archive/` — AUDIT_CHAT, AUDIT_TOOLS, PITCH_QA, frontend-spec.
+  All four describe the superseded Gemini architecture and disagree with
+  this README on counts and endpoints; each carries a header saying so.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 - `PITCH_QA.md` — judge-facing Q&A for the live pitch
 
 ---

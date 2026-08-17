@@ -1,8 +1,8 @@
 """Demo reset endpoint (Plan 4).
 
-Wipes a citizen's documents, reminders, ledger rows, and processed_events
-watermarks, then re-applies the per-citizen seed reminders so the demo
-starts from a known state.
+Wipes a citizen's documents and reminders, appends a `demo_reset` marker to
+the (append-only) ledger, then re-applies the per-citizen seed reminders so
+the demo starts from a known state.
 
 Authorized via static dev token in DEMO_RESET_TOKEN. If the env var is unset,
 the endpoint always returns 401 (so production deploys are safe by default).
@@ -17,6 +17,7 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 
 from app.db import get_pg_connection
+from app.ledger import LedgerEventType, append_ledger
 
 router = APIRouter(prefix="/demo", tags=["demo"])
 
@@ -30,7 +31,10 @@ class ResetRequest(BaseModel):
 class ResetCounts(BaseModel):
     documents_deleted: int
     reminders_deleted: int
-    ledger_deleted: int
+    # The ledger is append-only (migrations/009): a reset appends a
+    # `demo_reset` marker row rather than erasing history. Kept as a count so
+    # the response shape stays stable for the frontend.
+    ledger_marked: int
     processed_events_deleted: int
     reminders_seeded: int
 
@@ -57,24 +61,27 @@ def _resolve_default_citizen_id() -> UUID:
 
 
 def _wipe_citizen(citizen_id: UUID) -> dict[str, int]:
+    """Clear the citizen's demo state.
+
+    Documents and reminders are demo scaffolding and are deleted. The ledger
+    is not: it is append-only (migrations/009 revokes DELETE and installs a
+    trigger), so the reset appends a `demo_reset` marker instead. Ledger rows
+    belonging to the deleted documents are simply no longer reachable —
+    `/documents/{id}/ledger` reads per document, and the document is gone.
+
+    processed_events rows are watermarks keyed by ledger_id; since those
+    ledger rows survive, the watermarks must survive too, or the reminders
+    worker would re-process every historical `delivered` event and resurrect
+    the reminders this reset just cleared.
+    """
     cid = str(citizen_id)
     counts: dict[str, int] = {
         "processed_events_deleted": 0,
-        "ledger_deleted": 0,
+        "ledger_marked": 0,
         "reminders_deleted": 0,
         "documents_deleted": 0,
     }
     with get_pg_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            "delete from processed_events "
-            "where ledger_id in (select id from ledger where citizen_id = %s);",
-            (cid,),
-        )
-        counts["processed_events_deleted"] = cur.rowcount or 0
-
-        cur.execute("delete from ledger where citizen_id = %s;", (cid,))
-        counts["ledger_deleted"] = cur.rowcount or 0
-
         cur.execute("delete from reminders where citizen_id = %s;", (cid,))
         counts["reminders_deleted"] = cur.rowcount or 0
 
@@ -82,6 +89,17 @@ def _wipe_citizen(citizen_id: UUID) -> dict[str, int]:
         counts["documents_deleted"] = cur.rowcount or 0
 
         conn.commit()
+
+    append_ledger(
+        citizen_id=citizen_id,
+        event_type=LedgerEventType.DEMO_RESET,
+        payload={
+            "documents_deleted": counts["documents_deleted"],
+            "reminders_deleted": counts["reminders_deleted"],
+        },
+        document_id=None,
+    )
+    counts["ledger_marked"] = 1
     return counts
 
 
@@ -159,7 +177,7 @@ def reset_demo(
         counts=ResetCounts(
             documents_deleted=counts["documents_deleted"],
             reminders_deleted=counts["reminders_deleted"],
-            ledger_deleted=counts["ledger_deleted"],
+            ledger_marked=counts["ledger_marked"],
             processed_events_deleted=counts["processed_events_deleted"],
             reminders_seeded=seeded,
         ),

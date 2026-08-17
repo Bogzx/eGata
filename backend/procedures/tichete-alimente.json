@@ -13,7 +13,7 @@
   ],
   "acte_necesare": [
     { "denumire": "Cerere și declarație pe propria răspundere (cod 801.001)", "emitent": "primarie" },
-    { "denumire": "CI toți membrii familiei", "emitent_id": "spclep-depabd", "format": "copie" },
+    { "denumire": "CI toți membrii familiei", "emitent_id": "spclep-mai", "format": "copie" },
     { "denumire": "Certificat încadrare grad handicap", "emitent_id": "dgaspc", "obligatoriu": false, "observatie": "Pentru categoria handicap grav/accentuat" },
     { "denumire": "Cupon de pensie", "emitent_id": "casa-pensii", "obligatoriu": false, "observatie": "Pentru pensionari/invalizi/veterani" },
     { "denumire": "Carnet șomer / adeverință înregistrare", "emitent_id": "ajofm", "obligatoriu": false, "observatie": "Pentru șomeri" },

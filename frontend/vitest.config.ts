@@ -8,6 +8,10 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     globals: true,
+    // e2e/ is Playwright's. Vitest was collecting those specs and failing the
+    // run with "two different versions of @playwright/test" — a red suite
+    // that said nothing about the code.
+    exclude: ["node_modules/**", "dist/**", ".next/**", "e2e/**"],
   },
   resolve: {
     alias: {
