@@ -6,16 +6,54 @@ All DB and external calls mocked. Integration with a live Supabase is the separa
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
+from app.config import get_settings
+from app.ledger import compute_payload_hash, compute_row_hash
 from app.main import app
 
 CITIZEN = UUID("11111111-1111-1111-1111-111111111111")
 DOC = uuid4()
+
+
+def _chain_for_document(document_id: str) -> list[dict]:
+    """Build the ledger rows the DB would hold for one finished document.
+
+    Mirrors migrations/009: each chain starts at the genesis hash, the
+    timestamp inside row_hash is the one stored, and `ts_iso` is the string
+    the SQL side hashed.
+    """
+    genesis = get_settings().ledger_genesis_hash
+    events = [
+        ("doc_created", {"document_id": document_id, "procedure_id": "schimbare-domiciliu"}),
+        ("completed_draft", {"document_id": document_id}),
+        ("pdf_generated", {"document_id": document_id, "pdf_url": "https://x/pdf.pdf"}),
+        ("delivered", {"document_id": document_id, "delivery": "send", "ref_number": "CV-AAAA"}),
+    ]
+    rows: list[dict] = []
+    prev = genesis
+    base = datetime(2026, 5, 23, 10, 0, 0, tzinfo=timezone.utc)
+    for i, (event_type, payload) in enumerate(events):
+        ts = base + timedelta(seconds=i)
+        ts_iso = ts.strftime("%Y-%m-%dT%H:%M:%S.%f") + "+00:00"
+        payload_hash = compute_payload_hash(payload)
+        row_hash = compute_row_hash(event_type, payload_hash, prev, ts_iso)
+        rows.append({
+            "id": i + 1,
+            "event_type": event_type,
+            "payload": payload,
+            "payload_hash": payload_hash,
+            "prev_hash": prev,
+            "row_hash": row_hash,
+            "created_at": ts,
+            "ts_iso": ts_iso,
+        })
+        prev = row_hash
+    return rows
 
 
 def _doc_row(status: str = "draft", fields: dict | None = None) -> dict:
@@ -34,7 +72,7 @@ def _doc_row(status: str = "draft", fields: dict | None = None) -> dict:
 
 
 @patch("app.documents.append_ledger")
-@patch("app.documents.fetch_ledger_for_document", return_value=[])
+@patch("app.documents.fetch_ledger_for_document")
 @patch("app.documents.finalize_document")
 @patch("app.documents.upload_pdf_to_storage", return_value="https://x/pdf.pdf")
 @patch("app.documents.render_and_compile", return_value=b"%PDF-1.4 fake")
@@ -130,7 +168,26 @@ def test_full_happy_path(
     assert r7.status_code == 200
     assert r7.json()["ref_number"].startswith("CV-")
 
-    # 7) ledger
+    # 7) ledger — a real four-link chain, not an empty list.
+    #
+    # This assertion used to run against `return_value=[]`: verify_chain([])
+    # is vacuously True, so the endpoint's whole reason for existing went
+    # untested. Feed it the rows the DB would actually return for this
+    # document and assert the badge is earned.
+    mock_fetch_ledger.return_value = _chain_for_document(str(DOC))
     r8 = client.get(f"/documents/{doc_id}/ledger", headers=hdr)
     assert r8.status_code == 200
-    assert r8.json()["verified"] is True
+    body8 = r8.json()
+    assert len(body8["entries"]) == 4
+    assert [e["event_type"] for e in body8["entries"]] == [
+        "doc_created", "completed_draft", "pdf_generated", "delivered",
+    ]
+    assert body8["verified"] is True
+
+    # And the badge must go red when a payload no longer matches its hash.
+    tampered = _chain_for_document(str(DOC))
+    tampered[2]["payload"] = {"document_id": str(DOC), "pdf_url": "https://evil/x.pdf"}
+    mock_fetch_ledger.return_value = tampered
+    r9 = client.get(f"/documents/{doc_id}/ledger", headers=hdr)
+    assert r9.status_code == 200
+    assert r9.json()["verified"] is False
