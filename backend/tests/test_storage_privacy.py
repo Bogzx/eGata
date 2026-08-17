@@ -69,8 +69,12 @@ class FakeSupabase:
 
 @pytest.fixture
 def fake_supabase(monkeypatch: pytest.MonkeyPatch) -> FakeSupabaseStorage:
+    """Force the Supabase backend and hand it a fake client."""
+    from app import db
+
     client = FakeSupabase()
-    monkeypatch.setattr(storage, "get_supabase", lambda: client)
+    monkeypatch.setattr(db, "get_supabase", lambda: client)
+    monkeypatch.setattr(storage, "active_backend", lambda: "supabase")
     return client.storage
 
 
@@ -104,13 +108,13 @@ def test_signed_url_carries_a_bounded_ttl(fake_supabase: FakeSupabaseStorage) ->
 
 
 def test_signing_failure_degrades_to_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    class Boom:
-        storage = None
+    from app import db
 
-        def __getattr__(self, name: str) -> Any:
-            raise RuntimeError("supabase down")
+    def boom() -> Any:
+        raise RuntimeError("supabase down")
 
-    monkeypatch.setattr(storage, "get_supabase", Boom)
+    monkeypatch.setattr(db, "get_supabase", boom)
+    monkeypatch.setattr(storage, "active_backend", lambda: "supabase")
     assert storage.create_signed_pdf_url("cit/doc.pdf") is None
     assert storage.create_signed_pdf_urls(["cit/doc.pdf"]) == {}
 
