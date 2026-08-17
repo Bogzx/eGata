@@ -174,6 +174,23 @@ def test_delete_is_rejected(pg: Any, citizen_id: UUID) -> None:
         cur.execute("delete from ledger where id = %s;", (row["id"],))
 
 
+def test_truncate_is_rejected(pg: Any, citizen_id: UUID) -> None:
+    """Row-level triggers do not fire on TRUNCATE and the owner keeps the
+    privilege, so 009's UPDATE/DELETE triggers alone still allowed
+    `truncate ledger` to empty the chain in one statement (migrations/011)."""
+    from app.ledger import LedgerEventType, append_ledger
+
+    doc = _new_document(pg, citizen_id)
+    append_ledger(
+        citizen_id=citizen_id,
+        event_type=LedgerEventType.DOC_CREATED,
+        payload={"document_id": str(doc)},
+        document_id=doc,
+    )
+    with pytest.raises(psycopg.errors.RestrictViolation), pg.cursor() as cur:
+        cur.execute("truncate ledger cascade;")
+
+
 def test_stored_hashes_are_server_derived(pg: Any, citizen_id: UUID) -> None:
     """The row the server stored must describe the payload the server stored,
     with no help from the caller."""

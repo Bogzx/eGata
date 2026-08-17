@@ -160,7 +160,7 @@ process, so two replicas would do the work twice. Fine for one container.
 ```
 backend/
   app/                 FastAPI routers, agent engine, tools, ledger, pdf, voice bridges
-  migrations/          001…010 SQL migrations (schema, RLS, ledger fn, sessions, RAG)
+  migrations/          001…011 SQL migrations (schema, RLS, ledger fn, sessions, RAG)
   procedures/          23 JSON procedure definitions (fields, templates, next_steps)
   scenarios/           5 multi-step real-life scenarios (in-scope + external steps)
   institutions/        17 external-institution definitions (ANAF, ANEVAR, …)
