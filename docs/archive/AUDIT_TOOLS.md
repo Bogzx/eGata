@@ -1,3 +1,12 @@
+> **Archived — describes a superseded architecture.**
+>
+> This document was written when eGata ran on a Gemini backend with a
+> different set of HTTP endpoints. The agent now runs on Azure OpenAI through
+> an in-process, state-gated tool dispatcher (`backend/app/session_engine.py`,
+> `backend/app/agent_tools/`), and several endpoints referenced below no
+> longer exist. Counts and status claims here also disagree with the current
+> README. Kept for history; do not use it as a description of the system.
+
 # eGata — Tool-Calling & Document Auto-Completion Audit
 
 Audit date: 2026-05-23 (demo eve). Scope: the tool-calling subsystem + the

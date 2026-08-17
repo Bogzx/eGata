@@ -14,16 +14,6 @@ from app.security import current_citizen_id
 router = APIRouter(prefix="/citizens", tags=["citizens"])
 
 
-# Demo hack: seed data stores address as a single string in `current_address`,
-# but procedures like placuta-numar-postal expect a separate `apartament`.
-# Inject per-persona placeholders so the LLM auto-fills instead of asking.
-_DEMO_APARTAMENT_BY_CITIZEN: dict[str, str] = {
-    "11111111-1111-1111-1111-111111111111": "3",   # Maria — bloc
-    "22222222-2222-2222-2222-222222222222": "12",  # Andrei — bloc
-    "33333333-3333-3333-3333-333333333333": "7B",  # Elena — bloc
-}
-
-
 def fetch_citizen_by_id(citizen_id: UUID) -> dict[str, Any]:
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
@@ -36,11 +26,10 @@ def fetch_citizen_by_id(citizen_id: UUID) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail="Citizen not found")
     data = dict(row)
     attrs = data.get("attributes") or {}
-    fallback = _DEMO_APARTAMENT_BY_CITIZEN.get(str(citizen_id))
-    # Override on falsy values (None / empty string) too — seed data may
-    # contain `apartament: ""` which would defeat setdefault.
-    if fallback is not None and not attrs.get("apartament"):
-        attrs["apartament"] = fallback
+    # `apartament` used to be injected here from a dict of three literal demo
+    # UUIDs — demo fixtures wired into a request path every citizen goes
+    # through. It lives in the seed data now
+    # (migrations/002_seed_data.sql, migrations/010_seed_address_parts.sql).
     # The LLM only sees `attributes` in the system prompt (see
     # session_engine.build_system_instruction). Flatten core profile fields
     # into attrs so it can auto-fill nume_complet/telefon/email/cnp without
