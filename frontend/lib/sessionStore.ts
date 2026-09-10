@@ -74,6 +74,9 @@ export function setNavigate(fn: Navigate): void {
 
 function pushPath(path: string) {
   if (typeof window !== "undefined" && window.location.pathname === path) return;
+  // Kiosk mode suppresses store-driven navigation so /ghiseu stays put even
+  // when the agent fires start_procedure / redirect events.
+  if (useSessionStore.getState().kioskMode) return;
   _navigate(path);
 }
 
@@ -137,6 +140,12 @@ export interface SessionState {
   toggleProfileMenu(): void;
   closeProfileMenu(): void;
   reset(): void;
+
+  /** True while the kiosk surface (/ghiseu) is mounted. Causes pushPath() to
+   * short-circuit so agent-triggered navigation does not pull the user off
+   * the kiosk. Cleared on unmount. */
+  kioskMode: boolean;
+  setKioskMode(on: boolean): void;
 }
 
 // Out-of-band ref so we don't try to store the AbortController in zustand
@@ -197,6 +206,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   scenarioPlan: null,
   lookupMatches: [],
   session: null,
+  kioskMode: false,
+
+  setKioskMode(on) {
+    set({ kioskMode: on });
+  },
 
   setSession(snapshot) {
     const current = get().session;

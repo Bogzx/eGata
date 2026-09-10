@@ -25,6 +25,8 @@ from app.models import (
     LedgerEntry,
     LedgerResponse,
     PatchFieldsRequest,
+    SubmitDocumentRequest,
+    SubmitDocumentResponse,
 )
 from app.pdf import render_and_compile
 from app.procedures import get_registry
@@ -151,6 +153,19 @@ def set_document_pdf_url(document_id: UUID, pdf_url: str) -> None:
 def generate_ref_number(document_id: UUID) -> str:
     raw = str(document_id).replace("-", "").upper()
     return f"CV-{raw[:4]}"
+
+
+def generate_submit_ref_number(document_id: UUID) -> str:
+    """Kiosk-submit ref format: REG-{yyyy}-{8 hex chars from doc uuid}.
+
+    Deterministic (same doc → same ref) so a 409 path can return the
+    original ref. Collision risk is negligible: 16^8 ≈ 4.3B values per
+    year. Not using a postgres sequence to avoid the migration in a
+    hackathon timeline.
+    """
+    year = datetime.now(timezone.utc).year
+    suffix = str(document_id).replace("-", "")[:8].upper()
+    return f"REG-{year}-{suffix}"
 
 
 def finalize_document(
@@ -328,6 +343,72 @@ def deliver(
         send_delivery_sms(phone, ref_number)
 
     return _document_response(finalized)
+
+
+@router.post(
+    "/{document_id}/submit",
+    response_model=SubmitDocumentResponse,
+)
+def submit(
+    document_id: UUID,
+    req: SubmitDocumentRequest,
+    citizen_id: UUID = Depends(current_citizen_id),
+) -> SubmitDocumentResponse:
+    """Kiosk-flow submit. Replaces /deliver for the /ghiseu surface.
+
+    `method=city` → marks delivered, routes to destination department
+    (notification queueing deferred to Phase 2.4 polish).
+    `method=email` → marks delivered, attempts email delivery to the
+    citizen (or to `email_address` override). Email infrastructure is
+    not wired in v1 — the intent is recorded in the ledger; production
+    deploy adds SendGrid/SMTP later.
+
+    Idempotent on already-delivered documents: returns 409 with the
+    existing ref_number, NOT a fresh one.
+    """
+    doc = fetch_document(document_id)
+    _require_owner(doc, citizen_id)
+
+    # Idempotency: a doc that's already delivered returns its existing ref
+    # under a 409 status. The frontend treats this as a "success" (the user
+    # has already seen the done screen for this doc).
+    if doc.get("delivered_at") is not None:
+        existing_ref = doc.get("ref_number") or ""
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "already_delivered", "ref_number": existing_ref},
+        )
+
+    ref_number = generate_submit_ref_number(document_id)
+    finalized = finalize_document(document_id, req.method, ref_number)
+
+    append_ledger(
+        citizen_id=citizen_id,
+        event_type=LedgerEventType.DELIVERED,
+        payload={
+            "document_id": str(document_id),
+            "delivery": req.method,
+            "ref_number": ref_number,
+            **(
+                {"to_email": req.email_address}
+                if req.method == "email" and req.email_address
+                else {}
+            ),
+        },
+        document_id=document_id,
+    )
+
+    delivered_at = finalized.get("delivered_at")
+    if delivered_at is None:
+        # Defensive: finalize_document always sets it, but pin a default
+        # so the response stays well-formed if a future refactor changes it.
+        delivered_at = datetime.now(timezone.utc)
+
+    return SubmitDocumentResponse(
+        ref_number=ref_number,
+        delivery=req.method,
+        delivered_at=delivered_at,
+    )
 
 
 @router.get("/{document_id}/ledger", response_model=LedgerResponse)

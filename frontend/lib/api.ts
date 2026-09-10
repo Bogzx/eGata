@@ -109,6 +109,16 @@ export const api = {
   deliverDocument: (id: string, delivery: "save" | "send" | "print") =>
     request<Document>(`/documents/${id}/deliver`, { method: "POST", body: { delivery } }),
 
+  submitDocument: (
+    id: string,
+    body: { method: "city" | "email"; email_address?: string },
+  ) =>
+    request<{
+      ref_number: string;
+      delivery: "city" | "email";
+      delivered_at: string;
+    }>(`/documents/${id}/submit`, { method: "POST", body }),
+
   getDocumentLedger: (id: string) =>
     request<LedgerResponse>(`/documents/${id}/ledger`),
 

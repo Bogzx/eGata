@@ -1,0 +1,1070 @@
+/* ===================================================================
+   Voice-only kiosk page — extends eGata design language.
+   Greens (#1F6F5F / #2FA084 / #6FCF97) + Onest + soft glass cards.
+
+   All custom properties are scoped to .gh-root so they don't bleed
+   into the rest of the app. --font-civic / --font-mono come from
+   globals.css (declared on :root by next/font setup in layout.tsx).
+   =================================================================== */
+
+.gh-root {
+  --c-dark: #1F6F5F;
+  --c-mid: #2FA084;
+  --c-light: #6FCF97;
+  --c-bg: #EEEEEE;
+  --c-ink: #0F1F1A;
+  --c-ink-soft: rgba(15, 31, 26, 0.72);
+  --c-line: rgba(15, 31, 26, 0.10);
+  --c-card: rgba(255, 255, 255, 0.65);
+  --c-card-solid: #FFFFFF;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 26px;
+  --shadow-card:
+    0 1px 0 rgba(15, 31, 26, 0.04),
+    0 16px 40px -16px rgba(15, 31, 26, 0.18),
+    0 4px 14px -4px rgba(15, 31, 26, 0.10);
+}
+
+/* dark immersive background variant — scoped to the kiosk root */
+.gh-root[data-bg="dark"] {
+  --c-bg: #06120F;
+  --c-ink: #EEEEEE;
+  --c-ink-soft: rgba(238, 238, 238, 0.72);
+  --c-line: rgba(238, 238, 238, 0.10);
+  --c-card: rgba(20, 45, 39, 0.45);
+  --c-card-solid: rgba(20, 45, 39, 0.85);
+}
+
+
+/* ===================== Root + background ===================== */
+
+.gh-root {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  isolation: isolate;
+  transition: background 0.6s ease;
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font-family: var(--font-civic);
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
+}
+
+.gh-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.gh-bg canvas {
+  width: 100%;
+  height: 100%;
+  filter: blur(38px) saturate(1.05);
+}
+.gh-bg .gh-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.45 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+[data-bg="dark"] .gh-grain { mix-blend-mode: overlay; opacity: 0.08; }
+.gh-bg .gh-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 80% at 50% 0%, transparent 0%, transparent 55%, rgba(15, 31, 26, 0.18) 100%);
+}
+[data-bg="dark"] .gh-vignette {
+  background: radial-gradient(80% 60% at 50% 50%, transparent 0%, rgba(0,0,0,0.55) 100%);
+}
+
+/* ===================== Shell layout ===================== */
+
+.gh-shell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+}
+
+/* ===================== Top bar ===================== */
+
+.gh-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 32px;
+  gap: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.brand-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: var(--c-mid);
+  box-shadow: 0 6px 18px -6px rgba(31, 111, 95, 0.55);
+}
+.brand-name {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.gh-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 12px;
+  border-radius: 999px;
+  background: var(--c-card);
+  border: 1px solid var(--c-line);
+  backdrop-filter: blur(20px) saturate(140%);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--c-ink);
+  letter-spacing: -0.005em;
+}
+.gh-mode-pill .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--c-mid);
+  box-shadow: 0 0 0 0 rgba(47, 160, 132, 0.55);
+  animation: dot-pulse 2.4s ease-in-out infinite;
+}
+@keyframes dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(47, 160, 132, 0.55); }
+  50%      { box-shadow: 0 0 0 8px rgba(47, 160, 132, 0); }
+}
+.gh-mode-pill .gh-mode-icon {
+  display: grid; place-items: center;
+  width: 22px; height: 22px;
+  border-radius: 7px;
+  background: rgba(47, 160, 132, 0.15);
+  color: var(--c-dark);
+}
+[data-bg="dark"] .gh-mode-pill .gh-mode-icon { background: rgba(111, 207, 151, 0.18); color: var(--c-light); }
+
+.gh-help-btn {
+  appearance: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: var(--c-card);
+  border: 1px solid var(--c-line);
+  color: var(--c-ink);
+  cursor: pointer;
+  backdrop-filter: blur(20px) saturate(140%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.gh-help-btn:hover { background: var(--c-card-solid); border-color: rgba(31, 111, 95, 0.25); }
+
+/* Top-right cluster — reset + profile chip */
+.gh-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gh-reset-btn {
+  appearance: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--c-ink);
+  background: var(--c-card);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--c-line);
+  padding: 6px 14px 6px 6px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  letter-spacing: -0.005em;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+.gh-reset-btn:not(:disabled):hover {
+  color: var(--c-ink);
+  background: var(--c-card-solid);
+  border-color: var(--c-mid);
+}
+.gh-reset-btn:not(:disabled):active { transform: scale(0.97); }
+.gh-reset-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.gh-reset-btn-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--c-mid);
+  color: var(--c-bg);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+/* Spin the arrow gently on hover (active conversation only) */
+.gh-reset-btn:not(:disabled):hover .gh-reset-btn-icon {
+  transform: rotate(-90deg);
+}
+
+/* ===================== Profile menu (top-right) ===================== */
+
+.gh-pm { position: relative; }
+.gh-pm-chip {
+  appearance: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--c-ink);
+  background: var(--c-card);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--c-line);
+  padding: 6px 12px 6px 6px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+.gh-pm-chip:hover { background: var(--c-card-solid); border-color: rgba(31, 111, 95, 0.25); }
+.gh-pm-chip:active { transform: scale(0.97); }
+.gh-pm-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--c-mid);
+  color: var(--c-bg);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.gh-pm-chip-label { letter-spacing: -0.005em; }
+.gh-pm-caret { color: var(--c-ink-soft); transition: transform 0.2s ease; }
+.gh-pm-chip[aria-expanded="true"] .gh-pm-caret { transform: rotate(180deg); }
+
+.gh-pm-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: min(440px, calc(100vw - 24px));
+  background: var(--c-card-solid);
+  border: 1px solid var(--c-line);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 0 rgba(15, 31, 26, 0.04),
+    0 24px 60px -20px rgba(15, 31, 26, 0.35),
+    0 4px 14px -4px rgba(15, 31, 26, 0.18);
+  padding: 18px;
+  z-index: 50;
+  animation: gh-pm-in 0.18s ease;
+}
+@keyframes gh-pm-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.gh-pm-eyebrow {
+  margin: 0 0 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--c-ink-soft);
+  font-weight: 600;
+}
+.gh-pm-list { display: flex; flex-direction: column; gap: 10px; }
+
+.gh-pm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--c-line);
+  background: var(--c-bg);
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+.gh-pm-row:hover { border-color: var(--c-mid); }
+.gh-pm-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gh-pm-row-label { font-size: 15px; font-weight: 500; color: var(--c-ink); }
+.gh-pm-row-hint { font-size: 12.5px; color: var(--c-ink-soft); text-wrap: pretty; }
+
+/* Switch — replicates the original eGata toggle look */
+.gh-pm-switch {
+  appearance: none;
+  border: 0;
+  position: relative;
+  width: 52px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(15, 31, 26, 0.18);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+  padding: 0;
+}
+.gh-pm-switch.is-on { background: var(--c-dark); }
+.gh-pm-switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 6px -1px rgba(0,0,0,0.25);
+  transition: transform 0.2s ease;
+}
+.gh-pm-switch.is-on .gh-pm-switch-knob { transform: translateX(22px); }
+
+/* ===================== Accessibility modes ===================== */
+/* These apply at the html level so they cascade across the page,
+   matching the original eGata app's behavior. */
+
+/* Large text: bump body font sizes (status text stays as-is since it's
+   already huge). */
+html.large-text { font-size: 110%; }
+html.large-text .gh-status-hint { font-size: clamp(18px, 1.7vw, 22px); }
+html.large-text .gh-cap-line { font-size: clamp(22px, 2.1vw, 28px); }
+html.large-text .gh-ctrl { font-size: 17px; padding: 18px 28px; }
+html.large-text .gh-pm-row-label { font-size: 16px; }
+html.large-text .gh-pm-row-hint { font-size: 13.5px; }
+html.large-text .dfg-value { font-size: 14.5px; }
+html.large-text .doc-label, html.large-text .dfg-label { font-size: 11px; }
+
+/* High contrast: push ink to black, surfaces to white, thicker borders,
+   strip translucent layers. */
+html.high-contrast {
+  --c-ink: #000000;
+  --c-ink-soft: #1a1a1a;
+  --c-bg: #ffffff;
+  --c-line: rgba(0, 0, 0, 0.6);
+  --c-card: #ffffff;
+  --c-card-solid: #ffffff;
+  --c-dark: #08362e;
+  --c-mid: #08362e;
+  --c-light: #08362e;
+}
+html.high-contrast body { background: #ffffff; }
+html.high-contrast .gh-cap-line,
+html.high-contrast .gh-ctrl,
+html.high-contrast .gh-pm-chip,
+html.high-contrast .gh-pm-panel,
+html.high-contrast .gh-pm-row,
+html.high-contrast .gh-export-card,
+html.high-contrast .doc-paper {
+  border-color: #000000;
+  border-width: 2px;
+  background: #ffffff;
+}
+html.high-contrast .gh-ctrl[data-variant="mic"][data-on="true"] {
+  background: #08362e;
+  color: #ffffff;
+  border-color: #08362e;
+}
+html.high-contrast .gh-done-check {
+  background: #08362e;
+  color: #ffffff;
+  box-shadow: 0 0 0 3px #000000;
+}
+html.high-contrast .gh-bg .bg-canvas,
+html.high-contrast .gh-grain,
+html.high-contrast .gh-vignette,
+html.high-contrast .gh-bg canvas { display: none; }
+html.high-contrast .gh-bg { background: #ffffff; }
+html.high-contrast :focus-visible {
+  outline: 3px solid #ffbf00;
+  outline-offset: 2px;
+}
+
+html.high-contrast .gh-root {
+  --c-ink: #000000;
+  --c-ink-soft: #1a1a1a;
+  --c-bg: #ffffff;
+  --c-line: rgba(0, 0, 0, 0.6);
+  --c-card: #ffffff;
+  --c-card-solid: #ffffff;
+  --c-dark: #08362e;
+  --c-mid: #08362e;
+  --c-light: #08362e;
+}
+
+/* Dyslexic: generous letter / word / line spacing for runs of text. */
+html.dyslexic body,
+html.dyslexic input,
+html.dyslexic textarea,
+html.dyslexic button {
+  letter-spacing: 0.14em;
+  word-spacing: 0.30em;
+  line-height: 1.8;
+}
+html.dyslexic .gh-status-text,
+html.dyslexic .doc-title,
+html.dyslexic .ec-title {
+  letter-spacing: 0.05em;
+  word-spacing: 0.20em;
+  line-height: 1.3;
+}
+html.dyslexic .gh-cap-line { max-width: 60ch; line-height: 1.75; letter-spacing: 0.12em; }
+html.dyslexic .gh-cap-tag { letter-spacing: 0.22em; }
+html.dyslexic .dfg-value { line-height: 1.55; letter-spacing: 0.10em; }
+
+/* ===================== Main stage ===================== */
+
+.gh-main {
+  display: grid;
+  place-items: center;
+  padding: 12px 32px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+.gh-main::-webkit-scrollbar { width: 6px; }
+.gh-main::-webkit-scrollbar-thumb { background: var(--c-line); border-radius: 3px; }
+
+.gh-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(18px, 3vh, 32px);
+  max-width: 880px;
+  width: 100%;
+  text-align: center;
+}
+
+.gh-viz-wrap {
+  /* Smaller now — status text and caption strip are the primary focus. */
+  width: min(220px, 28vh, 70vw);
+  height: min(220px, 28vh, 70vw);
+  display: grid;
+  place-items: center;
+  position: relative;
+  opacity: 0.95;
+}
+
+.gh-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.gh-status-text {
+  font-size: clamp(44px, 6vw, 78px);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  margin: 0;
+  text-wrap: balance;
+}
+.gh-status-hint {
+  font-size: clamp(16px, 1.5vw, 20px);
+  color: var(--c-ink-soft);
+  max-width: 52ch;
+  text-wrap: pretty;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.gh-caption {
+  width: 100%;
+  max-width: 840px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.gh-cap-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 24px 28px;
+  border-radius: 24px;
+  background: var(--c-card-solid);
+  border: 1px solid var(--c-line);
+  box-shadow: var(--shadow-card);
+  text-align: left;
+  font-size: clamp(20px, 1.9vw, 26px);
+  line-height: 1.4;
+  color: var(--c-ink);
+  animation: cap-in 0.4s ease;
+}
+@keyframes cap-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.gh-cap-tag {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  margin-top: 4px;
+  min-width: 72px;
+  text-align: center;
+}
+.gh-cap-line[data-role="user"] .gh-cap-tag {
+  background: var(--c-dark); color: var(--c-bg);
+}
+.gh-cap-line[data-role="agent"] .gh-cap-tag {
+  background: rgba(47, 160, 132, 0.15); color: var(--c-dark);
+}
+[data-bg="dark"] .gh-cap-line[data-role="agent"] .gh-cap-tag {
+  background: rgba(111, 207, 151, 0.18); color: var(--c-light);
+}
+.gh-cap-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--c-ink);
+}
+.gh-cap-text .partial {
+  color: var(--c-ink-soft);
+  font-style: italic;
+}
+
+/* ===================== Controls dock ===================== */
+
+.gh-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 20px 32px 64px;
+}
+
+.gh-ctrl {
+  appearance: none;
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 26px;
+  border-radius: 999px;
+  border: 1px solid var(--c-line);
+  background: var(--c-card-solid);
+  color: var(--c-ink);
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.gh-ctrl:hover  { border-color: var(--c-mid); transform: translateY(-1px); }
+.gh-ctrl:active { transform: scale(0.97); }
+.gh-ctrl .gh-ctrl-icon {
+  display: grid; place-items: center;
+  width: 24px; height: 24px;
+}
+
+/* Mic button — colors per on/off state */
+.gh-ctrl[data-variant="mic"][data-on="true"] {
+  background: var(--c-dark);
+  color: var(--c-bg);
+  border-color: transparent;
+  box-shadow: 0 8px 22px -10px rgba(31, 111, 95, 0.65), var(--shadow-card);
+}
+.gh-ctrl[data-variant="mic"][data-on="true"]:hover {
+  background: color-mix(in oklab, var(--c-dark) 90%, black);
+}
+.gh-ctrl[data-variant="mic"][data-on="false"] {
+  background: var(--c-card-solid);
+  color: var(--c-ink);
+  border-color: var(--c-line);
+}
+
+/* Sound-reactive ripples that emit from the mic while the user is
+   actively being listened to. Two concentric rings staggered in time. */
+.gh-ctrl[data-emit="true"]::before,
+.gh-ctrl[data-emit="true"]::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 999px;
+  border: 2px solid var(--c-light);
+  pointer-events: none;
+  animation: mic-ripple 1.5s ease-out infinite;
+}
+.gh-ctrl[data-emit="true"]::after { animation-delay: 0.75s; }
+@keyframes mic-ripple {
+  0%   { transform: scale(1);    opacity: 0.7; }
+  80%  { opacity: 0; }
+  100% { transform: scale(1.22); opacity: 0;   }
+}
+
+.gh-ctrl[data-variant="end"] {
+  background: rgba(200, 80, 74, 0.10);
+  color: #b8403a;
+  border-color: rgba(200, 80, 74, 0.30);
+  padding-inline: 26px;
+}
+.gh-ctrl[data-variant="end"]:not(:disabled):hover {
+  background: rgba(200, 80, 74, 0.18);
+  border-color: rgba(200, 80, 74, 0.55);
+}
+.gh-ctrl[data-variant="ghost"] {
+  background: transparent;
+  color: var(--c-ink-soft);
+  border-color: transparent;
+  box-shadow: none;
+}
+.gh-ctrl[data-variant="ghost"]:hover {
+  color: var(--c-ink);
+  background: var(--c-card);
+}
+
+/* ===================== Idle CTA (big circular tap target) ===================== */
+
+.gh-cta {
+  appearance: none;
+  border: 0;
+  background: var(--c-dark);
+  color: var(--c-bg);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  padding: 18px 30px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  box-shadow: 0 16px 40px -12px rgba(31, 111, 95, 0.6), 0 4px 14px -4px rgba(15, 31, 26, 0.18);
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+.gh-cta:hover { background: color-mix(in oklab, var(--c-dark) 88%, black); transform: translateY(-1px); }
+.gh-cta:active { transform: scale(0.97); }
+[data-bg="dark"] .gh-cta { background: var(--c-mid); }
+
+/* Done screen — high-contrast solid checkmark */
+.gh-done-check {
+  width: 132px;
+  height: 132px;
+  border-radius: 38px;
+  display: grid;
+  place-items: center;
+  background: var(--c-dark);
+  color: #ffffff;
+  box-shadow:
+    0 20px 48px -16px rgba(31, 111, 95, 0.55),
+    0 4px 14px -4px rgba(15, 31, 26, 0.18),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.08),
+    inset 0 2px 0 rgba(255, 255, 255, 0.18);
+  position: relative;
+}
+.gh-done-check::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  border-radius: 50px;
+  border: 1.5px solid var(--c-mid);
+  opacity: 0.35;
+  pointer-events: none;
+}
+[data-bg="dark"] .gh-done-check {
+  background: var(--c-mid);
+}
+
+/* ===================== Document review state ===================== */
+
+.gh-review {
+  width: min(1280px, 96%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: stretch;
+}
+.gh-review-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+.gh-review-icon {
+  width: 64px; height: 64px;
+  border-radius: 20px;
+  background: rgba(47, 160, 132, 0.15);
+  color: var(--c-dark);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 12px 28px -16px rgba(31, 111, 95, 0.55);
+}
+[data-bg="dark"] .gh-review-icon { background: rgba(111, 207, 151, 0.18); color: var(--c-light); }
+.gh-review-title {
+  font-size: clamp(24px, 2.6vw, 32px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-wrap: balance;
+  line-height: 1.1;
+}
+.gh-review-sub {
+  font-size: 18px;
+  color: var(--c-ink-soft);
+  max-width: 48ch;
+  text-wrap: pretty;
+  margin: 0;
+}
+
+.doc-paper {
+  background: white;
+  color: #1a2421;
+  border-radius: 18px;
+  padding: 18px 26px 20px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 24px 60px -24px rgba(15, 31, 26, 0.32);
+  font-size: 13px;
+  line-height: 1.45;
+  width: 100%;
+  position: relative;
+}
+.doc-paper::before {
+  content: "VERIFICĂ";
+  position: absolute;
+  right: 16px; top: 14px;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  color: rgba(200, 140, 80, 0.85);
+  border: 1px solid rgba(200, 140, 80, 0.55);
+  padding: 3px 8px;
+  border-radius: 5px;
+}
+.doc-header {
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  padding-bottom: 10px; margin-bottom: 12px; gap: 24px;
+}
+.doc-paper-titleblock {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+.doc-paper-titleblock .doc-title {
+  margin: 0;
+  text-align: left;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.doc-paper-sub {
+  font-size: 12px;
+  color: rgba(0,0,0,0.6);
+  letter-spacing: 0.01em;
+}
+.doc-stamp {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; line-height: 1.35;
+  color: var(--c-dark); padding: 8px 10px;
+  border: 1.5px solid var(--c-dark); border-radius: 6px; text-transform: uppercase;
+  flex-shrink: 0;
+}
+.doc-paper-meta { text-align: right; font-size: 11px; color: rgba(0,0,0,0.68); flex-shrink: 0; min-width: 160px; }
+.doc-paper-meta strong { color: #1a2421; font-family: var(--font-mono); }
+.doc-title {
+  font-size: 16px; font-weight: 600;
+  letter-spacing: 0.04em; text-align: center;
+  margin-bottom: 18px; text-transform: uppercase;
+}
+
+/* 2-col field grid — stacked label-above-value, much more compact */
+.doc-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 36px;
+}
+.dfg-row {
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.dfg-label {
+  font-size: 10px;
+  color: rgba(0,0,0,0.58);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 500;
+}
+.dfg-value {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #1a2421;
+  letter-spacing: -0.005em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.dfg-value > .dfg-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.doc-auto {
+  display: inline-block; margin-left: 8px;
+  font-size: 10px; padding: 2px 6px; border-radius: 4px;
+  background: rgba(47, 160, 132, 0.14); color: var(--c-dark);
+  font-weight: 600; vertical-align: middle;
+}
+
+.gh-review-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+}
+.gh-review-action {
+  appearance: none;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 14px 20px;
+  border-radius: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.gh-review-action[data-kind="confirm"] {
+  background: var(--c-dark);
+  color: var(--c-bg);
+  border: 1px solid transparent;
+  box-shadow: 0 12px 30px -14px rgba(31, 111, 95, 0.55);
+}
+.gh-review-action[data-kind="confirm"]:hover { background: color-mix(in oklab, var(--c-dark) 88%, black); transform: translateY(-1px); }
+.gh-review-action[data-kind="amend"] {
+  background: var(--c-card-solid);
+  color: var(--c-ink);
+  border: 1px solid var(--c-line);
+}
+.gh-review-action[data-kind="amend"]:hover { border-color: var(--c-mid); transform: translateY(-1px); }
+.gh-review-action .ra-icon {
+  width: 36px; height: 36px;
+  border-radius: 11px;
+  display: grid; place-items: center;
+  background: rgba(255,255,255,0.18);
+  flex-shrink: 0;
+}
+.gh-review-action[data-kind="amend"] .ra-icon {
+  background: rgba(47, 160, 132, 0.14);
+  color: var(--c-dark);
+}
+.ra-body { display: flex; flex-direction: column; gap: 1px; }
+.ra-hint { font-size: 12px; opacity: 0.78; font-weight: 400; }
+
+/* ===================== Export state ===================== */
+
+.gh-export {
+  width: min(1280px, 96%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+}
+.gh-export-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  width: 100%;
+}
+.gh-export-card {
+  appearance: none;
+  font: inherit;
+  text-align: left;
+  background: var(--c-card-solid);
+  border: 1px solid var(--c-line);
+  border-radius: 24px;
+  padding: 30px 28px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  color: var(--c-ink);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.25s ease;
+  min-height: 220px;
+  position: relative;
+  overflow: hidden;
+}
+.gh-export-card:hover {
+  border-color: var(--c-mid);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 40px -18px rgba(31, 111, 95, 0.4), var(--shadow-card);
+}
+.gh-export-card .ec-icon {
+  width: 64px; height: 64px;
+  border-radius: 16px;
+  display: grid; place-items: center;
+  background: rgba(47, 160, 132, 0.14);
+  color: var(--c-dark);
+}
+[data-bg="dark"] .gh-export-card .ec-icon { background: rgba(111, 207, 151, 0.16); color: var(--c-light); }
+.gh-export-card .ec-title {
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0 0 6px;
+}
+.gh-export-card .ec-hint {
+  font-size: 17px;
+  color: var(--c-ink-soft);
+  line-height: 1.4;
+  margin: 0;
+  text-wrap: pretty;
+}
+.gh-export-card .ec-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+}
+.gh-export-card .ec-meta {
+  font-size: 11px;
+  color: var(--c-ink-soft);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+.gh-export-card .ec-go {
+  color: var(--c-ink-soft);
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+.gh-export-card .ec-go svg { width: 28px; height: 28px; }
+.gh-export-card:hover .ec-go { color: var(--c-dark); transform: translateX(2px); }
+[data-bg="dark"] .gh-export-card:hover .ec-go { color: var(--c-light); }
+
+.gh-export-card[data-recommended="true"] {
+  border-color: var(--c-mid);
+  background: linear-gradient(180deg, rgba(47, 160, 132, 0.06), transparent 70%), var(--c-card-solid);
+}
+
+/* ===================== Error / mic-denied ===================== */
+
+.gh-error-icon {
+  width: 96px; height: 96px;
+  border-radius: 28px;
+  display: grid; place-items: center;
+  background: rgba(200, 80, 74, 0.12);
+  color: #b8403a;
+  box-shadow: 0 12px 32px -16px rgba(200, 80, 74, 0.5);
+}
+
+/* ===================== Tweaks customizations ===================== */
+
+#tweaks-panel-root { font-family: var(--font-civic); }
+
+/* ===================== Responsive ===================== */
+
+@media (max-width: 720px) {
+  .gh-top { padding: 16px 18px; }
+  .gh-main { padding: 8px 18px; }
+  .gh-controls { padding: 16px 18px 22px; gap: 10px; }
+  .gh-review-actions { grid-template-columns: 1fr; }
+  .gh-export-grid { grid-template-columns: 1fr; }
+  .gh-ctrl { padding: 12px 18px; font-size: 14px; }
+  .brand-sub { display: none; }
+}
+
+/* ===================== Tablet (721px – 1280px) =====================
+   The kiosk is viewed from arm's length on a tablet, not from
+   keyboard distance like a laptop. Pump every text size up so the
+   judges can see the screen from a few steps away. Layout stays
+   the same — only the typography + paddings grow. */
+@media (min-width: 721px) and (max-width: 1280px) {
+  /* Header */
+  .gh-top { padding: 22px 36px; }
+  .brand-name { font-size: 26px; }
+  .gh-reset-btn { font-size: 16px; padding: 12px 18px; }
+  .gh-reset-btn-icon svg { width: 20px; height: 20px; }
+
+  /* Main stage */
+  .gh-status-text { font-size: clamp(56px, 7.2vw, 92px); }
+  .gh-status-hint { font-size: clamp(20px, 2.1vw, 28px); }
+
+  /* Caption bubbles */
+  .gh-cap-line { padding: 18px 24px; font-size: clamp(22px, 2.4vw, 30px); }
+  .gh-cap-tag { font-size: 16px; padding: 4px 12px; }
+
+  /* Control dock */
+  .gh-controls { padding: 24px 36px 32px; gap: 18px; }
+  .gh-ctrl { padding: 20px 32px; font-size: 20px; border-radius: 18px; }
+  .gh-ctrl .gh-ctrl-icon svg { width: 26px; height: 26px; }
+  .gh-cta { padding: 22px 40px; font-size: 22px; border-radius: 22px; }
+
+  /* Review screen */
+  .gh-review-title { font-size: clamp(34px, 3.5vw, 44px); }
+  .doc-paper { padding: 40px 48px; }
+  .doc-paper-titleblock .doc-title { font-size: 26px; }
+  .doc-paper-sub { font-size: 17px; }
+  .doc-stamp { font-size: 14px; padding: 12px 16px; }
+  .doc-paper-meta { font-size: 16px; min-width: 220px; }
+  .doc-title { font-size: 22px; margin-bottom: 28px; }
+  .doc-fields-grid { gap: 8px 56px; }
+  .dfg-row { padding: 12px 0; }
+  .dfg-label { font-size: 14px; }
+  .dfg-value { font-size: 20px; gap: 12px; }
+  .doc-auto { font-size: 13px; padding: 4px 10px; }
+
+  /* Review action cards (Da, e corect / Mai am o corectură) */
+  .gh-review-action { padding: 22px 26px; gap: 18px; border-radius: 18px; }
+  .gh-review-action .ra-icon svg { width: 30px; height: 30px; }
+  .gh-review-action .ra-body > span:first-child { font-size: 22px; }
+  .ra-hint { font-size: 16px; }
+
+  /* Export cards */
+  .gh-export-card { padding: 32px 28px; border-radius: 22px; gap: 18px; }
+  .gh-export-card .ec-icon svg { width: 48px; height: 48px; }
+  .ec-title { font-size: 24px; }
+  .ec-hint { font-size: 16px; }
+
+  /* Done screen */
+  .gh-done-check svg { width: 96px; height: 96px; }
+}
+
+/* Short viewports — collapse vertical rhythm so idle CTA + caption strip
+   stay visible without forcing the user to scroll. */
+@media (max-height: 720px) {
+  .gh-top { padding: 14px 28px; }
+  .gh-main { padding: 4px 28px; }
+  .gh-controls { padding: 12px 28px 18px; }
+  .gh-cta { padding: 14px 24px; font-size: 15px; }
+  .gh-viz-wrap { width: min(160px, 22vh, 60vw); height: min(160px, 22vh, 60vw); }
+  .gh-cap-line { padding: 14px 18px; }
+}
+@media (max-height: 560px) {
+  .gh-viz-wrap { display: none; }
+  .gh-caption { max-width: 680px; }
+}

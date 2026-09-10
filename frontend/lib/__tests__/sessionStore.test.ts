@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useSessionStore } from "../sessionStore";
 
 beforeEach(() => {
@@ -16,6 +16,7 @@ beforeEach(() => {
     session: null,
     scenarioPlan: null,
     lookupMatches: [],
+    kioskMode: false,
   });
   localStorage.clear();
 });
@@ -221,5 +222,47 @@ describe("sessionStore reset", () => {
     expect(s.messages).toEqual([]);
     expect(s.session).toBeNull();
     expect(s.drawerOpen).toBe(false);
+  });
+});
+
+describe("sessionStore kioskMode", () => {
+  it("defaults to false", () => {
+    expect(useSessionStore.getState().kioskMode).toBe(false);
+  });
+
+  it("setKioskMode toggles the flag", () => {
+    useSessionStore.getState().setKioskMode(true);
+    expect(useSessionStore.getState().kioskMode).toBe(true);
+    useSessionStore.getState().setKioskMode(false);
+    expect(useSessionStore.getState().kioskMode).toBe(false);
+  });
+
+  it("pushPath no-ops when kioskMode is true", async () => {
+    const { setNavigate } = await import("../sessionStore");
+    const navSpy = vi.fn();
+    const originalNavigate = (path: string) => {
+      if (typeof window !== "undefined" && window.location.pathname !== path) {
+        window.history.pushState(null, "", path);
+      }
+    };
+    setNavigate(navSpy);
+
+    try {
+      // Put the window at a non-"/" path so pushPath("/") would actually
+      // navigate if not for the kioskMode guard.
+      window.history.pushState(null, "", "/ghiseu");
+
+      useSessionStore.setState({ kioskMode: true });
+      useSessionStore.getState().reset();
+      expect(navSpy).not.toHaveBeenCalled();
+
+      window.history.pushState(null, "", "/ghiseu");
+      useSessionStore.setState({ kioskMode: false });
+      useSessionStore.getState().reset();
+      expect(navSpy).toHaveBeenCalledWith("/");
+    } finally {
+      setNavigate(originalNavigate);
+      window.history.pushState(null, "", "/");
+    }
   });
 });

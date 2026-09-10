@@ -38,7 +38,7 @@ from app.azure_clients import (
     history_to_openai_messages,
     tools_for_chat_completions,
 )
-from app.citizens import fetch_citizen_by_id
+from app.citizens import enrich_citizen_attrs, fetch_citizen_by_id
 from app.config import get_settings
 from app.documents import fetch_document
 from app.procedures import get_registry
@@ -199,7 +199,7 @@ async def step(
             from uuid import UUID
 
             citizen = fetch_citizen_by_id(UUID(session.citizen_id))
-            citizen_attrs = citizen.get("attributes") or {}
+            citizen_attrs = enrich_citizen_attrs(citizen)
         except Exception:
             citizen_attrs = {}
 
