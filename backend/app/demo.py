@@ -9,6 +9,7 @@ the endpoint always returns 401 (so production deploys are safe by default).
 """
 from __future__ import annotations
 
+import hmac
 import os
 from typing import Any
 from uuid import UUID
@@ -47,7 +48,9 @@ class ResetResponse(BaseModel):
 
 def _verify_token(x_demo_token: str | None) -> None:
     expected = os.environ.get("DEMO_RESET_TOKEN")
-    if not expected or x_demo_token != expected:
+    if not expected or not hmac.compare_digest(
+        (x_demo_token or "").encode(), expected.encode()
+    ):
         raise HTTPException(status_code=401, detail="Invalid demo token")
 
 

@@ -45,6 +45,27 @@ class Settings(BaseSettings):
     # tests set it in conftest.py:15.
     mock_otp: bool = Field(default=False)
 
+    # Ed25519 key that signs every ledger row (app/ledger_signing.py). PEM or
+    # base64 of the 32-byte seed. Unset: the PEM at ledger_signing_key_file,
+    # generated there on first run with a warning (dev only).
+    ledger_signing_key: str = Field(default="")
+    ledger_signing_key_file: str = Field(default="./.data/ledger-signing-key.pem")
+    # Comma-separated base64 public keys of rotated-out signing keys, still
+    # published so rows they signed keep verifying.
+    ledger_retired_public_keys: str = Field(default="")
+
+    # Serialize conversation turns and the reminders worker across backend
+    # replicas with Postgres advisory locks. 0 keeps in-process locks only.
+    distributed_locks: bool = Field(default=True)
+
+    # Which agent answers /agent/chat: "azure" (the LLM), "offline" (the
+    # deterministic scripted agent in app/offline_agent.py — no API key, no
+    # cost) or "auto" (azure when AZURE_OPENAI_API_KEY is set, else offline).
+    agent_backend: str = Field(default="auto")
+    # Same choice for procedure-search embeddings: "azure" (text-embedding
+    # deployment), "local" (app/local_embeddings.py) or "auto".
+    embeddings_backend: str = Field(default="auto")
+
     # Azure OpenAI — used for text chat (session_engine) + embeddings.
     # No default: a personal resource name here leaked a tenant and silently
     # misrouted a stranger's requests to somebody else's endpoint. Empty means
@@ -122,10 +143,95 @@ class Settings(BaseSettings):
     )
     public_base_url: str = Field(default="http://localhost:8000")
     twilio_bridge_public_url: str = Field(default="")
+    # The exact URL Twilio POSTs the voice webhook to (as configured in the
+    # Twilio console). Needed behind a proxy/tunnel, where the URL the app
+    # sees differs from the one Twilio signed. Empty = use the request URL.
+    twilio_webhook_public_url: str = Field(default="")
 
-    ledger_genesis_hash: str = Field(default="0x" + "0" * 64)
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
+
+
+def _resolve(configured: str, *, name: str, keyed: str, keyless: str, has_key: bool) -> str:
+    value = (configured or "auto").strip().lower()
+    if value == "auto":
+        return keyed if has_key else keyless
+    if value not in {keyed, keyless}:
+        raise RuntimeError(f"{name}={configured!r} is not one of auto|{keyed}|{keyless}")
+    return value
+
+
+def resolved_agent_backend(settings: Settings | None = None) -> str:
+    """'azure' or 'offline'."""
+    s = settings or get_settings()
+    return _resolve(
+        s.agent_backend,
+        name="AGENT_BACKEND",
+        keyed="azure",
+        keyless="offline",
+        has_key=bool(s.azure_openai_api_key),
+    )
+
+
+def resolved_embeddings_backend(settings: Settings | None = None) -> str:
+    """'azure' or 'local'."""
+    s = settings or get_settings()
+    return _resolve(
+        s.embeddings_backend,
+        name="EMBEDDINGS_BACKEND",
+        keyed="azure",
+        keyless="local",
+        has_key=bool(s.azure_openai_api_key),
+    )
+
+
+# Values from .env.example / docker-compose / older examples: fine on a laptop,
+# a forgery kit anywhere else (the secret signs JWTs, PDF links and phone
+# stream tokens).
+_KNOWN_DEV_SECRETS = frozenset(
+    {"dev-only-not-a-secret", "change-me-32-bytes", "change-me-in-production",
+     "dev-secret-change-me", "test-secret", "secret", "changeme"}
+)
+
+
+def insecure_settings_warnings(settings: Settings | None = None) -> list[str]:
+    """Demo-grade settings worth a loud line in the startup log."""
+    s = settings or get_settings()
+    out: list[str] = []
+    if s.mock_otp:
+        out.append(
+            "MOCK_OTP is on: anyone can log in as any seeded citizen with code 123456."
+        )
+    if s.jwt_signing_secret in _KNOWN_DEV_SECRETS or len(s.jwt_signing_secret) < 32:
+        out.append(
+            "JWT_SIGNING_SECRET is a known dev value or shorter than 32 chars; it signs "
+            "session tokens, PDF links and phone-stream tokens. Use `openssl rand -hex 32`."
+        )
+    if "*" in [o.strip() for o in s.allow_origins.split(",")]:
+        out.append("ALLOW_ORIGINS contains '*'.")
+    return out
+
+
+def backend_choice_warnings(settings: Settings | None = None) -> list[str]:
+    """`auto` choices that probably are not what the operator meant.
+
+    AGENT_BACKEND=auto picks the offline script whenever the API key is empty
+    and never falls back at runtime, so a deployment whose key secret failed
+    to load (endpoint set, key blank) would quietly serve the scripted agent.
+    """
+    s = settings or get_settings()
+    out: list[str] = []
+    if (
+        (s.agent_backend or "auto").strip().lower() == "auto"
+        and s.azure_openai_endpoint.strip()
+        and not s.azure_openai_api_key
+    ):
+        out.append(
+            "AZURE_OPENAI_ENDPOINT is set but AZURE_OPENAI_API_KEY is empty, so "
+            "AGENT_BACKEND=auto chose the OFFLINE scripted agent, not the LLM. Set the "
+            "key, or AGENT_BACKEND=offline to make this deliberate."
+        )
+    return out

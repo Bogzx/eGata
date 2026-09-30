@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import time
-from typing import Any, cast
+from typing import Any
 from uuid import UUID
 
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import ExpiredSignatureError, JWTError, jwt
+from jwt import ExpiredSignatureError, InvalidTokenError
 
 from app.config import get_settings
 
@@ -23,7 +24,7 @@ def mint_access_token(citizen_id: UUID | str) -> str:
         "exp": now + settings.jwt_expires_seconds,
         "iss": "egata",
     }
-    return cast(str, jwt.encode(payload, settings.jwt_signing_secret, algorithm=settings.jwt_algorithm))
+    return jwt.encode(payload, settings.jwt_signing_secret, algorithm=settings.jwt_algorithm)
 
 
 def decode_token(token: str) -> dict[str, Any]:
@@ -37,16 +38,19 @@ def decode_token(token: str) -> dict[str, Any]:
     """
     settings = get_settings()
     try:
-        return cast(
-            dict[str, Any],
-            jwt.decode(token, settings.jwt_signing_secret, algorithms=[settings.jwt_algorithm]),
+        payload: dict[str, Any] = jwt.decode(
+            token,
+            settings.jwt_signing_secret,
+            algorithms=[settings.jwt_algorithm],
+            options={"require": ["exp", "sub"]},
         )
     except ExpiredSignatureError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired"
         ) from exc
-    except JWTError as exc:
+    except InvalidTokenError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
+    return payload
 
 
 def current_citizen_id(

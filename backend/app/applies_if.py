@@ -16,8 +16,9 @@ Missing attributes resolve to None and compare unequal to any literal.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any
 
 
 class ParseError(ValueError):
@@ -65,6 +66,10 @@ def _tokenize(text: str) -> list[_Token]:
 
 _KEYWORDS = {"and", "or", "not", "true", "false"}
 
+# Parse tree: ("or" | "and", left, right), ("not", node) or
+# ("cmp", name, "==" | "!=", literal).
+_Node = tuple[Any, ...]
+
 
 class _Parser:
     def __init__(self, tokens: list[_Token]):
@@ -85,14 +90,14 @@ class _Parser:
         tok = self._peek()
         return tok is not None and tok.kind == "IDENT" and tok.value == kw
 
-    def parse(self):
+    def parse(self) -> _Node:
         node = self._or_expr()
         if self.pos != len(self.tokens):
             tok = self.tokens[self.pos]
             raise ParseError(f"Unexpected token {tok.value!r} at pos {self.pos}")
         return node
 
-    def _or_expr(self):
+    def _or_expr(self) -> _Node:
         left = self._and_expr()
         while self._is_keyword("or"):
             self._consume()
@@ -100,7 +105,7 @@ class _Parser:
             left = ("or", left, right)
         return left
 
-    def _and_expr(self):
+    def _and_expr(self) -> _Node:
         left = self._not_expr()
         while self._is_keyword("and"):
             self._consume()
@@ -108,13 +113,13 @@ class _Parser:
             left = ("and", left, right)
         return left
 
-    def _not_expr(self):
+    def _not_expr(self) -> _Node:
         if self._is_keyword("not"):
             self._consume()
             return ("not", self._not_expr())
         return self._atom()
 
-    def _atom(self):
+    def _atom(self) -> _Node:
         tok = self._peek()
         if tok is None:
             raise ParseError("Expected expression, got end of input")
@@ -128,7 +133,7 @@ class _Parser:
             return node
         return self._comparison()
 
-    def _comparison(self):
+    def _comparison(self) -> _Node:
         ident = self._consume()
         if ident.kind != "IDENT" or ident.value in _KEYWORDS:
             raise ParseError(f"Expected attribute name, got {ident.value!r}")
@@ -181,7 +186,7 @@ def _unescape_string(raw: str) -> str:
     return "".join(out)
 
 
-def _eval(node, attrs: Mapping[str, Any]) -> bool:
+def _eval(node: _Node, attrs: Mapping[str, Any]) -> bool:
     op = node[0]
     if op == "and":
         return _eval(node[1], attrs) and _eval(node[2], attrs)
@@ -193,8 +198,8 @@ def _eval(node, attrs: Mapping[str, Any]) -> bool:
         _, name, comparator, value = node
         actual = attrs.get(name)
         if comparator == "==":
-            return actual == value
-        return actual != value
+            return bool(actual == value)
+        return bool(actual != value)
     raise ParseError(f"Unknown node {op!r}")
 
 

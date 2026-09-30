@@ -56,3 +56,39 @@ def test_azure_endpoints_have_no_baked_in_resource(
         monkeypatch, "AZURE_OPENAI_ENDPOINT", "AZURE_VOICELIVE_ENDPOINT"
     )
     assert getattr(settings, field) == ""
+
+
+def test_demo_grade_settings_are_flagged() -> None:
+    from app.config import Settings, insecure_settings_warnings
+
+    demo = Settings(
+        supabase_db_url="postgresql://x",
+        jwt_signing_secret="dev-only-not-a-secret",
+        mock_otp=True,
+        allow_origins="*",
+    )
+    assert len(insecure_settings_warnings(demo)) == 3
+
+    real = Settings(
+        supabase_db_url="postgresql://x",
+        jwt_signing_secret="a" * 64,
+        mock_otp=False,
+        allow_origins="https://cluj-hackathon.vercel.app",
+    )
+    assert insecure_settings_warnings(real) == []
+
+
+def test_auto_agent_with_endpoint_but_no_key_is_flagged(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.config import backend_choice_warnings, resolved_agent_backend
+
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
+    s = _settings_without(monkeypatch, "AZURE_OPENAI_API_KEY", "AGENT_BACKEND")
+    assert resolved_agent_backend(s) == "offline"
+    assert any("OFFLINE" in w for w in backend_choice_warnings(s))
+
+    monkeypatch.setenv("AGENT_BACKEND", "offline")  # deliberate: no warning
+    assert backend_choice_warnings(_settings_without(monkeypatch, "AZURE_OPENAI_API_KEY")) == []
+
+    monkeypatch.delenv("AGENT_BACKEND")
+    monkeypatch.delenv("AZURE_OPENAI_ENDPOINT")  # keyless demo stack: no warning
+    assert backend_choice_warnings(_settings_without(monkeypatch, "AZURE_OPENAI_API_KEY")) == []

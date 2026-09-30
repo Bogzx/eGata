@@ -14,8 +14,9 @@ worker reruns the same ledger row, no duplicate reminders are written.
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from datetime import date, timedelta
-from typing import Any, Literal, Mapping
+from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status

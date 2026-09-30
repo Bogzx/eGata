@@ -95,11 +95,22 @@ export type LedgerEntry = {
   prev_hash: string;
   row_hash: string;
   created_at: string;
+  /** The hashed payload and the exact timestamp string in row_hash — enough
+   * to recompute the chain client-side (backend/scripts/verify_ledger.py). */
+  payload?: Record<string, unknown>;
+  hashed_at?: string | null;
+  /** Ed25519 signature over this row's head statement (null: not yet signed). */
+  key_id?: string | null;
+  signature?: string | null;
 };
 
 export type LedgerResponse = {
   entries: LedgerEntry[];
   verified: boolean;
+  genesis_hash?: string;
+  citizen_id?: string;
+  document_id?: string;
+  signing_keys?: { key_id: string; algorithm: string; public_key: string; status: string }[];
 };
 
 export type Reminder = {

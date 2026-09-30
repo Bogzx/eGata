@@ -4,7 +4,10 @@ Polls the `pending_delivered_events` view every 5 seconds; for each new
 `delivered` ledger entry, calls evaluate_next_steps to write reminders.
 
 Idempotent: the processed_events watermark table records which ledger ids
-have been handled.
+have been handled. Safe with several backend replicas: each tick first takes
+a Postgres advisory lock, so only one process works through the pending
+events at a time (the others skip that tick) and no reminder is written
+twice.
 
 If apscheduler is not installed (e.g., during partial dev), the bootstrap
 is a no-op so the FastAPI app still starts.
@@ -22,7 +25,34 @@ POLL_INTERVAL_SECONDS = int(os.environ.get("REMINDERS_POLL_SECONDS", "5"))
 _SCHEDULER: Any | None = None
 
 
+WORKER_LOCK_KEY = "egata:reminders-worker"
+
+
 def _process_pending_events() -> None:
+    """One tick, if no other replica is mid-tick."""
+    from app.config import get_settings
+    from app.db import get_pg_connection
+
+    if not get_settings().distributed_locks:
+        _process_pending_events_locked()
+        return
+    with get_pg_connection() as lock_conn:
+        lock_conn.autocommit = True
+        row = lock_conn.execute(
+            "select pg_try_advisory_lock(hashtextextended(%s, 0)) as ok;", (WORKER_LOCK_KEY,)
+        ).fetchone()
+        if not row or not row["ok"]:
+            log.debug("worker: another replica holds the reminders lock; skipping tick")
+            return
+        try:
+            _process_pending_events_locked()
+        finally:
+            lock_conn.execute(
+                "select pg_advisory_unlock(hashtextextended(%s, 0));", (WORKER_LOCK_KEY,)
+            )
+
+
+def _process_pending_events_locked() -> None:
     from app.reminders import (
         evaluate_next_steps,
         fetch_document_procedure_id,

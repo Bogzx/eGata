@@ -15,13 +15,14 @@ from uuid import UUID
 
 from app.agent_tools import Tool, ToolContext, ToolResult, register
 from app.documents import fetch_document, update_document_fields
-from app.procedures import get_registry
+from app.ledger import LedgerEventType, append_ledger
 from app.procedure_state import (
     FieldValidationError,
     all_required_satisfied,
     coerce_field_value,
     validate_field_value,
 )
+from app.procedures import get_registry
 from app.sessions import Session, SessionState
 
 
@@ -35,6 +36,10 @@ async def execute(
     doc = fetch_document(UUID(doc_id))
     if str(doc["citizen_id"]) != session.citizen_id:
         return ToolResult(error="Acest document nu îți aparține.")
+    if doc.get("status") == "finalized":
+        # Delivered forms are frozen: the ledger has already recorded the PDF
+        # rendered from these values.
+        return ToolResult(error="Documentul a fost deja finalizat și nu mai poate fi modificat.")
 
     reg = get_registry()
     proc = reg.get(doc["procedure_id"])
@@ -72,6 +77,14 @@ async def execute(
         proc, updated_fields, ctx.citizen_attributes
     ):
         transition_to = SessionState.REVIEWING
+        # Same milestone PATCH /documents/{id}/fields records; the agent path
+        # used to skip it, so its ledgers went doc_created -> pdf_generated.
+        append_ledger(
+            citizen_id=UUID(session.citizen_id),
+            event_type=LedgerEventType.COMPLETED_DRAFT,
+            payload={"document_id": doc_id},
+            document_id=UUID(doc_id),
+        )
     elif session.state == SessionState.REVIEWING and not all_required_satisfied(
         proc, updated_fields, ctx.citizen_attributes
     ):

@@ -12,9 +12,18 @@ select = ["E", "F", "I", "B", "UP", "ASYNC", "S", "A", "PT", "RET", "SIM", "TCH"
 #                    a TYPE_CHECKING block breaks the framework
 #   UP017 — datetime.UTC alias is fine, but `timezone.utc` is equally valid and
 #           the existing code uses it consistently
-ignore = ["S101", "S104", "B008", "TCH001", "TCH003", "UP017"]
+#   SIM105/SIM117/S110 — explicit try/except/pass and nested `with` are the
+#           house style in the audio pumps and tests, usually with a comment
+#           saying why the error is dropped
+#   UP038 — isinstance(x, (A, B)) is clearer than A | B and the rule is
+#           deprecated upstream
+ignore = ["S101", "S104", "B008", "TCH001", "TCH003", "UP017", "SIM105", "SIM117", "S110", "UP038"]
 
 [lint.per-file-ignores]
-"tests/**" = ["S105", "S106", "PT018", "E501"]
+"tests/**" = ["S105", "S106", "PT018", "E501", "TCH002"]
 "app/pdf.py" = ["S603", "S607"]  # pdflatex subprocess is intentional
-"scripts/**" = ["S603", "S607"]
+# Logging is configured before the routers import, so their module-level
+# loggers pick it up.
+"app/main.py" = ["E402"]
+# One-off hackathon tooling (template inventory, barcode extraction, ...).
+"scripts/**" = ["S603", "S607", "E501", "E402", "SIM103"]

@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 import fitz  # pymupdf
-from PIL import Image, ImageChops
+from PIL import Image
 
 SRC_PDF = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(
     r"C:\Users\Oricum\OneDrive\Desktop\HACKATON CLUJ 2026\ClujHackathon\primarii-app-data\scenarii\scenariu-6-taiere-arbore-curte-privata\Cerere-aviz-doborare-arbori-curte-privata-source.pdf"
@@ -37,6 +37,7 @@ print(f"Rendered raw clip -> {tmp_png} ({pix.width}x{pix.height})")
 # Auto-crop white-ish borders (threshold-based to ignore JPEG noise).
 img = Image.open(tmp_png).convert("L")  # grayscale
 from PIL import ImageOps
+
 inverted = ImageOps.invert(img)
 # Binarize: anything darker than 240 in original (i.e. > 15 inverted) is "content"
 mask = inverted.point(lambda p: 255 if p > 15 else 0)

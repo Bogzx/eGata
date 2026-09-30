@@ -68,9 +68,11 @@ export function ChatSurface({ activeDocId, activeScenarioId = null }: Props) {
     setNavigate((path) => router.push(path));
   }, [router]);
 
-  // Hydrate citizen once.
+  // Hydrate citizen once — only with a session. Signed-out visitors are being
+  // redirected to /login by the gate above; asking /citizens/me without a
+  // token only produced a 401 on every visit to `/`.
   useEffect(() => {
-    if (citizen) return;
+    if (citizen || !getSession()) return;
     void hydrateCitizen().catch(() => {});
   }, [citizen, hydrateCitizen]);
 
