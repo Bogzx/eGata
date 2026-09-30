@@ -110,6 +110,34 @@ def _enable_app_login(cur: psycopg.Cursor) -> str:
     return "egata_app can log in (least-privilege backend role; ledger is append-only for it)"
 
 
+def _store_address_parts(cur: psycopg.Cursor) -> int:
+    """Split every seeded `current_address` into form parts (seed time).
+
+    Same stored shape as app.citizens.store_address_parts, which does this at
+    login for citizens added any other way.
+    """
+    import json
+
+    from app.address import parse_ro_address
+
+    key = "current_address_parts"
+    cur.execute("select id, attributes from citizens;")
+    n = 0
+    for cid, attrs in cur.fetchall():
+        address = (attrs or {}).get("current_address")
+        cached = (attrs or {}).get(key)
+        if not address or (isinstance(cached, dict) and cached.get("from") == address):
+            continue
+        payload = json.dumps({"from": address, "parts": parse_ro_address(address)}, ensure_ascii=False)
+        cur.execute(
+            "update citizens set attributes = attributes || jsonb_build_object(%s::text, %s::jsonb) "
+            "where id = %s;",
+            (key, payload, cid),
+        )
+        n += 1
+    return n
+
+
 def _dsn() -> str:
     """Read SUPABASE_DB_URL directly rather than through app.config.
 
@@ -165,6 +193,7 @@ def main() -> int:
             )
 
         app_role = _enable_app_login(cur)
+        addresses = _store_address_parts(cur)
 
         # Cheap (a few dozen rows, no network) and keeps the offline index in
         # step with procedure/scenario JSON edits on every start.
@@ -182,6 +211,8 @@ def main() -> int:
     print(f"Schema ready. {citizens} demo citizens seeded.")
     print(f"Offline procedure index: {local_indexed} entries.")
     print(f"App role: {app_role}.")
+    if addresses:
+        print(f"Split {addresses} profile addresses into street / number / locality / county.")
     print()
     print("Works with no API keys:")
     print("  login (mock OTP 123456) · profile · procedure catalogue ·")

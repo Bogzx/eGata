@@ -10,6 +10,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 from twilio.rest import Client as TwilioClient
 
+from app.citizens import store_address_parts
 from app.config import get_settings
 from app.db import get_pg_connection
 from app.models import (
@@ -253,4 +254,10 @@ def otp(req: OTPRequest) -> OTPResponse:
         ) from exc
     token = mint_access_token(citizen_id)
     log.info("otp: ok citizen=%s token_len=%d", citizen_id, len(token))
+    # ROeID and MRZ logins both end here: split the profile address into the
+    # parts the forms ask for, once per address (app/citizens.py).
+    try:
+        store_address_parts(citizen_id)
+    except Exception:  # noqa: BLE001 — never block a login on this
+        log.exception("otp: could not store address parts citizen=%s", citizen_id)
     return OTPResponse(access_token=token, citizen_id=UUID(citizen_id))

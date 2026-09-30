@@ -342,6 +342,14 @@ caveat is in `frontend/.env.local.example`.
   which is why it defaults to off.
 - JWTs are HS256, 24 h TTL by default, issued by `app.security.mint_access_token`.
 - All authenticated routes accept the JWT as `Authorization: Bearer <token>`.
+- The profile keeps the address as one string (`current_address`);
+  `app/address.py` splits it into `strada`, `numar`, `bloc`, `scara`, `etaj`,
+  `apartament`, `localitate`, `judet`, `sector`, `cod_postal` at seed time
+  (`bootstrap_local_db`) and at every login, storing the parts with the
+  string they came from. Autofill then fills those fields instead of asking.
+  It's conservative: a part is taken only when labelled or in street
+  position, and the county only from `jud.` or a county seat. Explicit
+  attributes win, and an edited address is re-parsed.
 - A `conversation_id` or `document_id` sent to `/agent/chat*`,
   `/agent/widget-result` or the voice socket must belong to the caller
   (403 / close 4403 otherwise); ownership is checked before any work starts.
