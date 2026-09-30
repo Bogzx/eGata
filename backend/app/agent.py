@@ -27,6 +27,7 @@ from fastapi.responses import StreamingResponse
 
 from app.agent_tools import ToolContext, dispatch
 from app.citizens import fetch_citizen_by_id
+from app.documents import fetch_document
 from app.models import (
     AgentChatRequest,
     AgentChatResponse,
@@ -40,8 +41,10 @@ from app.session_engine import Event, step
 from app.sessions import (
     IllegalTransitionError,
     Session,
+    SessionOwnershipError,
     SessionState,
     fetch_or_create_session,
+    fetch_session,
     mark_review_confirmed,
     session_lock,
     transition,
@@ -54,6 +57,38 @@ router = APIRouter(prefix="/agent", tags=["agent"])
 
 
 # ---- helpers ----
+
+
+def check_document_owner(document_id: UUID | str, citizen_id: UUID | str) -> None:
+    """403 unless `document_id` exists and belongs to `citizen_id`.
+
+    A client-supplied document_id is folded into the session as its active
+    document, and the per-turn preamble then prints that document's fields
+    into the model context — so an unchecked id would leak another citizen's
+    form into this citizen's chat.
+    """
+    doc = fetch_document(UUID(str(document_id)))
+    if str(doc["citizen_id"]) != str(citizen_id):
+        raise HTTPException(status_code=403, detail="Not your document")
+
+
+def check_conversation_access(req: AgentChatRequest, citizen_id: UUID) -> None:
+    """Refuse a foreign conversation_id / document_id before any work starts.
+
+    Runs before the SSE response begins, so the refusal is a real 403 rather
+    than an error frame inside a 200 stream.
+    """
+    if req.conversation_id:
+        existing = fetch_session(req.conversation_id)
+        if existing is not None and existing.citizen_id != str(citizen_id):
+            log.warning(
+                "agent.chat: forbidden conv=%s requester=%s",
+                req.conversation_id,
+                citizen_id,
+            )
+            raise HTTPException(status_code=403, detail="Not your conversation")
+    if req.document_id:
+        check_document_owner(req.document_id, citizen_id)
 
 
 def _resolve_session(req: AgentChatRequest, citizen_id: UUID) -> Session:
@@ -79,9 +114,12 @@ def _resolve_session(req: AgentChatRequest, citizen_id: UUID) -> Session:
             citizen_id,
             req.document_id,
         )
-    session = fetch_or_create_session(
-        str(citizen_id), session_id=req.conversation_id
-    )
+    try:
+        session = fetch_or_create_session(
+            str(citizen_id), session_id=req.conversation_id
+        )
+    except SessionOwnershipError as exc:
+        raise HTTPException(status_code=403, detail="Not your conversation") from exc
     log.info(
         "session: %s conv=%s citizen=%s state=%s doc=%s history_turns=%d",
         "created" if is_new else "loaded",
@@ -92,6 +130,7 @@ def _resolve_session(req: AgentChatRequest, citizen_id: UUID) -> Session:
         len(session.history),
     )
     if req.document_id and not session.active_document_id:
+        check_document_owner(req.document_id, citizen_id)
         session.active_document_id = str(req.document_id)
         # The frontend opened a doc → we're filling, not exploring. Go through
         # the state machine so any illegal jump is loud, not silent.
@@ -198,6 +237,7 @@ async def chat_stream(
     citizen_id: UUID = Depends(current_citizen_id),
 ) -> StreamingResponse:
     """SSE stream — see module docstring for the frame schema."""
+    check_conversation_access(req, citizen_id)
     return StreamingResponse(
         _stream_turn(req, citizen_id),
         media_type="text/event-stream",
@@ -253,9 +293,12 @@ async def widget_result(
         req.value,
     )
     async with session_lock(req.conversation_id):
-        session = fetch_or_create_session(
-            str(citizen_id), session_id=req.conversation_id
-        )
+        # fetch, not fetch_or_create: a widget answer for a conversation that
+        # does not exist has nothing to resolve, and creating an empty session
+        # under a client-chosen id would only litter the table.
+        session = fetch_session(req.conversation_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="Conversation not found")
         if session.citizen_id != str(citizen_id):
             log.warning(
                 "widget_result: forbidden conv=%s owner=%s requester=%s",
@@ -438,6 +481,7 @@ async def chat(
     req: AgentChatRequest,
     citizen_id: UUID = Depends(current_citizen_id),
 ) -> AgentChatResponse:
+    check_conversation_access(req, citizen_id)
     # Per-citizen fallback on first turn — see _stream_turn for details.
     lock_key = req.conversation_id or f"citizen:{citizen_id}:new"
     log.info(
