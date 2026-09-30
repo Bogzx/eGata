@@ -66,6 +66,10 @@ _UNSUPPORTED_LATIN = frozenset(
     "\u00d0\u00de\u00f0\u00fe"  # Ð Þ ð þ
     "\u0104\u0105\u0118\u0119\u0126\u0127\u012e\u012f\u0138"
     "\u013f\u0140\u0149\u014a\u014b\u0166\u0167\u0172\u0173\u017f"
+    # Ĳ ĳ typeset alone, but as \char156 / \char188 with no terminator: a
+    # digit after them extends the number ("Ĳ2" -> \char1562, "Bad character
+    # code"). NFKD folds them to IJ / ij.
+    "\u0132\u0133"
 )
 _EXTRA_SUPPORTED = frozenset(
     "\u0218\u0219\u021a\u021b"  # Ș ș Ț ț — comma-below, the correct Romanian forms

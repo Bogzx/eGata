@@ -89,6 +89,7 @@ HOSTILE_VALUES = [
     "Мария Иванова",
     "Łódź, Gdańsk, Żółć",
     "Ștefan cel Mare, ş ţ Ș Ț â î ă",
+    "Ĳ2 ĳ0",
     "„ghilimele” — «guillemets» … 100 €",
 ]
 
@@ -122,6 +123,11 @@ def test_sanitize_folds_to_base_letters_and_marks_losses() -> None:
     assert sanitize_text("Gdańsk ę") == "Gdańsk e"  # ń typesets, ę folds
     assert sanitize_text("Мария") == "?????"  # visible loss, not a crash
     assert sanitize_text("ok 😀") == "ok "  # pictographs dropped
+
+
+def test_ij_ligatures_fold_before_a_digit_can_follow() -> None:
+    # Found by fuzzing against real pdflatex: "Ĳ2" aborted the render.
+    assert sanitize_text("Ĳ2 ĳ0") == "IJ2 ij0"
 
 
 def test_blank_lines_collapse_to_a_space() -> None:

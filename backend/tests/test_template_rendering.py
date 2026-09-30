@@ -93,7 +93,7 @@ def test_empty_fields_still_compile() -> None:
 # still produce a PDF, and none of the injected commands may take effect.
 NASTY = (
     "\\input{/etc/passwd} \\immediate\\write18{touch /tmp/egata-pwned} ^^5c "
-    "rând unu\n\nrând doi \x00\x1b 😀 北京 Мария Łódź „Ștefan” — 100 €"
+    "rând unu\n\nrând doi \x00\x1b 😀 北京 Мария Łódź „Ștefan” — 100 € Ĳ2"
 )
 
 
