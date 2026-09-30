@@ -1,0 +1,37 @@
+# Known mypy findings (scripts/mypy_baseline.py). Shrink it; never grow it.
+scripts/bootstrap_local_db.py: [unused-ignore] Unused "type: ignore" comment
+scripts/inventory.py: [type-arg] Missing type parameters for generic type "dict"
+scripts/patch_backend_templates.py: [no-untyped-def] Function is missing a type annotation
+scripts/patch_fillables.py: [no-untyped-def] Function is missing a type annotation
+scripts/patch_fillables.py: [type-arg] Missing type parameters for generic type "dict"
+scripts/scan_barcodes.py: [type-arg] Missing type parameters for generic type "dict"
+scripts/verify_ledger.py: [no-any-return] Returning Any from function declared to return "dict[str, Any]"
+tests/test_address.py: [dict-item] Unpacked dict entry 0 has incompatible type "Collection[str]"; expected "SupportsKeysAndGetItem[str, str]"
+tests/test_agent_tools_dispatch.py: [no-untyped-def] Function is missing a type annotation
+tests/test_agent_tools_dispatch.py: [no-untyped-def] Function is missing a type annotation
+tests/test_agent_tools_dispatch.py: [no-untyped-def] Function is missing a type annotation
+tests/test_api_postgres.py: [no-any-return] Returning Any from function declared to return "str"
+tests/test_config_defaults.py: [unused-ignore] Unused "type: ignore" comment
+tests/test_config_defaults.py: [unused-ignore] Unused "type: ignore" comment
+tests/test_conversation_ownership.py: [type-arg] Missing type parameters for generic type "dict"
+tests/test_end_to_end_mocked.py: [type-arg] Missing type parameters for generic type "dict"
+tests/test_end_to_end_mocked.py: [type-arg] Missing type parameters for generic type "dict"
+tests/test_end_to_end_mocked.py: [type-arg] Missing type parameters for generic type "dict"
+tests/test_offline_agent_postgres.py: [no-any-return] Returning Any from function declared to return "dict[str, Any]"
+tests/test_offline_mode.py: [type-arg] Missing type parameters for generic type "dict"
+tests/test_pdf.py: [type-arg] Missing type parameters for generic type "dict"
+tests/test_reminders_selection.py: [arg-type] Argument 1 to "_select_applicable_steps" has incompatible type "list[object]"; expected "list[Mapping[str, Any]]"
+tests/test_reminders_selection.py: [arg-type] Argument 1 to "_select_applicable_steps" has incompatible type "list[object]"; expected "list[Mapping[str, Any]]"
+tests/test_reminders_selection.py: [arg-type] Argument 1 to "_select_applicable_steps" has incompatible type "list[object]"; expected "list[Mapping[str, Any]]"
+tests/test_reminders_selection.py: [arg-type] Argument 1 to "_select_applicable_steps" has incompatible type "list[object]"; expected "list[Mapping[str, Any]]"
+tests/test_reminders_selection.py: [arg-type] Argument 1 to "_select_applicable_steps" has incompatible type "list[object]"; expected "list[Mapping[str, Any]]"
+tests/test_security_token.py: [arg-type] Argument "key" has incompatible type "None"; expected "RSAPrivateKey | EllipticCurvePrivateKey | Ed25519PrivateKey | Ed448PrivateKey | PyJWK | str | bytes"
+tests/test_storage_privacy.py: [type-arg] Missing type parameters for generic type "dict"
+tests/test_template_field_parity.py: [no-any-return] Returning Any from function declared to return "dict[Any, Any]"
+tests/test_template_field_parity.py: [type-arg] Missing type parameters for generic type "dict"
+tests/test_template_rendering.py: [type-arg] Missing type parameters for generic type "dict"
+tests/test_twilio_auth.py: [type-arg] Missing type parameters for generic type "dict"
+tests/test_verify_ledger.py: [no-any-return] Returning Any from function declared to return "dict[Any, Any]"
+tests/test_verify_ledger.py: [type-arg] Missing type parameters for generic type "dict"
+tests/test_verify_ledger.py: [type-arg] Missing type parameters for generic type "dict"
+tests/test_verify_ledger.py: [type-arg] Missing type parameters for generic type "dict"

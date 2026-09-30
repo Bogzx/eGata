@@ -21,8 +21,9 @@ like `tip_proprietate == 'găzduit'` triggering an `anexa_2_signer` field.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any
 
 from app.applies_if import evaluate
 from app.models import Procedure, ProcedureField
@@ -41,7 +42,7 @@ class FieldStates:
     missing: list[str] = field(default_factory=list)
     dropped: list[str] = field(default_factory=list)
     # full per-field map for callers that need detail
-    per_field: dict[str, "PerFieldState"] = field(default_factory=dict)
+    per_field: dict[str, PerFieldState] = field(default_factory=dict)
 
 
 @dataclass
@@ -132,6 +133,12 @@ def find_field(procedure: Procedure, name: str) -> ProcedureField | None:
     return None
 
 
+# Longest value a single form field may hold. The longest legitimate values
+# (a free-text "scop" or an address) are a few hundred characters; this only
+# stops a runaway model or client from writing megabytes into a form.
+MAX_FIELD_LENGTH = 2000
+
+
 def validate_field_value(procedure: Procedure, name: str, value: Any) -> None:
     """Raise FieldValidationError if the value violates the procedure schema."""
     fld = find_field(procedure, name)
@@ -139,12 +146,19 @@ def validate_field_value(procedure: Procedure, name: str, value: Any) -> None:
         raise FieldValidationError(
             f"Câmp necunoscut '{name}' pentru procedura '{procedure.id}'."
         )
-    if fld.options is not None and isinstance(value, str):
-        if value not in fld.options:
-            raise FieldValidationError(
-                f"Valoare invalidă pentru '{name}': "
-                f"{value!r} nu este în {fld.options}."
-            )
+    if value is not None and not isinstance(value, (str, bool, int, float)):
+        raise FieldValidationError(
+            f"Valoare invalidă pentru '{name}': se acceptă doar text, număr sau da/nu."
+        )
+    if isinstance(value, str) and len(value) > MAX_FIELD_LENGTH:
+        raise FieldValidationError(
+            f"Valoarea pentru '{name}' depășește {MAX_FIELD_LENGTH} de caractere."
+        )
+    if fld.options is not None and isinstance(value, str) and value not in fld.options:
+        raise FieldValidationError(
+            f"Valoare invalidă pentru '{name}': "
+            f"{value!r} nu este în {fld.options}."
+        )
 
 
 _TRUE_TOKENS = {"true", "adevărat", "adevarat", "da", "yes"}
@@ -203,3 +217,35 @@ def coerce_field_value(procedure: Procedure, name: str, value: Any) -> Any:
     # No match — return the original so the validator surfaces the exact
     # mismatch to the model for a deliberate retry.
     return value
+
+
+def autofill_candidates(
+    procedure: Procedure,
+    doc_fields: Mapping[str, Any],
+    citizen_attrs: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Values the platform already knows for the document's empty fields.
+
+    Two sources, in order: a profile attribute with the field's exact name
+    (cnp, nume_complet, email, adresa_curenta, ...), then `default_from`
+    (a field that copies another field's value, resolved against profile +
+    fields, including values filled earlier in this same pass). Candidates
+    that would not pass `validate_field_value` (e.g. a profile value that is
+    not one of the field's options) are left out.
+    """
+    out: dict[str, Any] = {}
+    for fld in procedure.fields:
+        if _is_nonempty(doc_fields.get(fld.name)):
+            continue
+        value = citizen_attrs.get(fld.name)
+        if not _is_nonempty(value) and fld.default_from:
+            value = {**citizen_attrs, **doc_fields, **out}.get(fld.default_from)
+        if not _is_nonempty(value):
+            continue
+        value = coerce_field_value(procedure, fld.name, value)
+        try:
+            validate_field_value(procedure, fld.name, value)
+        except FieldValidationError:
+            continue
+        out[fld.name] = value
+    return out

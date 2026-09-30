@@ -16,7 +16,9 @@ export default defineConfig({
   workers: 1,
   reporter: [["list"], ["json", { outputFile: "e2e-results.json" }]],
   use: {
-    baseURL: "http://localhost:3030",
+    // E2E_BASE_URL points the suite at another frontend, e.g. the compose
+    // stack on :3000 (CI). helpers.ts reads API_BASE for the backend.
+    baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3030",
     headless: true,
     actionTimeout: 15_000,
     navigationTimeout: 30_000,

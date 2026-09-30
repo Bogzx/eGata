@@ -76,3 +76,6 @@ backend/uvicorn.log
 # Superpowers brainstorm visual companion
 .superpowers/
 /.playwright-mcp
+
+# Local runtime data: generated PDFs (citizen PII) and the ledger signing key.
+.data/

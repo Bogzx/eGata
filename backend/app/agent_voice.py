@@ -21,13 +21,12 @@ import audioop
 import base64
 import json
 import logging
+import re
 import secrets
 import time
 from dataclasses import dataclass, field
-from typing import Any, TYPE_CHECKING
+from typing import Any
 from uuid import UUID
-
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from azure.ai.voicelive.aio import connect as voicelive_connect
 from azure.ai.voicelive.models import (
@@ -45,8 +44,10 @@ from azure.ai.voicelive.models import (
     RequestSession,
     ServerEventType,
 )
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from app.agent_tools import REGISTRY as TOOLS_REGISTRY, ToolContext, dispatch, permitted_tools
+from app.agent_tools import REGISTRY as TOOLS_REGISTRY
+from app.agent_tools import ToolContext, dispatch, permitted_tools
 from app.azure_clients import (
     get_voicelive_credential,
     history_to_user_only_texts,
@@ -54,19 +55,20 @@ from app.azure_clients import (
 )
 from app.citizens import fetch_citizen_by_id
 from app.config import get_settings
+from app.models import CONVERSATION_ID_PATTERN
 from app.security import decode_token
 from app.sessions import (
     IllegalTransitionError,
-    Session as DbSession,
+    SessionOwnershipError,
     SessionState,
     fetch_or_create_session,
     session_lock,
     transition,
     update_session,
 )
-
-if TYPE_CHECKING:
-    from azure.ai.voicelive.aio import VoiceLiveConnection
+from app.sessions import (
+    Session as DbSession,
+)
 
 router = APIRouter(prefix="/agent", tags=["voice"])
 log = logging.getLogger("agent_voice")
@@ -175,11 +177,16 @@ class VoiceBridgeSession:
         token = payload.get("token")
         if not isinstance(token, str) or not token:
             raise RuntimeError("Missing token in start frame")
+        conversation_id = payload.get("conversation_id")
+        if conversation_id is not None and not (
+            isinstance(conversation_id, str) and re.match(CONVERSATION_ID_PATTERN, conversation_id)
+        ):
+            raise RuntimeError("Malformed conversation_id")
         prefs = payload.get("preferences") or {}
         return VoiceStartPayload(
             token=token,
             document_id=payload.get("document_id"),
-            conversation_id=payload.get("conversation_id"),
+            conversation_id=conversation_id,
             simple_language=bool(prefs.get("simple_language")),
             voice_only=bool(prefs.get("voice_only")),
         )
@@ -233,13 +240,40 @@ class VoiceBridgeSession:
     async def _run_inner(self) -> None:
         assert self.start_payload is not None
 
-        self.db_session = fetch_or_create_session(
-            self.citizen_id, session_id=self.conv_id
-        )
+        try:
+            self.db_session = fetch_or_create_session(
+                self.citizen_id, session_id=self.conv_id
+            )
+        except SessionOwnershipError:
+            log.warning(
+                "voice_ws: forbidden conv=%s requester=%s",
+                self.conv_id,
+                self.citizen_id,
+            )
+            await self.send_json({"type": "error", "detail": "Not your conversation"})
+            await self.ws.close(code=4403)
+            return
         if (
             self.start_payload.document_id
             and not self.db_session.active_document_id
         ):
+            from fastapi import HTTPException
+
+            from app.agent import check_document_owner
+
+            try:
+                check_document_owner(self.start_payload.document_id, self.citizen_id)
+            except (HTTPException, ValueError):
+                log.warning(
+                    "voice_ws: forbidden doc=%s requester=%s",
+                    self.start_payload.document_id,
+                    self.citizen_id,
+                )
+                # Drop the session reference so _run_locked does not persist it.
+                self.db_session = None
+                await self.send_json({"type": "error", "detail": "Not your document"})
+                await self.ws.close(code=4403)
+                return
             self.db_session.active_document_id = self.start_payload.document_id
             if self.db_session.state != SessionState.FILLING:
                 try:
@@ -420,7 +454,7 @@ class VoiceBridgeSession:
             )
             return
         try:
-            import azure.cognitiveservices.speech as speechsdk  # type: ignore
+            import azure.cognitiveservices.speech as speechsdk
         except ImportError:
             log.warning(
                 "voice_ws: azure-cognitiveservices-speech not installed, "
@@ -1011,8 +1045,8 @@ class VoiceBridgeSession:
             return recap
         try:
             from app.documents import fetch_document
-            from app.procedures import get_registry
             from app.procedure_state import evaluate_field_states
+            from app.procedures import get_registry
 
             doc = fetch_document(UUID(doc_id))
             fields = doc.get("fields") or {}
@@ -1053,7 +1087,9 @@ class VoiceBridgeSession:
             return
 
         from app.agent import _coerce_widget_value
+        from app.sessions import apply_review_confirmation
 
+        apply_review_confirmation(self.db_session, widget, value)
         user_visible = str(value) if not isinstance(value, str) else value
 
         # Only dispatch set_field when there's a document to write into.

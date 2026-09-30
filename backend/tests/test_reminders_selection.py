@@ -5,7 +5,6 @@ uses to decide which next_steps spawn reminders for a given citizen.
 """
 from app.reminders import _select_applicable_steps, _step_identity
 
-
 PROCEDURE_STEPS = [
     {
         "kind": "in_scope_procedure",
@@ -33,7 +32,7 @@ PROCEDURE_STEPS = [
 ]
 
 
-def test_no_applies_if_always_selected():
+def test_no_applies_if_always_selected() -> None:
     steps = _select_applicable_steps(PROCEDURE_STEPS, {})
     titles = [s["title"] for s in steps]
     assert "Preschimbare carte de identitate" in titles
@@ -41,30 +40,30 @@ def test_no_applies_if_always_selected():
     assert "Notificare schimbare domiciliu fiscal" in titles
 
 
-def test_applies_if_true_includes_step():
+def test_applies_if_true_includes_step() -> None:
     steps = _select_applicable_steps(PROCEDURE_STEPS, {"owns_vehicle": True})
     titles = [s["title"] for s in steps]
     assert "Actualizare certificat înmatriculare auto" in titles
 
 
-def test_applies_if_false_excludes_step():
+def test_applies_if_false_excludes_step() -> None:
     steps = _select_applicable_steps(PROCEDURE_STEPS, {"owns_vehicle": False})
     titles = [s["title"] for s in steps]
     assert "Actualizare certificat înmatriculare auto" not in titles
 
 
-def test_missing_attribute_excludes_conditional_step():
+def test_missing_attribute_excludes_conditional_step() -> None:
     steps = _select_applicable_steps(PROCEDURE_STEPS, {})
     titles = [s["title"] for s in steps]
     assert "Actualizare certificat înmatriculare auto" not in titles
 
 
-def test_unconditional_steps_count():
+def test_unconditional_steps_count() -> None:
     steps = _select_applicable_steps(PROCEDURE_STEPS, {})
     assert len(steps) == 3
 
 
-def test_step_identity_uses_procedure_id_then_redirect_target():
+def test_step_identity_uses_procedure_id_then_redirect_target() -> None:
     in_scope = {"kind": "in_scope_procedure", "procedure_id": "x", "title": "t"}
     external = {"kind": "external_redirect", "redirect_target": "ANAF", "title": "t"}
     assert _step_identity(in_scope) == ("in_scope_procedure", "x")

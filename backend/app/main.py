@@ -6,10 +6,12 @@ import logging.config
 import os
 import time
 import uuid
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, Response
 
 
 def _configure_logging() -> None:
@@ -22,10 +24,12 @@ def _configure_logging() -> None:
     `docker logs`. Set LOG_LEVEL=DEBUG to see per-audio-chunk traces.
     """
     level = os.environ.get("LOG_LEVEL", "INFO").upper()
+    redact = os.environ.get("LOG_REDACT_PII", "1") != "0"
     logging.config.dictConfig(
         {
             "version": 1,
             "disable_existing_loggers": False,
+            "filters": {"pii": {"()": "app.log_redaction.PiiRedactingFilter"}},
             "formatters": {
                 "default": {
                     "format": "%(asctime)s %(levelname)-7s [%(name)s] %(message)s",
@@ -37,6 +41,8 @@ def _configure_logging() -> None:
                     "class": "logging.StreamHandler",
                     "stream": "ext://sys.stderr",
                     "formatter": "default",
+                    # CNP / e-mail / phone never reach the log sink.
+                    "filters": ["pii"] if redact else [],
                 },
             },
             "loggers": {
@@ -50,6 +56,9 @@ def _configure_logging() -> None:
                 "twilio_bridge": {"level": level, "handlers": ["stderr"], "propagate": False},
                 "complete_document": {"level": level, "handlers": ["stderr"], "propagate": False},
                 "auth": {"level": level, "handlers": ["stderr"], "propagate": False},
+                "offline_agent": {"level": level, "handlers": ["stderr"], "propagate": False},
+                "files": {"level": level, "handlers": ["stderr"], "propagate": False},
+                "storage": {"level": level, "handlers": ["stderr"], "propagate": False},
                 # Quiet noisy third-party loggers (they propagate to root → stderr otherwise).
                 "httpx": {"level": "WARNING"},
                 "httpcore": {"level": "WARNING"},
@@ -57,6 +66,10 @@ def _configure_logging() -> None:
                 "hpack": {"level": "WARNING"},
                 "websockets": {"level": "INFO"},
             },
+            # Anything else (a new explicitly named logger, a library) goes
+            # through the same redacting handler instead of Python's
+            # last-resort stderr handler, which has no filter.
+            "root": {"level": "WARNING", "handlers": ["stderr"]},
         }
     )
 
@@ -67,20 +80,25 @@ from app.agent import router as agent_router
 from app.agent_voice import router as agent_voice_router
 from app.auth import router as auth_router
 from app.citizens import router as citizens_router
-from app.config import get_settings
+from app.config import backend_choice_warnings, get_settings, insecure_settings_warnings
 from app.demo import router as demo_router
 from app.documents import router as documents_router
 from app.files import router as files_router
 from app.health import router as health_router
+from app.pdf import PdfRenderError, PdfRendererUnavailable
 from app.procedures import router as procedures_router
-from app.scenarios import router as scenarios_router
 from app.reminders import router as reminders_router
+from app.scenarios import router as scenarios_router
 from app.twilio_bridge import router as twilio_router
 from app.worker import init_worker, shutdown_worker
 
 log = logging.getLogger(__name__)
 log.info("logging configured level=%s", os.environ.get("LOG_LEVEL", "INFO").upper())
 settings = get_settings()
+for _warning in insecure_settings_warnings(settings):
+    log.warning("INSECURE CONFIG: %s", _warning)
+for _warning in backend_choice_warnings(settings):
+    log.warning("CONFIG: %s", _warning)
 
 
 # Sentry init (Plan 4). Guarded by SENTRY_DSN so missing dep is a no-op.
@@ -102,8 +120,49 @@ if _SENTRY_DSN:
         log.warning("sentry-sdk not installed — error reporting disabled")
 
 
+def _check_ledger_setup() -> None:
+    """Load (or, in dev, generate) the signing key, sign any history written
+    before migrations/014, and say so if the backend connects with rights
+    that could bypass the ledger's protections."""
+    from app.db import get_pg_connection
+    from app.ledger import count_unsigned_after_watermark, sign_unsigned_rows
+    from app.ledger_signing import signing_key
+
+    key = signing_key()
+    log.info("ledger signing key %s (source: %s)", key.key_id, key.source)
+    try:
+        signed = sign_unsigned_rows()
+        if signed:
+            log.warning("ledger: signed %d rows written before signing existed", signed)
+        foreign = count_unsigned_after_watermark()
+        if foreign:
+            log.error(
+                "ledger: %d rows carry no signature although they are newer than the "
+                "signed history — they were appended outside the backend (a direct "
+                "append_ledger() call) and stay unverifiable. Investigate.",
+                foreign,
+            )
+        with get_pg_connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "select current_user as me, "
+                "(select rolsuper from pg_roles where rolname = current_user) as su, "
+                "(select tableowner from pg_tables where tablename = 'ledger') as owner;"
+            )
+            row = cur.fetchone()
+        if row and (row["su"] or row["me"] == row["owner"]):
+            log.warning(
+                "INSECURE CONFIG: the backend connects to Postgres as %s (%s). That role "
+                "can drop the ledger's append-only triggers. Connect as egata_app "
+                "(README: 'Upgrading an existing database').",
+                row["me"], "superuser" if row["su"] else "owner of ledger",
+            )
+    except Exception:
+        log.exception("ledger startup checks failed (database unreachable?)")
+
+
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    _check_ledger_setup()
     init_worker()
     try:
         yield
@@ -128,7 +187,9 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def _log_requests(request: Request, call_next):
+async def _log_requests(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
     """Log every HTTP request with method, path, status, duration, and a
     short request-id so chat turns can be correlated across log lines.
 
@@ -173,6 +234,14 @@ async def _log_requests(request: Request, call_next):
     response.headers["x-request-id"] = req_id
     return response
 
+@app.exception_handler(PdfRenderError)
+async def _pdf_render_error(_: Request, exc: PdfRenderError) -> JSONResponse:
+    """A failed render is the server's problem, and its detail is PII-free by
+    construction (see app.pdf.PdfRenderError) — say so instead of a bare 500."""
+    status = 503 if isinstance(exc, PdfRendererUnavailable) else 500
+    return JSONResponse(status_code=status, content={"detail": str(exc)})
+
+
 app.include_router(auth_router)
 app.include_router(citizens_router)
 app.include_router(procedures_router)
@@ -185,6 +254,28 @@ app.include_router(reminders_router)
 app.include_router(twilio_router)
 app.include_router(demo_router)
 app.include_router(health_router)
+
+
+@app.get("/.well-known/egata-ledger-keys.json")
+def ledger_keys() -> dict[str, object]:
+    """Public keys that sign the audit ledger (no auth: they are public).
+
+    Compare the key_id with a copy obtained elsewhere (a README, a printed
+    notice at the counter) — a key fetched from the same server that signs is
+    only trust-on-first-use.
+    """
+    from app.ledger_signing import STATEMENT_TYPE, STATEMENT_VERSION, published_keys
+
+    return {
+        "algorithm": "Ed25519",
+        "statement": {
+            "v": STATEMENT_VERSION,
+            "type": STATEMENT_TYPE,
+            "fields": ["v", "type", "key_id", "citizen_id", "document_id", "row_id", "row_hash"],
+            "encoding": "canonical JSON (sorted keys, no whitespace, UTF-8)",
+        },
+        "keys": published_keys(),
+    }
 
 
 @app.get("/health")

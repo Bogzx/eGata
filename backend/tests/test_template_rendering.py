@@ -85,3 +85,41 @@ def test_empty_fields_still_compile() -> None:
     proc = json.loads((PROCEDURES_DIR / "schimbare-domiciliu.json").read_text(encoding="utf-8"))
     pdf = render_and_compile(proc["template"], {})
     assert pdf.startswith(b"%PDF-")
+
+
+# Beyond the ten TeX specials: the inputs that used to abort pdflatex outright
+# (control characters, emoji, non-Latin scripts, blank lines inside
+# \underline{...}) and the classic injection attempts. Every template must
+# still produce a PDF, and none of the injected commands may take effect.
+NASTY = (
+    "\\input{/etc/passwd} \\immediate\\write18{touch /tmp/egata-pwned} ^^5c "
+    "rând unu\n\nrând doi \x00\x1b 😀 北京 Мария Łódź „Ștefan” — 100 € Ĳ2"
+)
+
+
+@pytest.mark.parametrize("proc_path", PROCEDURE_FILES, ids=lambda p: p.stem)
+def test_template_survives_nasty_input(proc_path: Path) -> None:
+    proc = json.loads(proc_path.read_text(encoding="utf-8"))
+    fields = {
+        f["name"]: (str(f["options"][0]) if f.get("options") else NASTY)
+        for f in proc.get("fields", [])
+    }
+    pdf = render_and_compile(proc["template"], fields)
+    assert pdf.startswith(b"%PDF-")
+    assert b"root:x:0:0" not in pdf
+    assert not Path("/tmp/egata-pwned").exists()  # noqa: S108 — the \write18 target above
+
+
+def test_paranoid_file_access_blocks_absolute_input(tmp_path: Path) -> None:
+    """Defense in depth: even LaTeX that bypassed escaping could not read a
+    file outside the build directory. The target is plain text, so with
+    TeX Live's default openin_any=a this compiles and embeds it."""
+    from app.pdf import PdfRenderError, compile_pdf
+
+    secret = tmp_path / "secret.tex"
+    secret.write_text("SECRETMARKER", encoding="utf-8")
+    with pytest.raises(PdfRenderError):
+        compile_pdf(
+            "\\documentclass{article}\\begin{document}"
+            f"\\input{{{secret}}}\\end{{document}}"
+        )

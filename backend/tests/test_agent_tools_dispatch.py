@@ -12,7 +12,6 @@ DB + storage harness exists. Here we cover:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
 
 import pytest
 
@@ -21,6 +20,7 @@ from app.agent_tools import (
     Tool,
     ToolContext,
     ToolResult,
+    UnknownToolError,
     dispatch,
     permitted_tools,
     register,
@@ -63,7 +63,7 @@ def _register_fake(
     return tool
 
 
-def test_dispatch_refuses_out_of_state():
+def test_dispatch_refuses_out_of_state() -> None:
     _register_fake("only_filling", valid={SessionState.FILLING})
     sess = Session(id="s", citizen_id="c", state=SessionState.EXPLORING)
     result = asyncio.run(dispatch(sess, "only_filling", {}, _ctx()))
@@ -72,7 +72,7 @@ def test_dispatch_refuses_out_of_state():
     assert sess.state is SessionState.EXPLORING  # unchanged
 
 
-def test_dispatch_runs_when_in_state():
+def test_dispatch_runs_when_in_state() -> None:
     _register_fake(
         "happy",
         valid={SessionState.FILLING},
@@ -84,7 +84,7 @@ def test_dispatch_runs_when_in_state():
     assert result.output == {"done": True}
 
 
-def test_dispatch_applies_transition_to():
+def test_dispatch_applies_transition_to() -> None:
     _register_fake(
         "advances",
         valid={SessionState.FILLING},
@@ -95,7 +95,7 @@ def test_dispatch_applies_transition_to():
     assert sess.state is SessionState.REVIEWING
 
 
-def test_dispatch_swallows_illegal_transition_gracefully():
+def test_dispatch_swallows_illegal_transition_gracefully() -> None:
     _register_fake(
         "skips_ahead",
         valid={SessionState.FILLING},
@@ -112,13 +112,13 @@ def test_dispatch_swallows_illegal_transition_gracefully():
     assert "illegal_transition:delivered" in result.output.get("warnings", [])
 
 
-def test_dispatch_unknown_tool_raises():
+def test_dispatch_unknown_tool_raises() -> None:
     sess = Session(id="s", citizen_id="c")
-    with pytest.raises(Exception):
+    with pytest.raises(UnknownToolError):
         asyncio.run(dispatch(sess, "no_such_tool", {}, _ctx()))
 
 
-def test_dispatch_catches_tool_exception():
+def test_dispatch_catches_tool_exception() -> None:
     async def boom(session, ctx, **kwargs):  # noqa: ARG001
         raise RuntimeError("kaboom")
 
@@ -136,7 +136,7 @@ def test_dispatch_catches_tool_exception():
     assert result.error == "kaboom"
 
 
-def test_permitted_tools_per_state_matches_registry():
+def test_permitted_tools_per_state_matches_registry() -> None:
     # the real tools registered at import time
     permitted_filling = set(permitted_tools(SessionState.FILLING))
     permitted_reviewing = set(permitted_tools(SessionState.REVIEWING))
@@ -149,7 +149,7 @@ def test_permitted_tools_per_state_matches_registry():
     assert "lookup_procedure" not in permitted_filling
 
 
-def test_real_tool_registry_complete():
+def test_real_tool_registry_complete() -> None:
     expected = {
         "lookup_procedure",
         "start_procedure",

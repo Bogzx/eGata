@@ -9,6 +9,7 @@ import type {
   Procedure,
   Reminder,
 } from "@/lib/types";
+import { verifyLedger, type LedgerCheck } from "@/lib/ledgerVerify";
 import { DocPaper, type DocPaperField } from "@/components/right-pane/DocPaper";
 
 const ICON_BY_CATEGORY: Record<string, string> = {
@@ -72,6 +73,8 @@ export function DocumentsDrawer() {
   const [viewingDoc, setViewingDoc] = useState<Document | null>(null);
   const [viewingDocOpen, setViewingDocOpen] = useState(false);
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
+  const [ledgerCheck, setLedgerCheck] = useState<LedgerCheck | null>(null);
+  const [serverVerified, setServerVerified] = useState<boolean | null>(null);
   const closeTimer = useRef<number | null>(null);
 
   const drawerCloseBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -97,9 +100,16 @@ export function DocumentsDrawer() {
     }
     setViewingDoc(d);
     setLedger([]);
+    setLedgerCheck(null);
+    setServerVerified(null);
     void api
       .getDocumentLedger(d.id)
-      .then((r) => setLedger(r.entries))
+      .then((r) => {
+        setLedger(r.entries);
+        setServerVerified(r.verified);
+        // Don't take the server's flag on trust: re-derive every hash here.
+        return verifyLedger(r.entries, r).then(setLedgerCheck);
+      })
       .catch(() => setLedger([]));
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
@@ -172,6 +182,8 @@ export function DocumentsDrawer() {
           procedure={procedures.find((p) => p.id === viewingDoc.procedure_id)}
           isOpen={viewingDocOpen}
           ledger={ledger}
+          ledgerCheck={ledgerCheck}
+          serverVerified={serverVerified}
           closeBtnRef={detailCloseBtnRef}
           onClose={closeDocDetail}
           onUse={() => {
@@ -334,6 +346,8 @@ type DocDetailProps = {
   procedure: Procedure | undefined;
   isOpen: boolean;
   ledger: LedgerEntry[];
+  ledgerCheck: LedgerCheck | null;
+  serverVerified: boolean | null;
   closeBtnRef: React.MutableRefObject<HTMLButtonElement | null>;
   onClose: () => void;
   onUse: () => void;
@@ -344,6 +358,8 @@ function DocDetail({
   procedure,
   isOpen,
   ledger,
+  ledgerCheck,
+  serverVerified,
   closeBtnRef,
   onClose,
   onUse,
@@ -373,7 +389,8 @@ function DocDetail({
             event_type: "doc_created",
             payload_hash: "",
             prev_hash: "",
-            row_hash: doc.id,
+            // No ledger loaded — show the event, never a made-up hash.
+            row_hash: "",
             created_at: doc.created_at,
           },
         ];
@@ -484,6 +501,7 @@ function DocDetail({
               </li>
             ))}
           </ol>
+          <LedgerStatus check={ledgerCheck} serverVerified={serverVerified} />
         </div>
       </div>
 
@@ -507,5 +525,62 @@ function DocDetail({
         ) : null}
       </div>
     </section>
+  );
+}
+
+
+/** What the citizen can trust about this document's history: the browser's
+ * own re-derivation of the chain first, the server's flag only as a fallback. */
+function LedgerStatus({
+  check,
+  serverVerified,
+}: {
+  check: LedgerCheck | null;
+  serverVerified: boolean | null;
+}) {
+  if (check === null) return null;
+  if (check.status === "verified") {
+    return (
+      <div role="status" className="dh-meta mt-2 space-y-1">
+        <div className="font-medium text-green-700">
+          ✓ Verificat în browserul tău: {check.rows} pași, lanț intact.
+        </div>
+        {check.signatures.status === "valid" ? (
+          <div title={check.signatures.keyIds.join(", ")}>
+            ✓ Fiecare pas e semnat digital de primărie (cheia{" "}
+            <code>{check.signatures.keyIds.map((k) => k.slice(-8)).join(", ")}</code>).
+          </div>
+        ) : check.signatures.status === "partial" ? (
+          <div>{check.signatures.unsigned} pași nu sunt încă semnați.</div>
+        ) : (
+          <div>Browserul nu poate verifica semnăturile Ed25519.</div>
+        )}
+        {check.pdfSha256 ? (
+          <div title={check.pdfSha256}>
+            Amprenta PDF (SHA-256): <code>{shortHash(check.pdfSha256)}</code>
+          </div>
+        ) : null}
+        <div title={check.head}>
+          Dovadă de păstrat (hash final): <code>{shortHash(check.head)}</code>
+        </div>
+      </div>
+    );
+  }
+  if (check.status === "broken") {
+    return (
+      <div role="alert" className="dh-meta mt-2 font-medium text-destructive">
+        ⚠ Jurnalul NU se verifică: {check.reason}
+      </div>
+    );
+  }
+  return (
+    <div role="status" className="dh-meta mt-2">
+      {serverVerified
+        ? "✓ Verificat de server"
+        : serverVerified === false
+          ? "⚠ Jurnal neverificat"
+          : null}
+      <span className="block opacity-70">{check.reason}</span>
+    </div>
   );
 }

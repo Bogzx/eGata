@@ -1,0 +1,320 @@
+"""The document API end-to-end against a real Postgres.
+
+Opt-in like test_ledger_postgres.py: needs TEST_DATABASE_URL pointing at a
+database with migrations/ applied (CI's backend-postgres job, or
+`docker compose up -d db` + `python -m scripts.bootstrap_local_db`).
+
+Everything else in the suite mocks the SQL layer. These drive the real
+routes, real SQL, the real ledger function and the local storage backend, and
+check the result with the independent verifier script — the path a citizen's
+form actually takes. pdflatex is stubbed unless RUN_PDF_TESTS=1.
+"""
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Any
+from urllib.parse import urlparse
+from uuid import UUID, uuid4
+
+import pytest
+
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
+
+pytestmark = pytest.mark.skipif(
+    not TEST_DATABASE_URL,
+    reason="TEST_DATABASE_URL not set; skipping real-Postgres API tests",
+)
+
+psycopg = pytest.importorskip("psycopg")
+
+PROCEDURE = "schimbare-domiciliu"
+FAKE_PDF = b"%PDF-1.4 stub render\n"
+
+
+@pytest.fixture
+def api(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Any:
+    from fastapi.testclient import TestClient
+
+    from app.config import get_settings
+
+    # The app itself connects as the least-privilege role when one is
+    # configured (migrations/014) — the whole flow must work without owner
+    # rights. Test fixtures keep writing with TEST_DATABASE_URL.
+    monkeypatch.setenv("SUPABASE_DB_URL", os.environ.get("APP_DATABASE_URL") or TEST_DATABASE_URL or "")
+    monkeypatch.setenv("DISTRIBUTED_LOCKS", "1")  # real advisory locks for every turn
+    monkeypatch.setenv("STORAGE_BACKEND", "local")
+    monkeypatch.setenv("PDF_STORAGE_DIR", str(tmp_path / "pdfs"))
+    get_settings.cache_clear()
+    if os.environ.get("RUN_PDF_TESTS") != "1":
+        monkeypatch.setattr("app.documents.render_and_compile", lambda *_a, **_k: FAKE_PDF)
+
+    from app.main import app
+
+    # No lifespan: the reminders worker has no business in these tests.
+    yield TestClient(app)
+    get_settings.cache_clear()
+
+
+def _citizen() -> UUID:
+    cid = uuid4()
+    with psycopg.connect(TEST_DATABASE_URL, autocommit=True) as conn:
+        conn.execute(
+            "insert into citizens (id, cnp, nume, prenume, data_nasterii, phone, attributes) "
+            "values (%s, %s, 'Test', 'Api', '1990-01-01', '+40700000000', '{}'::jsonb);",
+            (str(cid), f"9{cid.int % 10**12:012d}"),
+        )
+    return cid
+
+
+def _hdr(cid: UUID) -> dict[str, str]:
+    from app.security import mint_access_token
+
+    return {"Authorization": f"Bearer {mint_access_token(cid)}"}
+
+
+def _complete_fields() -> dict[str, Any]:
+    from app.procedures import get_registry
+
+    proc = get_registry()[PROCEDURE]
+    return {
+        f.name: (f.options[0] if f.options else f"valoare {f.name} ăîșț")
+        for f in proc.fields
+    }
+
+
+def test_document_lifecycle_is_enforced_and_verifiable(api: Any, tmp_path: Path) -> None:
+    from scripts import verify_ledger
+
+    cid = _citizen()
+    h = _hdr(cid)
+
+    doc = api.post("/documents", json={"procedure_id": PROCEDURE}, headers=h).json()
+    doc_id = doc["id"]
+
+    # Schema validation on PATCH.
+    r = api.patch(f"/documents/{doc_id}/fields", json={"fields": {"nu_exista": "x"}}, headers=h)
+    assert r.status_code == 422
+    r = api.patch(
+        f"/documents/{doc_id}/fields", json={"fields": {"nume_complet": "x" * 5000}}, headers=h
+    )
+    assert r.status_code == 422
+
+    fields = _complete_fields()
+    r = api.patch(f"/documents/{doc_id}/fields", json={"fields": fields}, headers=h)
+    assert r.status_code == 200, r.text
+
+    # No PDF yet → cannot deliver.
+    r = api.post(f"/documents/{doc_id}/deliver", json={"delivery": "save"}, headers=h)
+    assert r.status_code == 409
+    assert r.json()["detail"]["code"] == "pdf_missing_or_stale"
+
+    assert api.post(f"/documents/{doc_id}/generate-pdf", headers=h).status_code == 200
+
+    # Edit after rendering → the PDF is stale → cannot deliver.
+    first = next(iter(fields))
+    r = api.patch(
+        f"/documents/{doc_id}/fields",
+        json={"fields": {first: fields[first] if isinstance(fields[first], bool) else "modificat"}},
+        headers=h,
+    )
+    assert r.status_code == 200
+    if not isinstance(fields[first], bool):
+        r = api.post(f"/documents/{doc_id}/deliver", json={"delivery": "save"}, headers=h)
+        assert r.status_code == 409
+
+    gen = api.post(f"/documents/{doc_id}/generate-pdf", headers=h)
+    assert gen.status_code == 200
+    signed = urlparse(gen.json()["pdf_url"])
+
+    r = api.post(f"/documents/{doc_id}/deliver", json={"delivery": "save"}, headers=h)
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "finalized"
+
+    # Frozen after delivery.
+    assert api.patch(
+        f"/documents/{doc_id}/fields", json={"fields": {first: "altceva"}}, headers=h
+    ).status_code == 409
+    assert api.post(f"/documents/{doc_id}/generate-pdf", headers=h).status_code == 409
+    assert api.post(
+        f"/documents/{doc_id}/deliver", json={"delivery": "save"}, headers=h
+    ).status_code == 409
+
+    # The ledger verifies server-side AND with the independent script, and the
+    # PDF served by the signed link is the one the ledger hashed.
+    ledger = api.get(f"/documents/{doc_id}/ledger", headers=h).json()
+    assert ledger["verified"] is True
+    events = [e["event_type"] for e in ledger["entries"]]
+    assert events.count("delivered") == 1
+    assert events[0] == "doc_created" and events[-1] == "delivered"
+
+    pdf = api.get(f"{signed.path}?{signed.query}")
+    assert pdf.status_code == 200
+    import json
+
+    export = tmp_path / "ledger.json"
+    export.write_text(json.dumps(ledger, ensure_ascii=False), encoding="utf-8")
+    (tmp_path / "doc.pdf").write_bytes(pdf.content)
+    assert verify_ledger.main([str(export), "--pdf", str(tmp_path / "doc.pdf")]) == 0
+
+
+def test_other_citizens_cannot_reach_a_document(api: Any) -> None:
+    owner, intruder = _citizen(), _citizen()
+    doc_id = api.post(
+        "/documents", json={"procedure_id": PROCEDURE}, headers=_hdr(owner)
+    ).json()["id"]
+    h = _hdr(intruder)
+    assert api.get(f"/documents/{doc_id}", headers=h).status_code == 403
+    assert api.get(f"/documents/{doc_id}/ledger", headers=h).status_code == 403
+    assert api.patch(
+        f"/documents/{doc_id}/fields", json={"fields": {}}, headers=h
+    ).status_code == 403
+    r = api.post(
+        "/agent/chat", json={"document_id": doc_id, "message": "salut"}, headers=h
+    )
+    assert r.status_code == 403
+
+
+def test_foreign_conversation_is_refused_with_a_real_session(api: Any) -> None:
+    from app.sessions import SessionOwnershipError, fetch_or_create_session, insert_session
+
+    owner, intruder = _citizen(), _citizen()
+    sess = insert_session(owner)
+    with pytest.raises(SessionOwnershipError):
+        fetch_or_create_session(intruder, session_id=sess.id)
+    r = api.post(
+        "/agent/chat/stream",
+        json={"conversation_id": sess.id, "message": "ce am completat?"},
+        headers=_hdr(intruder),
+    )
+    assert r.status_code == 403
+
+
+def test_otp_guessing_is_capped(api: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.auth import MAX_OTP_ATTEMPTS
+
+    monkeypatch.setenv("MOCK_OTP", "1")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+
+    def challenge() -> str:
+        r = api.post("/auth/login-roeid", json={"persona_id": "maria-ionescu"})
+        assert r.status_code == 200, r.text
+        return r.json()["challenge_id"]
+
+    # A couple of typos, then the right code: still fine.
+    ch = challenge()
+    for _ in range(2):
+        assert api.post("/auth/otp", json={"challenge_id": ch, "code": "000000"}).status_code == 401
+    assert api.post("/auth/otp", json={"challenge_id": ch, "code": "123456"}).status_code == 200
+
+    # Exhaust the attempts: the challenge is burned, even for the right code.
+    ch = challenge()
+    for _ in range(MAX_OTP_ATTEMPTS):
+        assert api.post("/auth/otp", json={"challenge_id": ch, "code": "000000"}).status_code == 401
+    r = api.post("/auth/otp", json={"challenge_id": ch, "code": "123456"})
+    assert r.status_code == 401
+
+
+def test_real_sms_challenges_are_rate_limited(api: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """With MOCK_OTP off every challenge is a paid SMS; cap them per citizen."""
+    from app import auth
+    from app.config import get_settings
+
+    monkeypatch.setenv("MOCK_OTP", "0")
+    get_settings.cache_clear()
+    sent: list[str] = []
+
+    class FakeVerify:
+        def __getattr__(self, _name: str) -> Any:
+            return self
+
+        def __call__(self, *_a: Any, **_k: Any) -> Any:
+            return self
+
+        def create(self, to: str, channel: str) -> Any:
+            sent.append(to)
+            return type("V", (), {"sid": "VE1", "status": "pending"})()
+
+    monkeypatch.setattr(auth, "TwilioClient", lambda *_a, **_k: type("C", (), {"verify": FakeVerify()})())
+    cid = _citizen()
+    for _ in range(auth.MAX_SMS_CHALLENGES):
+        auth.issue_otp(cid, "+40700000000")
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc:
+        auth.issue_otp(cid, "+40700000000")
+    assert exc.value.status_code == 429
+    assert len(sent) == auth.MAX_SMS_CHALLENGES
+
+
+def test_sms_budget_holds_under_concurrent_logins(api: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The budget used to be checked before a slow Twilio call and recorded
+    after it, so a burst of parallel logins all passed the check."""
+    import threading
+    import time
+
+    from fastapi import HTTPException
+
+    from app import auth
+    from app.config import get_settings
+
+    monkeypatch.setenv("MOCK_OTP", "0")
+    get_settings.cache_clear()
+    sent: list[str] = []
+
+    class SlowVerify:
+        def __getattr__(self, _name: str) -> Any:
+            return self
+
+        def __call__(self, *_a: Any, **_k: Any) -> Any:
+            return self
+
+        def create(self, to: str, channel: str) -> Any:
+            time.sleep(0.2)  # Twilio's round trip: the window the race needs
+            sent.append(to)
+            return type("V", (), {"sid": "VE1", "status": "pending"})()
+
+    monkeypatch.setattr(auth, "TwilioClient", lambda *_a, **_k: type("C", (), {"verify": SlowVerify()})())
+    cid = _citizen()
+    refused: list[int] = []
+
+    def login() -> None:
+        try:
+            auth.issue_otp(cid, "+40700000000")
+        except HTTPException as exc:
+            refused.append(exc.status_code)
+
+    threads = [threading.Thread(target=login) for _ in range(20)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert len(sent) == auth.MAX_SMS_CHALLENGES
+    assert refused == [429] * (20 - auth.MAX_SMS_CHALLENGES)
+
+
+def test_login_stores_the_address_parts(api: Any) -> None:
+    from app.citizens import ADDRESS_PARTS_KEY
+
+    # Bootstrap stored the parts at seed time; drop them so login must.
+    with psycopg.connect(TEST_DATABASE_URL, autocommit=True) as conn:
+        conn.execute(
+            "update citizens set attributes = attributes - %s where cnp = '1900512123456';",
+            (ADDRESS_PARTS_KEY,),
+        )
+    r = api.post("/auth/login-roeid", json={"persona_id": "andrei-popa"})
+    ch = r.json()["challenge_id"]
+    otp = api.post("/auth/otp", json={"challenge_id": ch, "code": "123456"})
+    assert otp.status_code == 200
+    with psycopg.connect(TEST_DATABASE_URL) as conn:
+        attrs = conn.execute(
+            "select attributes from citizens where cnp = '1900512123456';"
+        ).fetchone()[0]
+    stored = attrs[ADDRESS_PARTS_KEY]
+    assert stored["from"] == attrs["current_address"]
+    assert stored["parts"]["strada"] == "Memorandumului"
+
+    me = api.get("/citizens/me", headers={"Authorization": f"Bearer {otp.json()['access_token']}"})
+    assert me.json()["attributes"]["numar"] == "12"

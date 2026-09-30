@@ -12,12 +12,17 @@ from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
-from app.config import get_settings
-from app.ledger import compute_payload_hash, compute_row_hash
+from app.documents import pdf_generated_payload
+from app.ledger import GENESIS_HASH, compute_payload_hash, compute_row_hash
+from app.ledger_signing import sign_row
 from app.main import app
 
 CITIZEN = UUID("11111111-1111-1111-1111-111111111111")
 DOC = uuid4()
+FILLED = {
+    "nume_complet": "Maria Ionescu", "cnp": "2851014123456",
+    "adresa_curenta": "X", "adresa_noua": "Y", "tip_proprietate": "proprietar",
+}
 
 
 def _chain_for_document(document_id: str) -> list[dict]:
@@ -27,11 +32,13 @@ def _chain_for_document(document_id: str) -> list[dict]:
     timestamp inside row_hash is the one stored, and `ts_iso` is the string
     the SQL side hashed.
     """
-    genesis = get_settings().ledger_genesis_hash
+    genesis = GENESIS_HASH
     events = [
         ("doc_created", {"document_id": document_id, "procedure_id": "schimbare-domiciliu"}),
         ("completed_draft", {"document_id": document_id}),
-        ("pdf_generated", {"document_id": document_id, "pdf_url": "https://x/pdf.pdf"}),
+        ("pdf_generated", pdf_generated_payload(
+            document_id, f"{CITIZEN}/{document_id}.pdf", b"%PDF-1.4 fake", FILLED,
+        )),
         ("delivered", {"document_id": document_id, "delivery": "send", "ref_number": "CV-AAAA"}),
     ]
     rows: list[dict] = []
@@ -52,6 +59,9 @@ def _chain_for_document(document_id: str) -> list[dict]:
             "created_at": ts,
             "ts_iso": ts_iso,
         })
+        rows[-1]["key_id"], rows[-1]["signature"] = sign_row(
+            citizen_id=str(CITIZEN), document_id=document_id, row_id=i + 1, row_hash=row_hash,
+        )
         prev = row_hash
     return rows
 
@@ -170,7 +180,12 @@ def test_full_happy_path(
     assert mock_upload.call_args.args[0] == f"{CITIZEN}/{doc_id}.pdf"
     assert mock_set_pdf.call_args.args[1] == f"{CITIZEN}/{doc_id}.pdf"
 
-    # 6) deliver
+    # 6) deliver — the row now points at the rendered PDF, and the ledger's
+    # pdf_generated row was rendered from the current fields.
+    rendered = _doc_row(fields=FILLED)
+    rendered["pdf_url"] = f"{CITIZEN}/{doc_id}.pdf"
+    mock_fetch_doc.return_value = rendered
+    mock_fetch_ledger.return_value = _chain_for_document(str(DOC))[:3]
     r7 = client.post(f"/documents/{doc_id}/deliver", json={"delivery": "send"}, headers=hdr)
     assert r7.status_code == 200
     assert r7.json()["ref_number"].startswith("CV-")

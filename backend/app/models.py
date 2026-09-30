@@ -182,11 +182,31 @@ class LedgerEntry(BaseModel):
     prev_hash: str
     row_hash: str
     created_at: datetime
+    # What a verifier needs to recompute the hashes without trusting the
+    # server's `verified` flag: the payload itself, and the exact timestamp
+    # string that went into row_hash (see scripts/verify_ledger.py).
+    payload: dict[str, Any] = Field(default_factory=dict)
+    hashed_at: str | None = None
+    # Ed25519 over the row's head statement (app/ledger_signing.py); null for
+    # rows not yet signed.
+    key_id: str | None = None
+    signature: str | None = None
+
+
+class LedgerSigningKey(BaseModel):
+    key_id: str
+    algorithm: str
+    public_key: str
+    status: str
 
 
 class LedgerResponse(BaseModel):
     entries: list[LedgerEntry]
     verified: bool
+    genesis_hash: str
+    citizen_id: str | None = None
+    document_id: str | None = None
+    signing_keys: list[LedgerSigningKey] = Field(default_factory=list)
 
 
 class ChatToolCall(BaseModel):
@@ -199,8 +219,15 @@ class ChatPreferences(BaseModel):
     voice_only: bool = False
 
 
+# The shapes the server mints (sessions.new_session_id, the voice socket's
+# conv_ ids). Anything else is refused: a client-chosen id like
+# "citizen:<uuid>:new" would share the lock key agent.py uses for that
+# citizen's first turn, and could hold it.
+CONVERSATION_ID_PATTERN = r"^(sess|conv)_[A-Za-z0-9_-]{1,64}$"
+
+
 class AgentChatRequest(BaseModel):
-    conversation_id: str | None = None
+    conversation_id: str | None = Field(default=None, pattern=CONVERSATION_ID_PATTERN)
     document_id: UUID | None = None
     message: str
     preferences: ChatPreferences | None = None
@@ -220,7 +247,7 @@ class WidgetResultRequest(BaseModel):
     updated snapshot back — bypassing the LLM round-trip that used to
     re-parse "Da" / "27.04.2026" / "proprietar" as plain text.
     """
-    conversation_id: str
+    conversation_id: str = Field(pattern=CONVERSATION_ID_PATTERN)
     widget_id: str
     # Value may be string (choice/date), bool (confirm), or numeric.
     value: Any

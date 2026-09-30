@@ -31,6 +31,8 @@ import enum
 import json
 import secrets
 import time
+import weakref
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -134,6 +136,8 @@ class Session:
     step_index: int | None = None
     pending_widgets: list[PendingWidget] = field(default_factory=list)
     history: list[dict[str, Any]] = field(default_factory=list)
+    # The citizen confirmed the filled form in REVIEWING (migrations/015).
+    review_confirmed: bool = False
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -188,7 +192,7 @@ def _jsonb(value: Any) -> str:
 
 _SELECT_COLS = (
     "id, citizen_id, state, active_document_id, scenario_id, "
-    "step_index, pending_widgets, history, created_at, updated_at"
+    "step_index, pending_widgets, history, review_confirmed, created_at, updated_at"
 )
 
 
@@ -199,7 +203,7 @@ def insert_session(
     sid = session_id or new_session_id()
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
-            f"insert into sessions (id, citizen_id) values (%s, %s) "
+            f"insert into sessions (id, citizen_id) values (%s, %s) "  # noqa: S608 — constant column list
             f"returning {_SELECT_COLS};",
             (sid, str(citizen_id)),
         )
@@ -213,20 +217,35 @@ def insert_session(
 def fetch_session(session_id: str) -> Session | None:
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
-            f"select {_SELECT_COLS} from sessions where id = %s;",
+            f"select {_SELECT_COLS} from sessions where id = %s;",  # noqa: S608 — constant column list
             (session_id,),
         )
         row = cur.fetchone()
     return _row_to_session(dict(row)) if row else None
 
 
+class SessionOwnershipError(PermissionError):
+    """A caller named a conversation that belongs to another citizen."""
+
+
 def fetch_or_create_session(
     citizen_id: str | UUID, session_id: str | None = None
 ) -> Session:
-    """If `session_id` is given AND exists, return it. Otherwise insert one."""
+    """If `session_id` is given AND exists, return it. Otherwise insert one.
+
+    Raises SessionOwnershipError when the existing session belongs to a
+    different citizen. `conversation_id` arrives from the client, and the
+    session it names carries the history (profile values, filled fields) and
+    the `citizen_id` every tool acts as — handing it to whoever asks would let
+    one citizen read and drive another's conversation.
+    """
     if session_id:
         existing = fetch_session(session_id)
         if existing is not None:
+            if existing.citizen_id != str(citizen_id):
+                raise SessionOwnershipError(
+                    f"session {session_id} does not belong to this citizen"
+                )
             return existing
     return insert_session(citizen_id, session_id=session_id)
 
@@ -242,6 +261,7 @@ def update_session(session: Session) -> Session:
             "step_index = %s, "
             "pending_widgets = %s::jsonb, "
             "history = %s::jsonb, "
+            "review_confirmed = %s, "
             "updated_at = now() "
             "where id = %s "
             "returning updated_at;",
@@ -263,6 +283,7 @@ def update_session(session: Session) -> Session:
                     ]
                 ),
                 _jsonb(session.history),
+                session.review_confirmed,
                 session.id,
             ),
         )
@@ -288,7 +309,7 @@ def transition(session: Session, to_state: SessionState) -> Session:
     # user edits a field (REVIEWING -> FILLING) or starts over, they must
     # re-confirm the form before the delivery widget unlocks again.
     if session.state == SessionState.REVIEWING and to_state != SessionState.REVIEWING:
-        clear_review_confirmed(session.id)
+        clear_review_confirmed(session)
     session.state = to_state
     return session
 
@@ -297,53 +318,114 @@ class IllegalTransitionError(ValueError):
     """Raised when a state transition is not permitted."""
 
 
-# ---- per-session in-process lock ----
+# ---- per-session lock ----
 #
-# Single-worker scope (the demo runs one FastAPI process). Concurrent
-# transports (voice WS + text SSE on the same conversation, or two browser
-# tabs, or a reload mid-stream) all race on the same Session row. Without
-# a lock, fetch → mutate → update_session writes overwrite each other:
-# user message + model reply of the slower turn disappear.
+# Concurrent transports (voice WS + text SSE on the same conversation, two
+# browser tabs, a reload mid-stream, or two backend replicas) all race on the
+# same Session row: fetch → mutate → update_session writes overwrite each
+# other and the slower turn's messages disappear.
 #
-# Multi-worker scale = swap this for a Postgres advisory lock (held on a
-# dedicated connection for the whole step duration). Out of scope for the
-# hackathon demo.
+# Two layers: an asyncio.Lock orders turns inside this process cheaply, and a
+# Postgres advisory lock (held on its own connection for the whole turn)
+# orders them across processes. The advisory lock is taken with
+# pg_try_advisory_lock in a polling loop so waiting never ties up a thread
+# or a pool connection. DISTRIBUTED_LOCKS=0 keeps only the in-process layer
+# (unit tests without a database).
 
-_SESSION_LOCKS: dict[str, asyncio.Lock] = {}
+# Weak values: a lock disappears once no turn holds or awaits it, instead of
+# one entry per conversation accumulating for the life of the process.
+_SESSION_LOCKS: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
 
-
-# Transient per-process flag: set when the user answers Da to a confirm
-# widget while the session is in REVIEWING. Acts as a gate so the LLM
-# can't jump straight to the delivery `choice` widget without first
-# asking the user to verify the auto-filled form. Cleared when the
-# session transitions away from REVIEWING (e.g. back to FILLING for an
-# edit). Lost on process restart — the LLM will re-ask, which is fine.
-_REVIEW_CONFIRMED: set[str] = set()
+SESSION_LOCK_TIMEOUT_SECONDS = 180.0
 
 
-def mark_review_confirmed(session_id: str) -> None:
-    _REVIEW_CONFIRMED.add(session_id)
-
-
-def is_review_confirmed(session_id: str) -> bool:
-    return session_id in _REVIEW_CONFIRMED
-
-
-def clear_review_confirmed(session_id: str) -> None:
-    _REVIEW_CONFIRMED.discard(session_id)
+class SessionBusyError(TimeoutError):
+    """Another turn held the conversation for longer than the timeout."""
 
 
 @asynccontextmanager
-async def session_lock(session_id: str):
-    """Async context manager: serialize concurrent step() calls per session.
+async def _advisory_lock(key: str, wait_seconds: float) -> AsyncIterator[None]:
+    import psycopg
 
-    Holds an asyncio.Lock per session_id for the full body. Other turns on
-    the same conversation queue rather than racing. The lock is held only
-    in-process; multi-worker deployments need a Postgres advisory lock.
+    from app.config import get_settings
+
+    conn = await psycopg.AsyncConnection.connect(get_settings().supabase_db_url, autocommit=True)
+    try:
+        deadline = time.monotonic() + wait_seconds
+        delay = 0.02
+        while True:
+            cur = await conn.execute(
+                "select pg_try_advisory_lock(hashtextextended(%s, 0));", (key,)
+            )
+            row = await cur.fetchone()
+            if row and row[0]:
+                break
+            if time.monotonic() >= deadline:
+                raise SessionBusyError(f"{key} is busy")
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, 0.5)
+        try:
+            yield
+        finally:
+            await conn.execute("select pg_advisory_unlock(hashtextextended(%s, 0));", (key,))
+    finally:
+        # Closing the connection also releases the lock if unlock failed.
+        await conn.close()
+
+
+# The review gate: set when the citizen answers Da to the confirm widget in
+# REVIEWING, so neither agent can jump to the delivery picker without the
+# citizen having looked at the filled form. Cleared when the session leaves
+# REVIEWING (e.g. back to FILLING for an edit). Stored on the session row
+# (migrations/015), so it holds across replicas and restarts.
+
+
+def mark_review_confirmed(session: Session) -> None:
+    session.review_confirmed = True
+
+
+def is_review_confirmed(session: Session) -> bool:
+    return session.review_confirmed
+
+
+def clear_review_confirmed(session: Session) -> None:
+    session.review_confirmed = False
+
+
+def apply_review_confirmation(session: Session, widget: PendingWidget, value: Any) -> bool:
+    """A Da on a confirm widget while REVIEWING is the go-ahead for delivery.
+
+    Shared by the HTTP (/agent/widget-result) and voice WebSocket widget
+    paths; the voice path used to skip it, so a voice-only citizen who
+    confirmed the form was then refused the delivery step. True if it fired.
     """
-    lock = _SESSION_LOCKS.setdefault(session_id, asyncio.Lock())
+    if (
+        widget.type == "confirm"
+        and session.state == SessionState.REVIEWING
+        and str(value).strip().lower() in {"da", "true", "yes"}
+    ):
+        mark_review_confirmed(session)
+        return True
+    return False
+
+
+@asynccontextmanager
+async def session_lock(
+    session_id: str, wait_seconds: float = SESSION_LOCK_TIMEOUT_SECONDS
+) -> AsyncIterator[None]:
+    """Serialize turns on one conversation, in this process and across replicas."""
+    from app.config import get_settings
+
+    lock = _SESSION_LOCKS.get(session_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _SESSION_LOCKS[session_id] = lock
     async with lock:
-        yield
+        if not get_settings().distributed_locks:
+            yield
+            return
+        async with _advisory_lock(f"egata:session:{session_id}", wait_seconds):
+            yield
 
 
 def _row_to_session(row: dict[str, Any]) -> Session:
@@ -366,6 +448,7 @@ def _row_to_session(row: dict[str, Any]) -> Session:
         step_index=row.get("step_index"),
         pending_widgets=pending,
         history=history,
+        review_confirmed=bool(row.get("review_confirmed")),
         created_at=row.get("created_at"),
         updated_at=row.get("updated_at"),
     )

@@ -9,21 +9,21 @@ from __future__ import annotations
 
 import time
 
+import jwt
 import pytest
 from fastapi import HTTPException
-from jose import jwt
 
 from app.config import get_settings
 from app.security import decode_token, mint_access_token
 
 
-def test_valid_token_decodes():
+def test_valid_token_decodes() -> None:
     token = mint_access_token("11111111-1111-1111-1111-111111111111")
     payload = decode_token(token)
     assert payload["sub"] == "11111111-1111-1111-1111-111111111111"
 
 
-def test_expired_token_raises_token_expired_detail():
+def test_expired_token_raises_token_expired_detail() -> None:
     settings = get_settings()
     # Mint a token that expired one second ago.
     now = int(time.time())
@@ -42,7 +42,7 @@ def test_expired_token_raises_token_expired_detail():
     assert excinfo.value.detail == "Token expired"
 
 
-def test_invalid_signature_raises_invalid_token_detail():
+def test_invalid_signature_raises_invalid_token_detail() -> None:
     settings = get_settings()
     # Sign with a different secret so the signature check fails but the
     # token isn't expired.
@@ -62,8 +62,31 @@ def test_invalid_signature_raises_invalid_token_detail():
     assert excinfo.value.detail == "Invalid token"
 
 
-def test_malformed_token_raises_invalid_token_detail():
+def test_malformed_token_raises_invalid_token_detail() -> None:
     with pytest.raises(HTTPException) as excinfo:
         decode_token("not-a-jwt-at-all")
     assert excinfo.value.status_code == 401
     assert excinfo.value.detail == "Invalid token"
+
+
+def test_token_without_expiry_is_rejected() -> None:
+    """PyJWT only checks `exp` when present; tokens must carry one."""
+    settings = get_settings()
+    no_exp = jwt.encode(
+        {"sub": "11111111-1111-1111-1111-111111111111", "iss": "egata"},
+        settings.jwt_signing_secret,
+        algorithm=settings.jwt_algorithm,
+    )
+    with pytest.raises(HTTPException) as excinfo:
+        decode_token(no_exp)
+    assert excinfo.value.detail == "Invalid token"
+
+
+def test_alg_none_is_rejected() -> None:
+    unsigned = jwt.encode(
+        {"sub": "11111111-1111-1111-1111-111111111111", "exp": int(time.time()) + 60},
+        key=None,
+        algorithm="none",
+    )
+    with pytest.raises(HTTPException):
+        decode_token(unsigned)
