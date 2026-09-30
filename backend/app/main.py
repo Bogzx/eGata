@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 
 def _configure_logging() -> None:
@@ -72,6 +73,7 @@ from app.demo import router as demo_router
 from app.documents import router as documents_router
 from app.files import router as files_router
 from app.health import router as health_router
+from app.pdf import PdfRendererUnavailable, PdfRenderError
 from app.procedures import router as procedures_router
 from app.scenarios import router as scenarios_router
 from app.reminders import router as reminders_router
@@ -172,6 +174,14 @@ async def _log_requests(request: Request, call_next):
     # bug reports / docker logs greps.
     response.headers["x-request-id"] = req_id
     return response
+
+@app.exception_handler(PdfRenderError)
+async def _pdf_render_error(_: Request, exc: PdfRenderError) -> JSONResponse:
+    """A failed render is the server's problem, and its detail is PII-free by
+    construction (see app.pdf.PdfRenderError) — say so instead of a bare 500."""
+    status = 503 if isinstance(exc, PdfRendererUnavailable) else 500
+    return JSONResponse(status_code=status, content={"detail": str(exc)})
+
 
 app.include_router(auth_router)
 app.include_router(citizens_router)
