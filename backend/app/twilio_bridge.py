@@ -16,10 +16,13 @@ from __future__ import annotations
 import asyncio
 import audioop
 import base64
+import hashlib
+import hmac
 import json
 import logging
 import secrets
 import time
+from xml.sax.saxutils import quoteattr
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
@@ -337,7 +340,73 @@ async def _run_phone_voicelive_session(
         await asyncio.gather(pump_inbound(), pump_outbound())
 
 
+# ---- Stream authorization ----
+#
+# Both endpoints used to be open: anyone could POST the webhook to learn the
+# stream URL, and anyone could open /voice/twilio directly — each connection
+# starts an Azure VoiceLive session billed to the deployment. The webhook now
+# checks Twilio's request signature and puts a short-lived HMAC token, bound
+# to the CallSid, into the TwiML as a <Parameter>; Twilio echoes it in the
+# stream's `start` frame, and the socket starts VoiceLive only if it verifies.
+
+STREAM_TOKEN_TTL_SECONDS = 120
+START_FRAME_TIMEOUT_SECONDS = 10
+
+
+def _stream_mac(call_sid: str, expires_at: int) -> str:
+    secret = get_settings().jwt_signing_secret.encode("utf-8")
+    return hmac.new(
+        secret, f"twilio-stream:{call_sid}:{expires_at}".encode(), hashlib.sha256
+    ).hexdigest()
+
+
+def mint_stream_token(call_sid: str, ttl: int = STREAM_TOKEN_TTL_SECONDS) -> str:
+    expires_at = int(time.time()) + ttl
+    return f"{expires_at}.{_stream_mac(call_sid, expires_at)}"
+
+
+def verify_stream_token(token: str | None, call_sid: str | None) -> bool:
+    if not token or not call_sid or "." not in token:
+        return False
+    exp_text, _, mac = token.partition(".")
+    try:
+        expires_at = int(exp_text)
+    except ValueError:
+        return False
+    if expires_at < int(time.time()):
+        return False
+    return hmac.compare_digest(_stream_mac(call_sid, expires_at), mac)
+
+
+def _webhook_signature_ok(request: Request, params: dict[str, str]) -> bool:
+    """Twilio's X-Twilio-Signature over the URL Twilio called + the form."""
+    from twilio.request_validator import RequestValidator
+
+    settings = get_settings()
+    # Behind a proxy or tunnel the URL FastAPI sees (http://backend:8000/...)
+    # is not the one Twilio signed; TWILIO_WEBHOOK_PUBLIC_URL pins it.
+    url = settings.twilio_webhook_public_url or str(request.url)
+    signature = request.headers.get("X-Twilio-Signature", "")
+    return RequestValidator(settings.twilio_auth_token).validate(url, params, signature)
+
+
 # ---- WebSocket endpoint ----
+
+
+async def _await_authorized_start(ws: WebSocket) -> dict[str, Any] | None:
+    """Read frames until `start`; return it if its stream token verifies."""
+    while True:
+        raw = await asyncio.wait_for(ws.receive_text(), timeout=START_FRAME_TIMEOUT_SECONDS)
+        msg = json.loads(raw)
+        if msg.get("event") == "connected":
+            continue
+        if msg.get("event") != "start":
+            return None
+        start = msg.get("start") or {}
+        token = (start.get("customParameters") or {}).get("token")
+        if verify_stream_token(token, start.get("callSid")):
+            return msg
+        return None
 
 
 @router.websocket("/voice/twilio")
@@ -345,6 +414,15 @@ async def twilio_media_stream(ws: WebSocket) -> None:
     client = f"{ws.client.host}:{ws.client.port}" if ws.client else "-"
     log.info("twilio_ws: accept from=%s", client)
     await ws.accept()
+
+    try:
+        start_msg = await _await_authorized_start(ws)
+    except (asyncio.TimeoutError, WebSocketDisconnect, json.JSONDecodeError):
+        start_msg = None
+    if start_msg is None:
+        log.warning("twilio_ws: refused from=%s (no valid stream token)", client)
+        await ws.close(code=4403)
+        return
 
     inbound: asyncio.Queue[bytes | None] = asyncio.Queue(maxsize=200)
     stop_event = asyncio.Event()
@@ -410,6 +488,9 @@ async def twilio_media_stream(ws: WebSocket) -> None:
             inbound, send_to_twilio, send_clear_to_twilio, stop_event
         )
     )
+
+    stream_sid_holder["sid"] = start_msg.get("streamSid") or ""
+    log.info("twilio_ws: stream started sid=%s", stream_sid_holder["sid"])
 
     started = time.perf_counter()
     try:
@@ -488,7 +569,9 @@ _TWIML_BRIDGE = """\
 <?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
-    <Stream url="{ws_url}" />
+    <Stream url={ws_url}>
+      <Parameter name="token" value={token} />
+    </Stream>
   </Connect>
 </Response>
 """
@@ -512,13 +595,19 @@ def _bridge_is_healthy() -> bool:
         return False
     if not settings.twilio_bridge_public_url:
         return False
+    # Without the auth token the webhook cannot tell Twilio from anyone else,
+    # so it never hands out the stream URL (fail closed).
+    if not settings.twilio_auth_token:
+        return False
     return True
 
 
 @router.post("/voice/twilio/webhook")
 async def twilio_voice_webhook(request: Request) -> Response:
+    params: dict[str, str] = {}
     try:
         form = await request.form()
+        params = {k: str(v) for k, v in form.items()}
         log.info(
             "twilio_webhook: incoming CallSid=%s From=%s To=%s",
             form.get("CallSid"),
@@ -527,6 +616,9 @@ async def twilio_voice_webhook(request: Request) -> Response:
         )
     except Exception:
         log.exception("twilio_webhook: form parse failed")
+    if get_settings().twilio_auth_token and not _webhook_signature_ok(request, params):
+        log.warning("twilio_webhook: bad X-Twilio-Signature — refused")
+        return Response(status_code=403)
     if not _bridge_is_healthy():
         log.warning(
             "twilio_webhook: bridge unhealthy (azure_key=%s bridge_url=%s) - returning fallback TwiML",
@@ -538,6 +630,9 @@ async def twilio_voice_webhook(request: Request) -> Response:
     ws_url = settings.twilio_bridge_public_url
     log.info("twilio_webhook: returning bridge TwiML ws_url=%s", ws_url)
     return Response(
-        content=_TWIML_BRIDGE.format(ws_url=ws_url),
+        content=_TWIML_BRIDGE.format(
+            ws_url=quoteattr(ws_url),
+            token=quoteattr(mint_stream_token(params.get("CallSid", ""))),
+        ),
         media_type="application/xml",
     )
