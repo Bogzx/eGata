@@ -30,7 +30,19 @@ def redact(text: str) -> str:
     return text
 
 
+_EXC_FORMATTER = logging.Formatter()
+
+
 class PiiRedactingFilter(logging.Filter):
+    """Redacts the message and any traceback the record carries.
+
+    `log.exception(...)` lines end in the exception's text, which is where
+    database errors put row contents ("Failing row contains (..., CNP, ...)")
+    — the formatter renders it from `exc_info` after filters have run, so it
+    is rendered and redacted here and cached in `exc_text`, which formatters
+    use as-is.
+    """
+
     def filter(self, record: logging.LogRecord) -> bool:
         try:
             message = record.getMessage()
@@ -39,4 +51,10 @@ class PiiRedactingFilter(logging.Filter):
         redacted = redact(message)
         if redacted != message:
             record.msg, record.args = redacted, ()
+        if record.exc_info and not record.exc_text:
+            record.exc_text = _EXC_FORMATTER.formatException(record.exc_info)
+        if record.exc_text:
+            record.exc_text = redact(record.exc_text)
+        if record.stack_info:
+            record.stack_info = redact(record.stack_info)
         return True

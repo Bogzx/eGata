@@ -45,6 +45,7 @@ from fastapi import APIRouter, Request, Response, WebSocket, WebSocketDisconnect
 
 from app.agent_tools import REGISTRY as TOOLS_REGISTRY
 from app.agent_tools import ToolContext, dispatch
+from app.auth import phone_hint
 from app.azure_clients import get_voicelive_credential, tools_for_realtime
 from app.config import get_settings
 from app.prompts import build_system_prompt
@@ -610,7 +611,9 @@ async def twilio_voice_webhook(request: Request) -> Response:
         log.info(
             "twilio_webhook: incoming CallSid=%s From=%s To=%s",
             form.get("CallSid"),
-            form.get("From"),
+            # The caller's number, from any country: the log filter only
+            # recognises Romanian mobiles, so hint it here.
+            phone_hint(str(form.get("From") or "")),
             form.get("To"),
         )
     except Exception:
