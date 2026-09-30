@@ -74,20 +74,41 @@ def fetch_citizen_by_mrz(cnp: str, nume: str, prenume: str) -> dict[str, Any]:
     return dict(row)
 
 
-def _enforce_sms_budget(citizen_id: UUID | str) -> None:
+def _reserve_challenge(
+    citizen_id: UUID | str, challenge_id: str, phone: str, expires_at: datetime, *, budgeted: bool
+) -> None:
+    """Insert the challenge row; with `budgeted`, only within the SMS budget.
+
+    Count and insert happen in one transaction under a per-citizen advisory
+    lock, and before the SMS is sent. Checking the count first and inserting
+    after the (slow) Twilio call let every concurrent request see the same
+    count: 30 parallel logins sent 30 SMS against a budget of 5.
+    """
     with get_pg_connection() as conn, conn.cursor() as cur:
+        if budgeted:
+            cur.execute(
+                "select pg_advisory_xact_lock(hashtextextended(%s, 0));",
+                (f"egata:sms-budget:{citizen_id}",),
+            )
+            cur.execute(
+                "select count(*) as n from otp_challenges "
+                "where citizen_id = %s and created_at > now() - make_interval(secs => %s);",
+                (str(citizen_id), SMS_CHALLENGE_WINDOW_SECONDS),
+            )
+            row = cur.fetchone()
+            if row is not None and int(row["n"]) >= MAX_SMS_CHALLENGES:
+                conn.rollback()
+                log.warning("issue_otp: SMS budget exhausted citizen=%s", citizen_id)
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Prea multe coduri trimise. Încearcă din nou peste câteva minute.",
+                )
         cur.execute(
-            "select count(*) as n from otp_challenges "
-            "where citizen_id = %s and created_at > now() - make_interval(secs => %s);",
-            (str(citizen_id), SMS_CHALLENGE_WINDOW_SECONDS),
+            "insert into otp_challenges (id, citizen_id, phone, expires_at) "
+            "values (%s, %s, %s, %s);",
+            (challenge_id, str(citizen_id), phone, expires_at),
         )
-        row = cur.fetchone()
-    if row is not None and int(row["n"]) >= MAX_SMS_CHALLENGES:
-        log.warning("issue_otp: SMS budget exhausted citizen=%s", citizen_id)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Prea multe coduri trimise. Încearcă din nou peste câteva minute.",
-        )
+        conn.commit()
 
 
 def issue_otp(citizen_id: UUID | str, phone: str) -> str:
@@ -103,8 +124,12 @@ def issue_otp(citizen_id: UUID | str, phone: str) -> str:
         challenge_id,
     )
 
+    # A failed send still counts against the budget: the slot is taken
+    # before Twilio is called, which is what makes the cap hold.
+    _reserve_challenge(
+        citizen_id, challenge_id, phone, expires_at, budgeted=not settings.mock_otp
+    )
     if not settings.mock_otp:
-        _enforce_sms_budget(citizen_id)
         try:
             client = TwilioClient(settings.twilio_account_sid, settings.twilio_auth_token)
             verification = client.verify.v2.services(
@@ -124,14 +149,12 @@ def issue_otp(citizen_id: UUID | str, phone: str) -> str:
                 phone_hint(phone),
             )
             raise
-
-    with get_pg_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            "insert into otp_challenges (id, citizen_id, phone, twilio_sid, expires_at) "
-            "values (%s, %s, %s, %s, %s);",
-            (challenge_id, str(citizen_id), phone, twilio_sid, expires_at),
-        )
-        conn.commit()
+        with get_pg_connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "update otp_challenges set twilio_sid = %s where id = %s;",
+                (twilio_sid, challenge_id),
+            )
+            conn.commit()
 
     return challenge_id
 

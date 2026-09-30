@@ -249,6 +249,52 @@ def test_real_sms_challenges_are_rate_limited(api: Any, monkeypatch: pytest.Monk
     assert len(sent) == auth.MAX_SMS_CHALLENGES
 
 
+def test_sms_budget_holds_under_concurrent_logins(api: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The budget used to be checked before a slow Twilio call and recorded
+    after it, so a burst of parallel logins all passed the check."""
+    import threading
+    import time
+
+    from fastapi import HTTPException
+
+    from app import auth
+    from app.config import get_settings
+
+    monkeypatch.setenv("MOCK_OTP", "0")
+    get_settings.cache_clear()
+    sent: list[str] = []
+
+    class SlowVerify:
+        def __getattr__(self, _name: str) -> Any:
+            return self
+
+        def __call__(self, *_a: Any, **_k: Any) -> Any:
+            return self
+
+        def create(self, to: str, channel: str) -> Any:
+            time.sleep(0.2)  # Twilio's round trip: the window the race needs
+            sent.append(to)
+            return type("V", (), {"sid": "VE1", "status": "pending"})()
+
+    monkeypatch.setattr(auth, "TwilioClient", lambda *_a, **_k: type("C", (), {"verify": SlowVerify()})())
+    cid = _citizen()
+    refused: list[int] = []
+
+    def login() -> None:
+        try:
+            auth.issue_otp(cid, "+40700000000")
+        except HTTPException as exc:
+            refused.append(exc.status_code)
+
+    threads = [threading.Thread(target=login) for _ in range(20)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert len(sent) == auth.MAX_SMS_CHALLENGES
+    assert refused == [429] * (20 - auth.MAX_SMS_CHALLENGES)
+
+
 def test_login_stores_the_address_parts(api: Any) -> None:
     from app.citizens import ADDRESS_PARTS_KEY
 
