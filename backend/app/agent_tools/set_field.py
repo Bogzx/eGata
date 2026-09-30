@@ -15,6 +15,7 @@ from uuid import UUID
 
 from app.agent_tools import Tool, ToolContext, ToolResult, register
 from app.documents import fetch_document, update_document_fields
+from app.ledger import LedgerEventType, append_ledger
 from app.procedures import get_registry
 from app.procedure_state import (
     FieldValidationError,
@@ -76,6 +77,14 @@ async def execute(
         proc, updated_fields, ctx.citizen_attributes
     ):
         transition_to = SessionState.REVIEWING
+        # Same milestone PATCH /documents/{id}/fields records; the agent path
+        # used to skip it, so its ledgers went doc_created -> pdf_generated.
+        append_ledger(
+            citizen_id=UUID(session.citizen_id),
+            event_type=LedgerEventType.COMPLETED_DRAFT,
+            payload={"document_id": doc_id},
+            document_id=UUID(doc_id),
+        )
     elif session.state == SessionState.REVIEWING and not all_required_satisfied(
         proc, updated_fields, ctx.citizen_attributes
     ):

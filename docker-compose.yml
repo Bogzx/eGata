@@ -10,11 +10,12 @@
 #
 # What works with nothing configured: login with the three demo personas
 # (mock OTP 123456), the procedure catalogue, filling a document, real
-# pdflatex rendering, delivery, and the audit ledger.
+# pdflatex rendering, delivery, the audit ledger, and text chat.
 #
-# What does NOT: the agent chat. It calls Azure OpenAI for both the model and
-# the RAG embeddings, and there is no offline substitute. Put AZURE_OPENAI_*
-# in a root `.env` and run the index step printed by the migrate service.
+# The chat works too, answered by the OFFLINE agent: a deterministic script
+# over a local keyword index (no LLM). Put AZURE_OPENAI_* in a root `.env`
+# for the real LLM agent and run the index step printed by the migrate
+# service. Voice always needs Azure.
 #
 # Copy .env.example to .env to override anything below.
 
@@ -101,7 +102,12 @@ services:
       JWT_SIGNING_SECRET: ${JWT_SIGNING_SECRET:-dev-only-not-a-secret}
       ALLOW_ORIGINS: ${ALLOW_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
 
-      # Agent chat only. Everything else runs without these.
+      # auto: the LLM when an Azure key is set, else the offline scripted
+      # agent (app/offline_agent.py) over the local search index the migrate
+      # step builds. See .env.example.
+      AGENT_BACKEND: ${AGENT_BACKEND:-auto}
+      EMBEDDINGS_BACKEND: ${EMBEDDINGS_BACKEND:-auto}
+      # LLM agent + Azure search + voice only. Everything else runs without these.
       AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
       AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
       AZURE_OPENAI_CHAT_DEPLOYMENT: ${AZURE_OPENAI_CHAT_DEPLOYMENT:-gpt-5-mini}

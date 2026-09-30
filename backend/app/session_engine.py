@@ -39,7 +39,7 @@ from app.azure_clients import (
     tools_for_chat_completions,
 )
 from app.citizens import fetch_citizen_by_id
-from app.config import get_settings
+from app.config import get_settings, resolved_agent_backend
 from app.documents import fetch_document
 from app.procedures import get_registry
 from app.prompts import build_system_prompt
@@ -87,33 +87,16 @@ def _doc_state_lines(
     if proc and proc.llm_hint:
         lines.append(f"Indicații flow pentru procedură: {proc.llm_hint}")
     if proc:
-        from app.procedure_state import evaluate_field_states, _is_nonempty
+        from app.procedure_state import autofill_candidates, evaluate_field_states
 
         states = evaluate_field_states(proc, fields, citizen_attrs)
         lines.append(f"Câmpuri obligatorii rămase: {states.missing}")
         # Explicit list of set_field calls the LLM should issue right now —
         # forces auto-fill of optional fields (email, ap_domiciliu, ...) that
         # the LLM would otherwise skip because they're not in `missing`.
-        autofillable: list[tuple[str, Any]] = []
-        # Merged context = profile attrs + already-completed doc fields. Lets
-        # `default_from` resolve to a field the LLM just auto-filled (e.g.
-        # nr_placuta defaulting to nr_domiciliu, where nr_domiciliu itself
-        # was just filled from profile).
-        merged_ctx: dict[str, Any] = {**citizen_attrs, **fields}
-        for fld in proc.fields:
-            current = fields.get(fld.name)
-            if _is_nonempty(current):
-                continue
-            # 1) direct match: profile has a value with this exact name
-            attr_value = citizen_attrs.get(fld.name)
-            if attr_value not in (None, ""):
-                autofillable.append((fld.name, attr_value))
-                continue
-            # 2) default_from: this field copies another field's value
-            if fld.default_from:
-                src_value = merged_ctx.get(fld.default_from)
-                if src_value not in (None, ""):
-                    autofillable.append((fld.name, src_value))
+        # start_procedure already prefills these; this catches values that
+        # became derivable later (default_from a field filled mid-dialogue).
+        autofillable = list(autofill_candidates(proc, fields, citizen_attrs).items())
         if autofillable:
             lines.append(
                 "APELEAZĂ ACUM aceste set_field (auto-fill obligatoriu, "
@@ -192,6 +175,26 @@ async def step(
 ) -> AsyncIterator[Event]:
     """Drive one user→agent turn end-to-end. Mutates `session` in place."""
     settings = get_settings()
+    if resolved_agent_backend(settings) == "offline":
+        from app import offline_agent
+
+        if citizen_attrs is None:
+            try:
+                from uuid import UUID
+
+                citizen_attrs = fetch_citizen_by_id(UUID(session.citizen_id)).get("attributes") or {}
+            except Exception:
+                citizen_attrs = {}
+        async for event in offline_agent.step(
+            session,
+            user_message,
+            simple_language=simple_language,
+            voice_only=voice_only,
+            citizen_attrs=citizen_attrs,
+        ):
+            yield event
+        return
+
     client = get_openai_client()
 
     if citizen_attrs is None:
