@@ -120,7 +120,12 @@ def preview_pdf(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="{procedure_id}-preview.pdf"'},
+        headers={
+            "Content-Disposition": f'inline; filename="{procedure_id}-preview.pdf"',
+            # Carries the citizen's name, CNP and address — same rule as
+            # /files/pdf: no shared or disk cache may keep it.
+            "Cache-Control": "private, no-store",
+        },
     )
 
 
