@@ -30,6 +30,12 @@ from app.models import (
     PatchFieldsRequest,
 )
 from app.pdf import render_and_compile
+from app.procedure_state import (
+    FieldValidationError,
+    all_required_satisfied,
+    coerce_field_value,
+    validate_field_value,
+)
 from app.procedures import get_registry
 from app.security import current_citizen_id
 from app.storage import (
@@ -225,12 +231,80 @@ def _require_owner(doc: dict[str, Any], citizen_id: UUID) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your document")
 
 
-def _all_required_present(procedure_id: str, fields: dict[str, Any]) -> bool:
-    reg = get_registry()
-    proc = reg.get(procedure_id)
+def _citizen_attributes(citizen_id: UUID) -> dict[str, Any]:
+    # Local import: app.citizens is a router module; keep documents importable
+    # on its own.
+    from app.citizens import fetch_citizen_by_id
+
+    return fetch_citizen_by_id(citizen_id).get("attributes") or {}
+
+
+def _all_required_present(
+    procedure_id: str, fields: dict[str, Any], citizen_attrs: dict[str, Any]
+) -> bool:
+    """Required-field check with applies_if, same rule the agent uses.
+
+    The old check ignored applies_if, so a required-but-inapplicable field
+    (e.g. a co-owner's name when there is no co-owner) kept a finished draft
+    from ever counting as complete.
+    """
+    proc = get_registry().get(procedure_id)
     if proc is None:
         return False
-    return all(not (f.required and not fields.get(f.name)) for f in proc.fields)
+    return all_required_satisfied(proc, fields, citizen_attrs)
+
+
+def _require_draft(doc: dict[str, Any]) -> None:
+    """Finalized documents are frozen.
+
+    Their ledger already records the PDF (by hash) that was delivered;
+    editing fields, re-rendering or re-delivering afterwards would make the
+    stored form disagree with what the citizen submitted — and a second
+    `delivered` row would make the reminders worker fire twice.
+    """
+    if doc.get("status") == "finalized":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "document_finalized",
+                "message": "Documentul a fost deja finalizat.",
+                "ref_number": doc.get("ref_number"),
+            },
+        )
+
+
+def _validated_patch(procedure_id: str, patch: dict[str, Any]) -> dict[str, Any]:
+    """Coerce + validate a field patch against the procedure schema (422 on error)."""
+    proc = get_registry().get(procedure_id)
+    if proc is None:
+        raise HTTPException(status_code=400, detail=f"Procedure {procedure_id} not found")
+    out: dict[str, Any] = {}
+    errors: list[str] = []
+    for name, raw in patch.items():
+        value = coerce_field_value(proc, name, raw)
+        try:
+            validate_field_value(proc, name, value)
+        except FieldValidationError as exc:
+            errors.append(str(exc))
+            continue
+        out[name] = value
+    if errors:
+        raise HTTPException(status_code=422, detail={"code": "invalid_fields", "errors": errors})
+    return out
+
+
+def _latest_pdf_matches_fields(document_id: UUID, fields: dict[str, Any]) -> bool:
+    """True if the newest rendered PDF was rendered from exactly these fields."""
+    rows = fetch_ledger_for_document(document_id)
+    for row in reversed(rows):
+        if row["event_type"] != LedgerEventType.PDF_GENERATED.value:
+            continue
+        payload = row["payload"]
+        if isinstance(payload, str):
+            payload = _json.loads(payload)
+        expected = sha256_hex(canonical_json(fields).encode("utf-8"))
+        return payload.get("fields_sha256") == expected
+    return False
 
 
 @router.post("", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
@@ -277,9 +351,12 @@ def patch_fields(
 ) -> DocumentResponse:
     doc = fetch_document(document_id)
     _require_owner(doc, citizen_id)
-    was_complete = _all_required_present(doc["procedure_id"], doc["fields"])
-    updated = update_document_fields(document_id, req.fields)
-    now_complete = _all_required_present(updated["procedure_id"], updated["fields"])
+    _require_draft(doc)
+    patch = _validated_patch(doc["procedure_id"], req.fields)
+    attrs = _citizen_attributes(citizen_id)
+    was_complete = _all_required_present(doc["procedure_id"], doc["fields"], attrs)
+    updated = update_document_fields(document_id, patch)
+    now_complete = _all_required_present(updated["procedure_id"], updated["fields"], attrs)
     if not was_complete and now_complete:
         append_ledger(
             citizen_id=citizen_id,
@@ -297,6 +374,7 @@ def generate_pdf(
 ) -> GeneratePDFResponse:
     doc = fetch_document(document_id)
     _require_owner(doc, citizen_id)
+    _require_draft(doc)
 
     reg = get_registry()
     proc = reg.get(doc["procedure_id"])
@@ -329,6 +407,28 @@ def deliver(
 ) -> DocumentResponse:
     doc = fetch_document(document_id)
     _require_owner(doc, citizen_id)
+    _require_draft(doc)
+    if not _all_required_present(
+        doc["procedure_id"], doc["fields"], _citizen_attributes(citizen_id)
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "incomplete",
+                "message": "Mai sunt câmpuri obligatorii necompletate.",
+            },
+        )
+    # What gets delivered must be the PDF the ledger hashed, rendered from the
+    # fields as they are now — not nothing, and not a render from before the
+    # last edit.
+    if not doc.get("pdf_url") or not _latest_pdf_matches_fields(document_id, doc["fields"]):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "pdf_missing_or_stale",
+                "message": "Generează PDF-ul (POST /documents/{id}/generate-pdf) înainte de livrare.",
+            },
+        )
 
     ref_number = generate_ref_number(document_id)
     finalized = finalize_document(document_id, req.delivery, ref_number)
