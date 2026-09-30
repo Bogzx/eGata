@@ -5,9 +5,10 @@
 import { describe, expect, it } from "vitest";
 import fixture from "./fixtures/ledger.json";
 import { canonicalJson, verifyLedger } from "@/lib/ledgerVerify";
-import type { LedgerEntry } from "@/lib/types";
+import type { LedgerEntry, LedgerResponse } from "@/lib/types";
 
 const entries = () => structuredClone(fixture.entries) as LedgerEntry[];
+const ctx = () => structuredClone(fixture) as unknown as LedgerResponse;
 
 describe("verifyLedger", () => {
   it("verifies a chain written by the backend", async () => {
@@ -48,5 +49,40 @@ describe("canonicalJson", () => {
     expect(canonicalJson({ b: "ș", a: [1, { d: null, c: true }] })).toBe(
       '{"a":[1,{"c":true,"d":null}],"b":"ș"}',
     );
+  });
+});
+
+describe("signatures", () => {
+  it("accepts every row signed by the published key", async () => {
+    const r = await verifyLedger(entries(), ctx());
+    expect(r.status).toBe("verified");
+    if (r.status !== "verified") return;
+    expect(r.signatures).toEqual({ status: "valid", keyIds: [fixture.signing_keys[0]!.key_id] });
+  });
+
+  it("rejects a forged signature", async () => {
+    const e = entries();
+    const sig = e[2]!.signature!;
+    e[2]!.signature = (sig[0] === "A" ? "B" : "A") + sig.slice(1);
+    expect((await verifyLedger(e, ctx())).status).toBe("broken");
+  });
+
+  it("rejects a signature bound to another document", async () => {
+    const c = ctx();
+    c.document_id = "55555555-5555-5555-5555-555555555555";
+    expect((await verifyLedger(entries(), c)).status).toBe("broken");
+  });
+
+  it("rejects a key the server does not publish", async () => {
+    const c = ctx();
+    c.signing_keys = [];
+    expect((await verifyLedger(entries(), c)).status).toBe("broken");
+  });
+
+  it("reports unsigned rows without calling the chain broken", async () => {
+    const e = entries().map((x) => ({ ...x, signature: null }));
+    const r = await verifyLedger(e, ctx());
+    expect(r.status).toBe("verified");
+    if (r.status === "verified") expect(r.signatures).toEqual({ status: "partial", unsigned: 4 });
   });
 });

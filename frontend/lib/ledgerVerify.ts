@@ -12,13 +12,31 @@
  * canonical_json is Python's json.dumps(sort_keys=True, separators=(",", ":"),
  * ensure_ascii=False). JSON.stringify produces the same bytes for the
  * payloads the ledger holds (strings, integers, nested objects).
+ *
+ * Each row is also Ed25519-signed (migrations/014, app/ledger_signing.py)
+ * over canonical_json({v, type, key_id, citizen_id, document_id, row_id,
+ * row_hash}); those are checked with WebCrypto where the browser supports
+ * Ed25519, against the keys the server publishes.
  */
-import type { LedgerEntry } from "@/lib/types";
+import type { LedgerEntry, LedgerResponse } from "@/lib/types";
 
 export const GENESIS_HASH = "0x" + "0".repeat(64);
 
+/** valid: every row signed by a published key · partial: some rows carry no
+ * signature yet · unsupported: this browser has no Ed25519 in WebCrypto. */
+export type SignatureCheck =
+  | { status: "valid"; keyIds: string[] }
+  | { status: "partial"; unsigned: number }
+  | { status: "unsupported" };
+
 export type LedgerCheck =
-  | { status: "verified"; rows: number; head: string; pdfSha256: string | null }
+  | {
+      status: "verified";
+      rows: number;
+      head: string;
+      pdfSha256: string | null;
+      signatures: SignatureCheck;
+    }
   | { status: "broken"; rows: number; reason: string }
   | { status: "unavailable"; reason: string };
 
@@ -50,7 +68,67 @@ async function sha256Hex(text: string): Promise<string> {
   );
 }
 
-export async function verifyLedger(entries: LedgerEntry[]): Promise<LedgerCheck> {
+function b64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
+  const bin = atob(b64);
+  const out = new Uint8Array(new ArrayBuffer(bin.length));
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function ed25519Available(): Promise<boolean> {
+  try {
+    await crypto.subtle.importKey("raw", new Uint8Array(32).fill(1), { name: "Ed25519" }, false, [
+      "verify",
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function checkSignatures(
+  entries: LedgerEntry[],
+  ctx: Pick<LedgerResponse, "citizen_id" | "document_id" | "signing_keys">,
+): Promise<SignatureCheck | string> {
+  if (!(await ed25519Available())) return { status: "unsupported" };
+  const keys = new Map((ctx.signing_keys ?? []).map((k) => [k.key_id, k.public_key]));
+  let unsigned = 0;
+  const used = new Set<string>();
+  for (const [i, e] of entries.entries()) {
+    if (!e.signature || !e.key_id) {
+      unsigned++;
+      continue;
+    }
+    const pub = keys.get(e.key_id);
+    if (!pub) return `Pasul ${i + 1}: semnat cu o cheie nepublicată.`;
+    const statement = canonicalJson({
+      v: 1,
+      type: "egata-ledger-head",
+      key_id: e.key_id,
+      citizen_id: ctx.citizen_id,
+      document_id: ctx.document_id,
+      row_id: e.id,
+      row_hash: e.row_hash,
+    });
+    const key = await crypto.subtle.importKey("raw", b64ToBytes(pub), { name: "Ed25519" }, false, [
+      "verify",
+    ]);
+    const ok = await crypto.subtle.verify(
+      { name: "Ed25519" },
+      key,
+      b64ToBytes(e.signature),
+      new TextEncoder().encode(statement),
+    );
+    if (!ok) return `Pasul ${i + 1}: semnătură invalidă.`;
+    used.add(e.key_id);
+  }
+  return unsigned ? { status: "partial", unsigned } : { status: "valid", keyIds: [...used] };
+}
+
+export async function verifyLedger(
+  entries: LedgerEntry[],
+  ctx?: Pick<LedgerResponse, "citizen_id" | "document_id" | "signing_keys">,
+): Promise<LedgerCheck> {
   if (entries.length === 0) {
     return { status: "unavailable", reason: "Jurnalul este gol." };
   }
@@ -84,6 +162,15 @@ export async function verifyLedger(entries: LedgerEntry[]): Promise<LedgerCheck>
     prev = e.row_hash;
   }
 
+  let signatures: SignatureCheck = { status: "partial", unsigned: entries.length };
+  if (ctx?.citizen_id && ctx.document_id) {
+    const sig = await checkSignatures(entries, ctx);
+    if (typeof sig === "string") {
+      return { status: "broken", rows: entries.length, reason: sig };
+    }
+    signatures = sig;
+  }
+
   const pdfRows = entries.filter((e) => e.event_type === "pdf_generated");
   const pdf = pdfRows[pdfRows.length - 1]?.payload?.pdf_sha256;
   return {
@@ -91,5 +178,6 @@ export async function verifyLedger(entries: LedgerEntry[]): Promise<LedgerCheck>
     rows: entries.length,
     head: prev,
     pdfSha256: typeof pdf === "string" ? pdf : null,
+    signatures,
   };
 }
