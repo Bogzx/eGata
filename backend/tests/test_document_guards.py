@@ -71,3 +71,13 @@ def test_agent_cannot_edit_a_finalized_document() -> None:
         )
     assert result.error
     update.assert_not_called()
+
+
+def test_ref_numbers_do_not_collide_at_realistic_volume() -> None:
+    from uuid import uuid4
+
+    from app.documents import generate_ref_number
+
+    refs = {generate_ref_number(uuid4()) for _ in range(20_000)}
+    assert len(refs) == 20_000  # 4 hex digits collided within a few hundred
+    assert generate_ref_number(UUID("3b66227a-2d74-422e-ba0d-fd6063d7e95d")) == "CV-3B66-227A"
