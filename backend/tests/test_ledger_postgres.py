@@ -265,18 +265,83 @@ def test_every_appended_row_is_signed(pg: Any, citizen_id: UUID) -> None:
     assert not verify_signatures(rows, citizen_id=str(uuid4()), document_id=str(doc))
 
 
-def test_rows_from_before_signing_are_signed_at_startup(pg: Any, citizen_id: UUID) -> None:
+@pytest.fixture
+def watermark(pg: Any) -> Any:
+    """Restore migrations/016's watermark after a test moves it."""
+    with pg.cursor() as cur:
+        cur.execute("select max_id from ledger_legacy_watermark;")
+        saved = cur.fetchone()["max_id"]
+    yield lambda max_id: pg.execute("update ledger_legacy_watermark set max_id = %s;", (max_id,))
+    pg.execute("update ledger_legacy_watermark set max_id = %s;", (saved,))
+
+
+def _raw_append(pg: Any, citizen_id: UUID, doc: UUID, event: str = "doc_created") -> int:
+    """An append that skips the backend, so no signature row: pre-014 history,
+    or someone calling append_ledger() directly."""
+    with pg.cursor() as cur:
+        cur.execute(
+            "select id from append_ledger(%s, %s, %s, '{}');", (str(citizen_id), str(doc), event)
+        )
+        return int(cur.fetchone()["id"])
+
+
+def test_rows_from_before_signing_are_signed_at_startup(
+    pg: Any, citizen_id: UUID, watermark: Any
+) -> None:
     from app.ledger import fetch_ledger_for_document, sign_unsigned_rows, verify_signatures
 
     doc = _new_document(pg, citizen_id)
-    with pg.cursor() as cur:  # an old-style append: no signature row
-        cur.execute(
-            "select * from append_ledger(%s, %s, 'doc_created', '{}');", (str(citizen_id), str(doc))
-        )
+    legacy = _raw_append(pg, citizen_id, doc)
+    watermark(legacy)  # as if this row predated migrations/014
     assert fetch_ledger_for_document(doc)[0]["signature"] is None
     assert sign_unsigned_rows() >= 1
     rows = fetch_ledger_for_document(doc)
     assert verify_signatures(rows, citizen_id=str(citizen_id), document_id=str(doc))
+
+
+def test_a_row_appended_outside_the_backend_is_never_signed(
+    pg: Any, citizen_id: UUID, watermark: Any
+) -> None:
+    """Holding the DB password must not be enough to get a row signed: the
+    startup pass used to sign every unsigned row, including a forged one."""
+    from app.ledger import (
+        LedgerEventType,
+        append_ledger,
+        count_unsigned_after_watermark,
+        fetch_ledger_for_document,
+        sign_unsigned_rows,
+        verify_chain,
+        verify_signatures,
+    )
+
+    doc = _new_document(pg, citizen_id)
+    append_ledger(citizen_id=citizen_id, event_type=LedgerEventType.DOC_CREATED, payload={}, document_id=doc)
+    forged = _raw_append(pg, citizen_id, doc, "delivered")
+    watermark(forged - 1)  # signing has existed since before the forged row
+
+    before = count_unsigned_after_watermark()
+    assert before >= 1
+    sign_unsigned_rows()  # what a restart runs
+
+    rows = fetch_ledger_for_document(doc)
+    assert verify_chain(rows)
+    assert rows[-1]["id"] == forged and rows[-1]["signature"] is None
+    assert not verify_signatures(rows, citizen_id=str(citizen_id), document_id=str(doc))
+    assert count_unsigned_after_watermark() == before
+
+
+@pytest.mark.skipif(not APP_DATABASE_URL, reason="APP_DATABASE_URL (egata_app login) not set")
+def test_app_role_cannot_move_the_watermark() -> None:
+    with psycopg.connect(APP_DATABASE_URL, autocommit=True) as app:
+        assert app.execute("select max_id from ledger_legacy_watermark;").fetchone() is not None
+        for sql in (
+            "update ledger_legacy_watermark set max_id = max_id + 1000",
+            "delete from ledger_legacy_watermark",
+            "insert into ledger_legacy_watermark (singleton, max_id) values (true, 0) "
+            "on conflict (singleton) do update set max_id = 9223372036854775807",
+        ):
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                app.execute(sql)
 
 
 def test_signatures_are_append_only(pg: Any, citizen_id: UUID) -> None:

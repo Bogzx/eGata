@@ -148,7 +148,11 @@ What doesn't hold:
   RFC 3161 TSA, or publishing them somewhere the operator doesn't control, is
   the recommended next step.
 - The database owner or a superuser can still bypass everything at the SQL
-  level. The point is that the application and its credential cannot.
+  level. The point is that the application and its credential cannot. That
+  includes `ledger_legacy_watermark` (`migrations/016`): an owner who raises
+  it gets the backend to sign rows up to the new mark at its next start.
+  Once an upgraded deployment has signed its history, nothing below the
+  mark is unsigned, so this only matters for rows the owner appends.
 
 **The reminders worker runs in-process, but is replica-safe.** `APScheduler`
 runs inside each FastAPI process. Each tick takes a Postgres advisory lock,
@@ -559,7 +563,11 @@ row_hash = sha256(event_type || payload_hash || prev_hash || ts_iso)
   listed in `LEDGER_RETIRED_PUBLIC_KEYS`, are served unauthenticated at
   `GET /.well-known/egata-ledger-keys.json` and embedded in every ledger
   response. Rows from before signing existed are signed at the next backend
-  start (`ledger_signatures.signed_at` shows when).
+  start (`ledger_signatures.signed_at` shows when), but only up to the
+  watermark `migrations/016` recorded: a later row without a signature was
+  not appended by the backend, stays unverifiable, and is reported as an
+  ERROR at every start. (Before 016, a restart signed whatever unsigned rows
+  it found, including one appended with just the database password.)
 - `GET /documents/{id}/ledger` returns the rows — with each `payload` and
   `hashed_at`, the exact timestamp string inside `row_hash` — **and** a
   `verified: bool` recomputed server-side. The documents drawer does not rely
@@ -879,7 +887,8 @@ Nothing has to change for an existing deployment to keep working.
 - **Compose:** `docker compose up --build`. `migrate` applies 014 and gives
   `egata_app` a login from `APP_DB_PASSWORD`. The backend reconnects as
   `egata_app`, generates a signing key into the `egata-keys` volume and signs
-  the existing history on first start.
+  the existing history on first start (the rows `migrations/016` marked as
+  predating signatures, and no others).
 - **A backend connecting as the owner** (e.g. a Supabase project using the
   `postgres` user) keeps working unchanged: owners bypass the new grants and
   policies. It signs the existing history at its next start and logs

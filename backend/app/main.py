@@ -116,7 +116,7 @@ def _check_ledger_setup() -> None:
     before migrations/014, and say so if the backend connects with rights
     that could bypass the ledger's protections."""
     from app.db import get_pg_connection
-    from app.ledger import sign_unsigned_rows
+    from app.ledger import count_unsigned_after_watermark, sign_unsigned_rows
     from app.ledger_signing import signing_key
 
     key = signing_key()
@@ -125,6 +125,14 @@ def _check_ledger_setup() -> None:
         signed = sign_unsigned_rows()
         if signed:
             log.warning("ledger: signed %d rows written before signing existed", signed)
+        foreign = count_unsigned_after_watermark()
+        if foreign:
+            log.error(
+                "ledger: %d rows carry no signature although they are newer than the "
+                "signed history — they were appended outside the backend (a direct "
+                "append_ledger() call) and stay unverifiable. Investigate.",
+                foreign,
+            )
         with get_pg_connection() as conn, conn.cursor() as cur:
             cur.execute(
                 "select current_user as me, "

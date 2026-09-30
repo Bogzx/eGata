@@ -122,33 +122,60 @@ def fetch_ledger_for_document(document_id: UUID | str) -> list[dict[str, Any]]:
         return list(cur.fetchall())
 
 
-def sign_unsigned_rows(limit: int = 1000) -> int:
-    """Sign rows written before migrations/014 (or by a key-less process).
+def sign_unsigned_rows(batch: int = 1000) -> int:
+    """Sign the history written before rows were signed on append.
 
     Run at startup, so upgrading a deployment attests its existing history;
-    ledger_signatures.signed_at records when. Returns how many were signed.
+    ledger_signatures.signed_at records when. Only rows up to the watermark
+    migrations/016 recorded are eligible: every later row was signed when it
+    was appended, so a later unsigned row came from outside the backend
+    (a direct append_ledger() call) and signing it would launder it. Those
+    are left unsigned, and so unverifiable, and counted by
+    `count_unsigned_after_watermark`. Returns how many rows were signed.
     """
+    signed = 0
+    with get_pg_connection() as conn, conn.cursor() as cur:
+        cur.execute("select max_id from ledger_legacy_watermark;")
+        mark = cur.fetchone()
+        if mark is None:
+            return 0
+        while True:
+            cur.execute(
+                "select l.id, l.citizen_id, l.document_id, l.row_hash from ledger l "
+                "where l.id <= %s and not exists "
+                "(select 1 from ledger_signatures s where s.ledger_id = l.id) "
+                "order by l.id limit %s;",
+                (int(mark["max_id"]), batch),
+            )
+            rows = cur.fetchall()
+            for r in rows:
+                key_id, signature = sign_row(
+                    citizen_id=str(r["citizen_id"]),
+                    document_id=str(r["document_id"]) if r["document_id"] else None,
+                    row_id=int(r["id"]), row_hash=str(r["row_hash"]),
+                )
+                cur.execute(
+                    "insert into ledger_signatures (ledger_id, key_id, signature) "
+                    "values (%s, %s, %s) on conflict (ledger_id) do nothing;",
+                    (int(r["id"]), key_id, signature),
+                )
+            conn.commit()
+            signed += len(rows)
+            if len(rows) < batch:
+                return signed
+
+
+def count_unsigned_after_watermark() -> int:
+    """Rows the backend did not append: unsigned, and newer than the history
+    migrations/016 marked as predating signatures."""
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
-            "select l.id, l.citizen_id, l.document_id, l.row_hash from ledger l "
-            "where not exists (select 1 from ledger_signatures s where s.ledger_id = l.id) "
-            "order by l.id limit %s;",
-            (limit,),
+            "select count(*) as n from ledger l "
+            "where l.id > (select max_id from ledger_legacy_watermark) and not exists "
+            "(select 1 from ledger_signatures s where s.ledger_id = l.id);"
         )
-        rows = cur.fetchall()
-        for r in rows:
-            key_id, signature = sign_row(
-                citizen_id=str(r["citizen_id"]),
-                document_id=str(r["document_id"]) if r["document_id"] else None,
-                row_id=int(r["id"]), row_hash=str(r["row_hash"]),
-            )
-            cur.execute(
-                "insert into ledger_signatures (ledger_id, key_id, signature) "
-                "values (%s, %s, %s) on conflict (ledger_id) do nothing;",
-                (int(r["id"]), key_id, signature),
-            )
-        conn.commit()
-    return len(rows)
+        row = cur.fetchone()
+    return int(row["n"]) if row else 0
 
 
 def sha256_hex(data: bytes) -> str:
