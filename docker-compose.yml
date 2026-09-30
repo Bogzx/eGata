@@ -99,7 +99,6 @@ services:
       DEMO_RESET_TOKEN: ${DEMO_RESET_TOKEN:-}
 
       JWT_SIGNING_SECRET: ${JWT_SIGNING_SECRET:-dev-only-not-a-secret}
-      LEDGER_GENESIS_HASH: ${LEDGER_GENESIS_HASH:-0x0000000000000000000000000000000000000000000000000000000000000000}
       ALLOW_ORIGINS: ${ALLOW_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
 
       # Agent chat only. Everything else runs without these.

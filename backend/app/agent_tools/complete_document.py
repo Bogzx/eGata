@@ -32,6 +32,7 @@ from app.documents import (
     fetch_phone_for_citizen,
     finalize_document,
     generate_ref_number,
+    pdf_generated_payload,
     send_delivery_sms,
     set_document_pdf_url,
 )
@@ -182,13 +183,11 @@ async def execute(
     object_path = pdf_object_path(session.citizen_id, doc_id)
     await asyncio.to_thread(upload_pdf_to_storage, object_path, pdf_bytes)
     await asyncio.to_thread(set_document_pdf_url, doc_uuid, object_path)
-    # The ledger stores the location, never the signed link: ledger rows are
-    # permanent and a credential-bearing URL in one outlives its own expiry.
     await asyncio.to_thread(
         append_ledger,
         citizen_id=citizen_uuid,
         event_type=LedgerEventType.PDF_GENERATED,
-        payload={"document_id": doc_id, "object_path": object_path},
+        payload=pdf_generated_payload(doc_id, object_path, pdf_bytes, fields),
         document_id=doc_uuid,
     )
     pdf_url = await asyncio.to_thread(create_signed_pdf_url, object_path) or ""

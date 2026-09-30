@@ -12,8 +12,7 @@ from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
-from app.config import get_settings
-from app.ledger import compute_payload_hash, compute_row_hash
+from app.ledger import GENESIS_HASH, compute_payload_hash, compute_row_hash
 from app.main import app
 
 CITIZEN = UUID("11111111-1111-1111-1111-111111111111")
@@ -27,7 +26,7 @@ def _chain_for_document(document_id: str) -> list[dict]:
     timestamp inside row_hash is the one stored, and `ts_iso` is the string
     the SQL side hashed.
     """
-    genesis = get_settings().ledger_genesis_hash
+    genesis = GENESIS_HASH
     events = [
         ("doc_created", {"document_id": document_id, "procedure_id": "schimbare-domiciliu"}),
         ("completed_draft", {"document_id": document_id}),

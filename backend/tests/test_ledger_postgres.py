@@ -71,7 +71,7 @@ def _new_document(pg: Any, citizen_id: UUID) -> UUID:
 def test_interleaved_documents_verify_against_real_postgres(
     pg: Any, citizen_id: UUID
 ) -> None:
-    from app.config import get_settings
+    from app.ledger import GENESIS_HASH
     from app.ledger import (
         LedgerEventType,
         append_ledger,
@@ -99,7 +99,7 @@ def test_interleaved_documents_verify_against_real_postgres(
             document_id=doc,
         )
 
-    genesis = get_settings().ledger_genesis_hash
+    genesis = GENESIS_HASH
     rows_a = fetch_ledger_for_document(doc_a)
     rows_b = fetch_ledger_for_document(doc_b)
 
@@ -114,7 +114,7 @@ def test_interleaved_documents_verify_against_real_postgres(
 def test_citizen_scoped_rows_do_not_join_a_document_chain(
     pg: Any, citizen_id: UUID
 ) -> None:
-    from app.config import get_settings
+    from app.ledger import GENESIS_HASH
     from app.ledger import (
         LedgerEventType,
         append_ledger,
@@ -136,7 +136,7 @@ def test_citizen_scoped_rows_do_not_join_a_document_chain(
         document_id=doc,
     )
 
-    genesis = get_settings().ledger_genesis_hash
+    genesis = GENESIS_HASH
     rows = fetch_ledger_for_document(doc)
     assert len(rows) == 1
     assert rows[0]["prev_hash"] == genesis
