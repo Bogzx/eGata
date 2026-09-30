@@ -108,7 +108,7 @@ export function DocumentsDrawer() {
         setLedger(r.entries);
         setServerVerified(r.verified);
         // Don't take the server's flag on trust: re-derive every hash here.
-        return verifyLedger(r.entries).then(setLedgerCheck);
+        return verifyLedger(r.entries, r).then(setLedgerCheck);
       })
       .catch(() => setLedger([]));
     requestAnimationFrame(() =>
@@ -545,6 +545,16 @@ function LedgerStatus({
         <div className="font-medium text-green-700">
           ✓ Verificat în browserul tău: {check.rows} pași, lanț intact.
         </div>
+        {check.signatures.status === "valid" ? (
+          <div title={check.signatures.keyIds.join(", ")}>
+            ✓ Fiecare pas e semnat digital de primărie (cheia{" "}
+            <code>{check.signatures.keyIds.map((k) => k.slice(-8)).join(", ")}</code>).
+          </div>
+        ) : check.signatures.status === "partial" ? (
+          <div>{check.signatures.unsigned} pași nu sunt încă semnați.</div>
+        ) : (
+          <div>Browserul nu poate verifica semnăturile Ed25519.</div>
+        )}
         {check.pdfSha256 ? (
           <div title={check.pdfSha256}>
             Amprenta PDF (SHA-256): <code>{shortHash(check.pdfSha256)}</code>
