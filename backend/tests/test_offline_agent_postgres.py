@@ -199,3 +199,17 @@ def test_streaming_endpoint_in_offline_mode(client: Any) -> None:
     frames = [line.split(": ", 1)[1] for line in r.text.splitlines() if line.startswith("event: ")]
     assert frames[0] == "conversation"
     assert "frontend_event" in frames and frames[-1] == "done"
+
+
+def test_address_parts_are_prefilled_not_asked(client: Any) -> None:
+    """A citizen whose profile address is one string gets street / number /
+    locality / county filled from it (app/address.py) instead of being asked."""
+    chat = Chat(client, _citizen())
+    chat.say("am pierdut buletinul")
+    opened = chat.say("da")
+    doc = client.get(f"/documents/{chat.session().active_document_id}", headers=chat.h).json()
+    assert doc["fields"]["strada"] == "Veche"
+    assert doc["fields"]["numar"] == "1"
+    assert doc["fields"]["localitate"] == "Cluj-Napoca"
+    assert doc["fields"]["judet"] == "Cluj"
+    assert "Strada?" not in opened["message"]

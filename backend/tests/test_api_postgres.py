@@ -246,3 +246,28 @@ def test_real_sms_challenges_are_rate_limited(api: Any, monkeypatch: pytest.Monk
         auth.issue_otp(cid, "+40700000000")
     assert exc.value.status_code == 429
     assert len(sent) == auth.MAX_SMS_CHALLENGES
+
+
+def test_login_stores_the_address_parts(api: Any) -> None:
+    from app.citizens import ADDRESS_PARTS_KEY
+
+    # Bootstrap stored the parts at seed time; drop them so login must.
+    with psycopg.connect(TEST_DATABASE_URL, autocommit=True) as conn:
+        conn.execute(
+            "update citizens set attributes = attributes - %s where cnp = '1900512123456';",
+            (ADDRESS_PARTS_KEY,),
+        )
+    r = api.post("/auth/login-roeid", json={"persona_id": "andrei-popa"})
+    ch = r.json()["challenge_id"]
+    otp = api.post("/auth/otp", json={"challenge_id": ch, "code": "123456"})
+    assert otp.status_code == 200
+    with psycopg.connect(TEST_DATABASE_URL) as conn:
+        attrs = conn.execute(
+            "select attributes from citizens where cnp = '1900512123456';"
+        ).fetchone()[0]
+    stored = attrs[ADDRESS_PARTS_KEY]
+    assert stored["from"] == attrs["current_address"]
+    assert stored["parts"]["strada"] == "Memorandumului"
+
+    me = api.get("/citizens/me", headers={"Authorization": f"Bearer {otp.json()['access_token']}"})
+    assert me.json()["attributes"]["numar"] == "12"
