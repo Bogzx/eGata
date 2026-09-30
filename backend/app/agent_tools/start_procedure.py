@@ -18,8 +18,9 @@ from __future__ import annotations
 from uuid import UUID
 
 from app.agent_tools import Tool, ToolContext, ToolResult, register
-from app.documents import insert_document
+from app.documents import insert_document, update_document_fields
 from app.ledger import LedgerEventType, append_ledger
+from app.procedure_state import autofill_candidates
 from app.procedures import get_registry
 from app.sessions import Session, SessionState
 
@@ -45,13 +46,23 @@ async def execute(
         document_id=UUID(doc_id),
     )
 
+    # Fill what the profile already answers (name, CNP, address, ...) here,
+    # deterministically, instead of asking the model to copy each value with
+    # set_field. Fewer turns, and the values never have to round-trip
+    # through the model to land in the form.
+    fields = doc.get("fields") or {}
+    prefill = autofill_candidates(reg[procedure_id], fields, ctx.citizen_attributes)
+    if prefill:
+        fields = update_document_fields(UUID(doc_id), prefill).get("fields") or {}
+
     session.active_document_id = doc_id
     return ToolResult(
         output={
             "document_id": doc_id,
             "procedure_id": procedure_id,
             "title": reg[procedure_id].title,
-            "fields": doc.get("fields") or {},
+            "fields": fields,
+            "prefilled_from_profile": sorted(prefill),
         },
         transition_to=SessionState.FILLING,
         frontend_event={
