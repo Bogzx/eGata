@@ -144,7 +144,7 @@ process, so two replicas would do the work twice. Fine for one container.
                 ┌──────────────────────────────────────────────────┐
                 │  Next.js 15 · React 19 · Zustand · Tailwind      │
    Browser ────►│  /  ·  /login  ·  /home  ·  /req/[id]  ·  /doc   │
-   (voice+text) │  ChatSurface ─ RightPane ─ Widgets ─ AuditTimeline│
+   (voice+text) │  ChatSurface ─ RightPane ─ Widgets ─ DocsDrawer   │
                 └─────┬────────────────────────────────────────────┘
                       │ HTTPS (Bearer JWT)   WebSocket (PCM16)
                       ▼
@@ -292,7 +292,8 @@ npm run dev                                            # http://localhost:3000
 6. Confirm match → agent fills auto-known fields, asks via inline widgets for the rest
 7. Once required fields are set, the **save / send / print** delivery buttons appear
 8. After delivery, the ref number (`CV-XXXX`) appears and the ledger records the event
-9. Click the document on `/home` to see the full `AuditTimeline` (every hashed event)
+9. Open **Documentele mele** and click the document: its audit history, re-verified
+   in your browser (WebCrypto), with the PDF's SHA-256 and the head hash to keep
 
 ### Frontend-only dev (no backend)
 
@@ -513,7 +514,10 @@ row_hash = sha256(event_type || payload_hash || prev_hash || ts_iso)
   `POST /demo/reset` appends a `demo_reset` marker rather than deleting.
 - `GET /documents/{id}/ledger` returns the rows — with each `payload` and
   `hashed_at`, the exact timestamp string inside `row_hash` — **and** a
-  `verified: bool` recomputed server-side, which the AuditTimeline UI shows.
+  `verified: bool` recomputed server-side. The documents drawer does not rely
+  on that flag: `frontend/lib/ledgerVerify.ts` re-derives every hash in the
+  browser and shows the result, the PDF fingerprint and the head hash (the
+  server flag is only a fallback when WebCrypto is unavailable).
 - Don't take the server's word for it:
 
   ```bash
