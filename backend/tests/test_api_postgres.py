@@ -211,3 +211,35 @@ def test_otp_guessing_is_capped(api: Any, monkeypatch: pytest.MonkeyPatch) -> No
         assert api.post("/auth/otp", json={"challenge_id": ch, "code": "000000"}).status_code == 401
     r = api.post("/auth/otp", json={"challenge_id": ch, "code": "123456"})
     assert r.status_code == 401
+
+
+def test_real_sms_challenges_are_rate_limited(api: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """With MOCK_OTP off every challenge is a paid SMS; cap them per citizen."""
+    from app import auth
+    from app.config import get_settings
+
+    monkeypatch.setenv("MOCK_OTP", "0")
+    get_settings.cache_clear()
+    sent: list[str] = []
+
+    class FakeVerify:
+        def __getattr__(self, _name: str) -> Any:
+            return self
+
+        def __call__(self, *_a: Any, **_k: Any) -> Any:
+            return self
+
+        def create(self, to: str, channel: str) -> Any:
+            sent.append(to)
+            return type("V", (), {"sid": "VE1", "status": "pending"})()
+
+    monkeypatch.setattr(auth, "TwilioClient", lambda *_a, **_k: type("C", (), {"verify": FakeVerify()})())
+    cid = _citizen()
+    for _ in range(auth.MAX_SMS_CHALLENGES):
+        auth.issue_otp(cid, "+40700000000")
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc:
+        auth.issue_otp(cid, "+40700000000")
+    assert exc.value.status_code == 429
+    assert len(sent) == auth.MAX_SMS_CHALLENGES

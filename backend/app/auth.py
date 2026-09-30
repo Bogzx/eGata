@@ -27,6 +27,11 @@ log = logging.getLogger("auth")
 DEFAULT_DEMO_PERSONA = "maria-ionescu"
 MOCK_OTP_CODE = "123456"
 CHALLENGE_TTL_SECONDS = 300
+# Real SMS challenges per citizen per window. Each one is a paid Twilio
+# Verify message to the citizen's phone, and /auth/login-roeid needs only a
+# persona name — without a cap it is an SMS cannon aimed at that number.
+MAX_SMS_CHALLENGES = 5
+SMS_CHALLENGE_WINDOW_SECONDS = 600
 # Wrong codes allowed per challenge before it is burned (migrations/013).
 # Five guesses at a 6-digit code is a 1-in-200,000 chance per challenge.
 MAX_OTP_ATTEMPTS = 5
@@ -68,6 +73,22 @@ def fetch_citizen_by_mrz(cnp: str, nume: str, prenume: str) -> dict[str, Any]:
     return dict(row)
 
 
+def _enforce_sms_budget(citizen_id: UUID | str) -> None:
+    with get_pg_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            "select count(*) as n from otp_challenges "
+            "where citizen_id = %s and created_at > now() - make_interval(secs => %s);",
+            (str(citizen_id), SMS_CHALLENGE_WINDOW_SECONDS),
+        )
+        row = cur.fetchone()
+    if row is not None and int(row["n"]) >= MAX_SMS_CHALLENGES:
+        log.warning("issue_otp: SMS budget exhausted citizen=%s", citizen_id)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Prea multe coduri trimise. Încearcă din nou peste câteva minute.",
+        )
+
+
 def issue_otp(citizen_id: UUID | str, phone: str) -> str:
     settings = get_settings()
     challenge_id = f"ch_{secrets.token_urlsafe(12)}"
@@ -82,6 +103,7 @@ def issue_otp(citizen_id: UUID | str, phone: str) -> str:
     )
 
     if not settings.mock_otp:
+        _enforce_sms_budget(citizen_id)
         try:
             client = TwilioClient(settings.twilio_account_sid, settings.twilio_auth_token)
             verification = client.verify.v2.services(
