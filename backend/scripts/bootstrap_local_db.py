@@ -16,8 +16,9 @@ Two things happen here that `apply_migrations.py` alone could not:
    Supabase. On a plain server we install a stub returning NULL first, so the
    policies apply. They are inert either way — the backend connects as the
    owner and bypasses RLS (see the README's security note).
-2. It reports what is and is not usable offline, because the honest answer is
-   "everything except the agent chat, which needs an Azure OpenAI key".
+2. It (re)builds the offline procedure-search index (app/local_embeddings.py)
+   so the chat works with no API key — the offline agent
+   (app/offline_agent.py) searches it — and reports what is usable.
 """
 from __future__ import annotations
 
@@ -142,24 +143,36 @@ def main() -> int:
                 "insert into schema_migrations (filename) values (%s);", (path.name,)
             )
 
-        citizens = _count(cur, "citizens")
-        rag = _count(cur, "rag_entries")
+        # Cheap (a few dozen rows, no network) and keeps the offline index in
+        # step with procedure/scenario JSON edits on every start.
+        from scripts.index_rag import index_local
 
+        local_indexed = index_local(conn)
+
+        citizens = _count(cur, "citizens")
+        cur.execute("select count(*) from rag_entries where embedding_model = 'azure';")
+        row = cur.fetchone()
+        azure_rag = int(row[0]) if row else 0
+
+    has_key = bool(os.environ.get("AZURE_OPENAI_API_KEY", "").strip())
     print()
     print(f"Schema ready. {citizens} demo citizens seeded.")
+    print(f"Offline procedure index: {local_indexed} entries.")
     print()
-    print("Works offline, no API keys needed:")
+    print("Works with no API keys:")
     print("  login (mock OTP 123456) · profile · procedure catalogue ·")
-    print("  document create/fill · pdflatex render · delivery · audit ledger")
+    print("  document create/fill · pdflatex render · delivery · audit ledger ·")
+    print("  text chat with the OFFLINE agent (scripted, keyword search — not an LLM)")
     print()
-    if rag == 0:
-        print("NOT usable yet — the agent chat:")
-        print("  rag_entries is empty, so lookup_procedure has nothing to match")
-        print("  against. It needs embeddings, which need a paid Azure OpenAI")
-        print("  key. With AZURE_OPENAI_* set in .env, run:")
+    if not has_key:
+        print("Needs Azure: the LLM agent and voice. Put AZURE_OPENAI_* in .env,")
+        print("restart, and build the Azure index once:")
+        print("      docker compose run --rm migrate python -m scripts.index_rag")
+    elif azure_rag == 0:
+        print("AZURE_OPENAI_API_KEY is set but the Azure index is empty. Build it:")
         print("      docker compose run --rm migrate python -m scripts.index_rag")
     else:
-        print(f"RAG index: {rag} entries. Agent chat also needs AZURE_OPENAI_API_KEY.")
+        print(f"Azure index: {azure_rag} entries. The LLM agent is active.")
     return 0
 
 
