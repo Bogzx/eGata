@@ -130,6 +130,10 @@ class Settings(BaseSettings):
     )
     public_base_url: str = Field(default="http://localhost:8000")
     twilio_bridge_public_url: str = Field(default="")
+    # The exact URL Twilio POSTs the voice webhook to (as configured in the
+    # Twilio console). Needed behind a proxy/tunnel, where the URL the app
+    # sees differs from the one Twilio signed. Empty = use the request URL.
+    twilio_webhook_public_url: str = Field(default="")
 
 
 

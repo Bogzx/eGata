@@ -387,6 +387,10 @@ Two parallel bridges, both backed by **Azure VoiceLive** (`gpt-realtime`):
      24 kHz for Azure (`audioop`).
    - Tool allowlist is restricted to `{lookup_procedure, find_redirect}` —
      **no document writes from a phone session** (no consent surface).
+   - Only Twilio can open it: the webhook verifies `X-Twilio-Signature`
+     (and without `TWILIO_AUTH_TOKEN` never reveals the stream URL), and the
+     TwiML carries a 2-minute HMAC token bound to the CallSid that the socket
+     checks in the `start` frame before starting a (billed) VoiceLive session.
 
 ### Procedures, scenarios, institutions
 
