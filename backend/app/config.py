@@ -213,3 +213,25 @@ def insecure_settings_warnings(settings: Settings | None = None) -> list[str]:
     if "*" in [o.strip() for o in s.allow_origins.split(",")]:
         out.append("ALLOW_ORIGINS contains '*'.")
     return out
+
+
+def backend_choice_warnings(settings: Settings | None = None) -> list[str]:
+    """`auto` choices that probably are not what the operator meant.
+
+    AGENT_BACKEND=auto picks the offline script whenever the API key is empty
+    and never falls back at runtime, so a deployment whose key secret failed
+    to load (endpoint set, key blank) would quietly serve the scripted agent.
+    """
+    s = settings or get_settings()
+    out: list[str] = []
+    if (
+        (s.agent_backend or "auto").strip().lower() == "auto"
+        and s.azure_openai_endpoint.strip()
+        and not s.azure_openai_api_key
+    ):
+        out.append(
+            "AZURE_OPENAI_ENDPOINT is set but AZURE_OPENAI_API_KEY is empty, so "
+            "AGENT_BACKEND=auto chose the OFFLINE scripted agent, not the LLM. Set the "
+            "key, or AGENT_BACKEND=offline to make this deliberate."
+        )
+    return out

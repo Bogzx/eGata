@@ -80,7 +80,7 @@ from app.agent import router as agent_router
 from app.agent_voice import router as agent_voice_router
 from app.auth import router as auth_router
 from app.citizens import router as citizens_router
-from app.config import get_settings, insecure_settings_warnings
+from app.config import backend_choice_warnings, get_settings, insecure_settings_warnings
 from app.demo import router as demo_router
 from app.documents import router as documents_router
 from app.files import router as files_router
@@ -97,6 +97,8 @@ log.info("logging configured level=%s", os.environ.get("LOG_LEVEL", "INFO").uppe
 settings = get_settings()
 for _warning in insecure_settings_warnings(settings):
     log.warning("INSECURE CONFIG: %s", _warning)
+for _warning in backend_choice_warnings(settings):
+    log.warning("CONFIG: %s", _warning)
 
 
 # Sentry init (Plan 4). Guarded by SENTRY_DSN so missing dep is a no-op.
