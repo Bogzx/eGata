@@ -111,7 +111,7 @@ def make_3mp_header(barcode_code: str | None, has_stema: bool) -> str:
             "\\noindent\n"
             "\\begin{minipage}[t]{0.40\\textwidth}\n"
             "\\vspace{0pt}\n"
-            f"\\includegraphics[height=1.5cm]{{../assets/stema-cluj.png}}%\n"
+            "\\includegraphics[height=1.5cm]{../assets/stema-cluj.png}%\n"
             "\\hspace{0.2cm}%\n"
             "\\raisebox{0.5cm}{\\parbox[t]{3.5cm}{\\textbf{PRIMĂRIA}\\\\\\textbf{CLUJ-NAPOCA}}}\n"
             "\\end{minipage}%\n"

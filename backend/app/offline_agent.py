@@ -517,7 +517,8 @@ async def step(
     log.info("offline: conv=%s state=%s msg_len=%d", session.id, state.value, len(message))
 
     try:
-        if folded and any(folded == r or folded.startswith(r + " ") for r in _RESET) and state != SessionState.EXPLORING:
+        wants_reset = any(folded == r or folded.startswith(r + " ") for r in _RESET)
+        if folded and wants_reset and state != SessionState.EXPLORING:
             await _reset(turn)
         elif state == SessionState.FILLING:
             await _fill(turn, message)

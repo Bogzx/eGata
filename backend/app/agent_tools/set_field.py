@@ -16,13 +16,13 @@ from uuid import UUID
 from app.agent_tools import Tool, ToolContext, ToolResult, register
 from app.documents import fetch_document, update_document_fields
 from app.ledger import LedgerEventType, append_ledger
-from app.procedures import get_registry
 from app.procedure_state import (
     FieldValidationError,
     all_required_satisfied,
     coerce_field_value,
     validate_field_value,
 )
+from app.procedures import get_registry
 from app.sessions import Session, SessionState
 
 

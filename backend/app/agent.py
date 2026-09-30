@@ -37,7 +37,7 @@ from app.models import (
     WidgetResultResponse,
 )
 from app.security import current_citizen_id
-from app.session_engine import Event, step
+from app.session_engine import step
 from app.sessions import (
     IllegalTransitionError,
     Session,
@@ -151,7 +151,7 @@ def _resolve_session(req: AgentChatRequest, citizen_id: UUID) -> Session:
 
 
 def _sse(event: str, data: dict) -> bytes:
-    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n".encode("utf-8")
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n".encode()
 
 
 async def _stream_turn(

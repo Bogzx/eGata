@@ -22,11 +22,10 @@ import json
 import logging
 import secrets
 import time
-from xml.sax.saxutils import quoteattr
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable
-
-from fastapi import APIRouter, Request, Response, WebSocket, WebSocketDisconnect
+from typing import Any
+from xml.sax.saxutils import quoteattr
 
 from azure.ai.voicelive.aio import connect as voicelive_connect
 from azure.ai.voicelive.models import (
@@ -42,8 +41,10 @@ from azure.ai.voicelive.models import (
     RequestSession,
     ServerEventType,
 )
+from fastapi import APIRouter, Request, Response, WebSocket, WebSocketDisconnect
 
-from app.agent_tools import REGISTRY as TOOLS_REGISTRY, ToolContext, dispatch
+from app.agent_tools import REGISTRY as TOOLS_REGISTRY
+from app.agent_tools import ToolContext, dispatch
 from app.azure_clients import get_voicelive_credential, tools_for_realtime
 from app.config import get_settings
 from app.prompts import build_system_prompt
@@ -184,7 +185,6 @@ async def _run_phone_voicelive_session(
             )
 
         async def pump_inbound() -> None:
-            in_state: Any = None
             while not stop_event.is_set():
                 pcm24k = await inbound.get()
                 if pcm24k is None:
@@ -417,7 +417,7 @@ async def twilio_media_stream(ws: WebSocket) -> None:
 
     try:
         start_msg = await _await_authorized_start(ws)
-    except (asyncio.TimeoutError, WebSocketDisconnect, json.JSONDecodeError):
+    except (TimeoutError, WebSocketDisconnect, json.JSONDecodeError):
         start_msg = None
     if start_msg is None:
         log.warning("twilio_ws: refused from=%s (no valid stream token)", client)
@@ -597,9 +597,7 @@ def _bridge_is_healthy() -> bool:
         return False
     # Without the auth token the webhook cannot tell Twilio from anyone else,
     # so it never hands out the stream URL (fail closed).
-    if not settings.twilio_auth_token:
-        return False
-    return True
+    return bool(settings.twilio_auth_token)
 
 
 @router.post("/voice/twilio/webhook")

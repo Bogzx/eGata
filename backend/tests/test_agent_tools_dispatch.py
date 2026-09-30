@@ -12,7 +12,6 @@ DB + storage harness exists. Here we cover:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
 
 import pytest
 
@@ -21,6 +20,7 @@ from app.agent_tools import (
     Tool,
     ToolContext,
     ToolResult,
+    UnknownToolError,
     dispatch,
     permitted_tools,
     register,
@@ -114,7 +114,7 @@ def test_dispatch_swallows_illegal_transition_gracefully():
 
 def test_dispatch_unknown_tool_raises():
     sess = Session(id="s", citizen_id="c")
-    with pytest.raises(Exception):
+    with pytest.raises(UnknownToolError):
         asyncio.run(dispatch(sess, "no_such_tool", {}, _ctx()))
 
 

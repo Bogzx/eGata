@@ -5,7 +5,6 @@ uses to decide which next_steps spawn reminders for a given citizen.
 """
 from app.reminders import _select_applicable_steps, _step_identity
 
-
 PROCEDURE_STEPS = [
     {
         "kind": "in_scope_procedure",

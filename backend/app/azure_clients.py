@@ -20,7 +20,6 @@ from openai import AsyncAzureOpenAI
 
 from app.config import get_settings
 
-
 # ---- AsyncAzureOpenAI (chat + embeddings) ----
 
 

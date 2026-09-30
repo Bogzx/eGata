@@ -23,7 +23,7 @@ FORM = {"CallSid": "CA123", "From": "+40700000000", "To": "+40711111111"}
 
 
 @pytest.fixture
-def configured(monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+def _configured(monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
     monkeypatch.setenv("TWILIO_AUTH_TOKEN", AUTH_TOKEN)
     monkeypatch.setenv("AZURE_VOICELIVE_API_KEY", "k")
     monkeypatch.setenv("TWILIO_BRIDGE_PUBLIC_URL", "wss://example.test/voice/twilio")
@@ -36,12 +36,14 @@ def _signed(params: dict[str, str]) -> dict[str, str]:
     return {"X-Twilio-Signature": RequestValidator(AUTH_TOKEN).compute_signature(HOOK, params)}
 
 
-def test_webhook_refuses_a_forged_request(configured: None) -> None:
+@pytest.mark.usefixtures("_configured")
+def test_webhook_refuses_a_forged_request() -> None:
     r = TestClient(app).post(HOOK, data=FORM, headers={"X-Twilio-Signature": "forged"})
     assert r.status_code == 403
 
 
-def test_webhook_answers_twilio_with_a_stream_token(configured: None) -> None:
+@pytest.mark.usefixtures("_configured")
+def test_webhook_answers_twilio_with_a_stream_token() -> None:
     r = TestClient(app).post(HOOK, data=FORM, headers=_signed(FORM))
     assert r.status_code == 200
     assert 'url="wss://example.test/voice/twilio"' in r.text

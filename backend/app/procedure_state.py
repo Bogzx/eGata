@@ -21,8 +21,9 @@ like `tip_proprietate == 'găzduit'` triggering an `anexa_2_signer` field.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any
 
 from app.applies_if import evaluate
 from app.models import Procedure, ProcedureField
@@ -41,7 +42,7 @@ class FieldStates:
     missing: list[str] = field(default_factory=list)
     dropped: list[str] = field(default_factory=list)
     # full per-field map for callers that need detail
-    per_field: dict[str, "PerFieldState"] = field(default_factory=dict)
+    per_field: dict[str, PerFieldState] = field(default_factory=dict)
 
 
 @dataclass
@@ -153,12 +154,11 @@ def validate_field_value(procedure: Procedure, name: str, value: Any) -> None:
         raise FieldValidationError(
             f"Valoarea pentru '{name}' depășește {MAX_FIELD_LENGTH} de caractere."
         )
-    if fld.options is not None and isinstance(value, str):
-        if value not in fld.options:
-            raise FieldValidationError(
-                f"Valoare invalidă pentru '{name}': "
-                f"{value!r} nu este în {fld.options}."
-            )
+    if fld.options is not None and isinstance(value, str) and value not in fld.options:
+        raise FieldValidationError(
+            f"Valoare invalidă pentru '{name}': "
+            f"{value!r} nu este în {fld.options}."
+        )
 
 
 _TRUE_TOKENS = {"true", "adevărat", "adevarat", "da", "yes"}

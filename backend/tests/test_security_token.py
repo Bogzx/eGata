@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import time
 
+import jwt
 import pytest
 from fastapi import HTTPException
-import jwt
 
 from app.config import get_settings
 from app.security import decode_token, mint_access_token
