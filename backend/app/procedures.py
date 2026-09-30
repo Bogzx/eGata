@@ -7,7 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 
 from app.embeddings import embed_text, search_top_k
 from app.models import (
@@ -87,14 +87,12 @@ def get_procedure(procedure_id: str) -> ResolvedProcedure:
 def preview_pdf(
     procedure_id: str,
     citizen_id: UUID = Depends(current_citizen_id),
-):
+) -> Response:
     """Render the procedure's LaTeX template populated with the citizen's
     profile (and `default_from` chains) so the user can see exactly what
     PDF would land in their inbox at the end of the conversation. Used by
     the "Vezi documentul" preview popup in MatchesPane.
     """
-    from fastapi import Response
-
     from app.citizens import fetch_citizen_by_id
     from app.pdf import render_and_compile
 

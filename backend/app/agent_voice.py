@@ -447,7 +447,7 @@ class VoiceBridgeSession:
             )
             return
         try:
-            import azure.cognitiveservices.speech as speechsdk  # type: ignore
+            import azure.cognitiveservices.speech as speechsdk
         except ImportError:
             log.warning(
                 "voice_ws: azure-cognitiveservices-speech not installed, "

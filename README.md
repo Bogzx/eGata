@@ -786,7 +786,10 @@ export TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/egata
 pytest tests/test_ledger_postgres.py tests/test_api_postgres.py tests/test_offline_agent_postgres.py
 ```
 
-`.github/workflows/ci.yml` runs five jobs on every PR: backend ruff + pytest;
+`.github/workflows/ci.yml` runs five jobs on every PR: backend ruff + strict
+mypy + pytest (`app/` is mypy-clean; `python -m scripts.mypy_baseline` fails on
+any finding not in `mypy-baseline.txt`, which only holds old test/script code
+and should only ever shrink);
 the ledger, document-API and offline-agent suites against a
 `pgvector/pgvector:pg16` service; frontend `tsc --noEmit` + vitest; all 23
 templates through real `pdflatex`; and Playwright against the full

@@ -46,14 +46,14 @@ def _field(
     )
 
 
-def test_all_fields_required_and_empty_is_all_missing():
+def test_all_fields_required_and_empty_is_all_missing() -> None:
     proc = _proc([_field("nume"), _field("cnp")])
     states = evaluate_field_states(proc, doc_fields={}, citizen_attrs={})
     assert states.missing == ["nume", "cnp"]
     assert states.satisfied == []
 
 
-def test_satisfied_when_value_present():
+def test_satisfied_when_value_present() -> None:
     proc = _proc([_field("nume")])
     states = evaluate_field_states(
         proc, doc_fields={"nume": "Maria Ionescu"}, citizen_attrs={}
@@ -62,14 +62,14 @@ def test_satisfied_when_value_present():
     assert states.missing == []
 
 
-def test_empty_string_is_not_satisfied():
+def test_empty_string_is_not_satisfied() -> None:
     proc = _proc([_field("nume")])
     states = evaluate_field_states(proc, doc_fields={"nume": "   "}, citizen_attrs={})
     assert states.satisfied == []
     assert states.missing == ["nume"]
 
 
-def test_applies_if_gates_required():
+def test_applies_if_gates_required() -> None:
     """A field with applies_if = 'tip_proprietate == "găzduit"' is only
     required when tip_proprietate is 'găzduit'."""
     proc = _proc([
@@ -91,7 +91,7 @@ def test_applies_if_gates_required():
     assert "anexa_2_signer" in states.missing
 
 
-def test_applies_if_from_citizen_attributes():
+def test_applies_if_from_citizen_attributes() -> None:
     proc = _proc([
         _field("vehicle_plate", applies_if="owns_vehicle == true"),
     ])
@@ -106,7 +106,7 @@ def test_applies_if_from_citizen_attributes():
     assert "vehicle_plate" not in states.required
 
 
-def test_field_dropped_when_applies_if_flips_false():
+def test_field_dropped_when_applies_if_flips_false() -> None:
     """A previously-set value becomes 'dropped' (lingers but is ignored)."""
     proc = _proc([
         _field("tip_proprietate", options=["proprietar", "găzduit"]),
@@ -122,7 +122,7 @@ def test_field_dropped_when_applies_if_flips_false():
     assert "anexa_2_signer" not in states.required
 
 
-def test_doc_field_shadows_citizen_attr():
+def test_doc_field_shadows_citizen_attr() -> None:
     """Document fields override citizen attributes in the merged context."""
     proc = _proc([
         _field("explicit", applies_if='status == "owner"'),
@@ -136,17 +136,17 @@ def test_doc_field_shadows_citizen_attr():
     assert "explicit" in states.applicable
 
 
-def test_all_required_satisfied_true_when_no_missing():
+def test_all_required_satisfied_true_when_no_missing() -> None:
     proc = _proc([_field("nume")])
     assert all_required_satisfied(proc, {"nume": "X"}, {})
 
 
-def test_all_required_satisfied_false_when_missing():
+def test_all_required_satisfied_false_when_missing() -> None:
     proc = _proc([_field("nume"), _field("cnp")])
     assert not all_required_satisfied(proc, {"nume": "X"}, {})
 
 
-def test_all_required_satisfied_ignores_inapplicable():
+def test_all_required_satisfied_ignores_inapplicable() -> None:
     """An applies_if-gated required field shouldn't block completion when inapplicable."""
     proc = _proc([
         _field("tip_proprietate", options=["proprietar", "găzduit"]),
@@ -160,25 +160,25 @@ def test_all_required_satisfied_ignores_inapplicable():
     )
 
 
-def test_validate_field_value_unknown_field_raises():
+def test_validate_field_value_unknown_field_raises() -> None:
     proc = _proc([_field("nume")])
     with pytest.raises(FieldValidationError):
         validate_field_value(proc, "necunoscut", "x")
 
 
-def test_validate_field_value_options_enforced():
+def test_validate_field_value_options_enforced() -> None:
     proc = _proc([_field("tip", options=["a", "b"])])
     validate_field_value(proc, "tip", "a")  # ok
     with pytest.raises(FieldValidationError):
         validate_field_value(proc, "tip", "c")
 
 
-def test_validate_field_value_free_string_passes():
+def test_validate_field_value_free_string_passes() -> None:
     proc = _proc([_field("nume", options=None)])
     validate_field_value(proc, "nume", "anything goes")
 
 
-def test_find_field_returns_none_on_miss():
+def test_find_field_returns_none_on_miss() -> None:
     proc = _proc([_field("nume")])
     assert find_field(proc, "nume") is not None
     assert find_field(proc, "missing") is None

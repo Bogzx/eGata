@@ -6,11 +6,12 @@ import logging.config
 import os
 import time
 import uuid
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 
 def _configure_logging() -> None:
@@ -143,7 +144,7 @@ def _check_ledger_setup() -> None:
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     _check_ledger_setup()
     init_worker()
     try:
@@ -169,7 +170,9 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def _log_requests(request: Request, call_next):
+async def _log_requests(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
     """Log every HTTP request with method, path, status, duration, and a
     short request-id so chat turns can be correlated across log lines.
 

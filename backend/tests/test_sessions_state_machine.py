@@ -18,12 +18,12 @@ from app.sessions import (
 )
 
 
-def test_initial_state_is_exploring():
+def test_initial_state_is_exploring() -> None:
     s = Session(id="sess_x", citizen_id="abc")
     assert s.state is SessionState.EXPLORING
 
 
-def test_happy_path_through_state_machine():
+def test_happy_path_through_state_machine() -> None:
     s = Session(id="sess_x", citizen_id="abc")
     transition(s, SessionState.CONFIRMING_MATCH)
     transition(s, SessionState.FILLING)
@@ -32,57 +32,57 @@ def test_happy_path_through_state_machine():
     assert s.state is SessionState.DELIVERED
 
 
-def test_scenario_continuation_from_delivered():
+def test_scenario_continuation_from_delivered() -> None:
     s = Session(id="sess_x", citizen_id="abc", state=SessionState.DELIVERED)
     transition(s, SessionState.CONFIRMING_MATCH)
     assert s.state is SessionState.CONFIRMING_MATCH
 
 
-def test_scenario_chain_skips_confirm_from_delivered():
+def test_scenario_chain_skips_confirm_from_delivered() -> None:
     """start_procedure on a scenario step 2 jumps DELIVERED → FILLING."""
     s = Session(id="sess_x", citizen_id="abc", state=SessionState.DELIVERED)
     transition(s, SessionState.FILLING)
     assert s.state is SessionState.FILLING
 
 
-def test_legacy_doc_injection_exploring_to_filling():
+def test_legacy_doc_injection_exploring_to_filling() -> None:
     """Frontend's startProcedure REST path jumps EXPLORING → FILLING directly."""
     s = Session(id="sess_x", citizen_id="abc")
     transition(s, SessionState.FILLING)
     assert s.state is SessionState.FILLING
 
 
-def test_filling_to_delivered_is_illegal():
+def test_filling_to_delivered_is_illegal() -> None:
     s = Session(id="sess_x", citizen_id="abc", state=SessionState.FILLING)
     with pytest.raises(IllegalTransitionError):
         transition(s, SessionState.DELIVERED)
 
 
-def test_exploring_to_delivered_is_illegal():
+def test_exploring_to_delivered_is_illegal() -> None:
     s = Session(id="sess_x", citizen_id="abc")
     with pytest.raises(IllegalTransitionError):
         transition(s, SessionState.DELIVERED)
 
 
-def test_reviewing_back_to_filling_for_applies_if_changes():
+def test_reviewing_back_to_filling_for_applies_if_changes() -> None:
     """When applies_if turns a field required again, reviewing -> filling."""
     s = Session(id="sess_x", citizen_id="abc", state=SessionState.REVIEWING)
     transition(s, SessionState.FILLING)
     assert s.state is SessionState.FILLING
 
 
-def test_redirected_is_terminal_except_re_exploring():
+def test_redirected_is_terminal_except_re_exploring() -> None:
     assert can_transition(SessionState.REDIRECTED, SessionState.EXPLORING)
     assert not can_transition(SessionState.REDIRECTED, SessionState.FILLING)
 
 
-def test_self_loops_are_explicit():
+def test_self_loops_are_explicit() -> None:
     """Every state must be able to "no-op" — useful for tool no-state-change cases."""
     for st in SessionState:
         assert can_transition(st, st), f"missing self-loop on {st}"
 
 
-def test_snapshot_excludes_history_but_includes_widgets():
+def test_snapshot_excludes_history_but_includes_widgets() -> None:
     s = Session(
         id="sess_x",
         citizen_id="abc",
@@ -104,7 +104,7 @@ def test_snapshot_excludes_history_but_includes_widgets():
     assert snap["pending_widgets"][0]["options"] == ["a", "b"]
 
 
-def test_resolve_pending_widget_pops():
+def test_resolve_pending_widget_pops() -> None:
     s = Session(id="sess_x", citizen_id="abc")
     s.add_pending_widget(
         PendingWidget(widget_id="w1", type="confirm", question="?")
@@ -119,12 +119,12 @@ def test_resolve_pending_widget_pops():
     assert s.pending_widgets[0].widget_id == "w2"
 
 
-def test_resolve_pending_widget_missing_returns_none():
+def test_resolve_pending_widget_missing_returns_none() -> None:
     s = Session(id="sess_x", citizen_id="abc")
     assert s.resolve_pending_widget("nope") is None
 
 
-def test_review_gate_opens_only_on_da_to_a_confirm_in_reviewing():
+def test_review_gate_opens_only_on_da_to_a_confirm_in_reviewing() -> None:
     from app.sessions import PendingWidget, apply_review_confirmation
 
     confirm = PendingWidget("w", "confirm", "Sunt corecte?")
