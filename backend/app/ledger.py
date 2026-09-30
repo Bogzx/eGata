@@ -1,4 +1,13 @@
-"""Hash-chain ledger module."""
+"""Hash-chain ledger module.
+
+Row format (migrations/009 computes it; `verify_chain` and the standalone
+`scripts/verify_ledger.py` recompute it):
+
+    payload_hash = sha256(canonical_json(payload))
+    row_hash     = sha256(event_type || payload_hash || prev_hash || ts_iso)
+
+Each (citizen, document) pair is its own chain, starting at GENESIS_HASH.
+"""
 from __future__ import annotations
 
 import enum
@@ -8,8 +17,13 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from app.config import get_settings
 from app.db import get_pg_connection
+
+# The first prev_hash of every chain. A protocol constant, not configuration:
+# `ledger_tip_hash()` in migrations/009 hard-codes the same value, so a
+# different genesis on the Python side (the old LEDGER_GENESIS_HASH setting)
+# only made every chain fail verification.
+GENESIS_HASH = "0x" + "0" * 64
 
 
 class LedgerEventType(str, enum.Enum):
@@ -38,31 +52,6 @@ def compute_row_hash(event_type: str, payload_hash: str, prev_hash: str, iso_ts:
     raw = event_type + payload_hash + prev_hash + iso_ts
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
     return "0x" + digest
-
-
-def fetch_tip_hash(
-    citizen_id: UUID | str, document_id: UUID | str | None = None
-) -> str:
-    """Tip of the chain this row will extend.
-
-    Scoped to (citizen_id, document_id) — the same slice
-    `fetch_ledger_for_document` reads back and `verify_chain` walks. Chaining
-    against a global tip while verifying a document-scoped slice is what made
-    the "verificat" badge unreachable; see migrations/009.
-    """
-    settings = get_settings()
-    with get_pg_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            "select ledger_tip_hash(%s, %s) as tip;",
-            (
-                str(citizen_id),
-                str(document_id) if document_id is not None else None,
-            ),
-        )
-        row = cur.fetchone()
-    if row is None or row["tip"] is None:
-        return settings.ledger_genesis_hash
-    return str(row["tip"])
 
 
 def append_ledger(
@@ -123,7 +112,12 @@ def fetch_ledger_for_document(document_id: UUID | str) -> list[dict[str, Any]]:
         return list(cur.fetchall())
 
 
-def verify_chain(rows: list[dict[str, Any]], genesis_hash: str) -> bool:
+def sha256_hex(data: bytes) -> str:
+    """`0x`-prefixed sha256, the ledger's hash notation."""
+    return "0x" + hashlib.sha256(data).hexdigest()
+
+
+def verify_chain(rows: list[dict[str, Any]], genesis_hash: str = GENESIS_HASH) -> bool:
     """Walk the chain end-to-end. Returns True if every link checks out."""
     prev = genesis_hash
     for r in rows:

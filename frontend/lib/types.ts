@@ -95,11 +95,16 @@ export type LedgerEntry = {
   prev_hash: string;
   row_hash: string;
   created_at: string;
+  /** The hashed payload and the exact timestamp string in row_hash — enough
+   * to recompute the chain client-side (backend/scripts/verify_ledger.py). */
+  payload?: Record<string, unknown>;
+  hashed_at?: string | null;
 };
 
 export type LedgerResponse = {
   entries: LedgerEntry[];
   verified: boolean;
+  genesis_hash?: string;
 };
 
 export type Reminder = {

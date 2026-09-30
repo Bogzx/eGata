@@ -123,7 +123,6 @@ class Settings(BaseSettings):
     public_base_url: str = Field(default="http://localhost:8000")
     twilio_bridge_public_url: str = Field(default="")
 
-    ledger_genesis_hash: str = Field(default="0x" + "0" * 64)
 
 
 @lru_cache(maxsize=1)

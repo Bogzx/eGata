@@ -12,9 +12,12 @@ from twilio.rest import Client as TwilioClient
 from app.config import get_settings
 from app.db import get_pg_connection
 from app.ledger import (
+    GENESIS_HASH,
     LedgerEventType,
     append_ledger,
+    canonical_json,
     fetch_ledger_for_document,
+    sha256_hex,
     verify_chain,
 )
 from app.models import (
@@ -196,6 +199,27 @@ def fetch_phone_for_citizen(citizen_id: UUID) -> str:
     return str(row["phone"])
 
 
+def pdf_generated_payload(
+    document_id: UUID | str, object_path: str, pdf_bytes: bytes, fields: dict[str, Any]
+) -> dict[str, Any]:
+    """Ledger payload for a rendered PDF.
+
+    Binds the ledger to the document's *content*, not just to the fact that a
+    file was written: `pdf_sha256` is the hash of the exact bytes stored, and
+    `fields_sha256` the hash of the field values they were rendered from. A
+    PDF swapped in storage afterwards no longer matches its ledger row
+    (`scripts/verify_ledger.py --pdf` checks this). The ledger records the
+    location, never a signed link: rows are permanent and a credential-bearing
+    URL in one would outlive its own expiry.
+    """
+    return {
+        "document_id": str(document_id),
+        "object_path": object_path,
+        "pdf_sha256": sha256_hex(pdf_bytes),
+        "fields_sha256": sha256_hex(canonical_json(fields).encode("utf-8")),
+    }
+
+
 def _require_owner(doc: dict[str, Any], citizen_id: UUID) -> None:
     if str(doc["citizen_id"]) != str(citizen_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your document")
@@ -284,13 +308,10 @@ def generate_pdf(
     upload_pdf_to_storage(object_path, pdf_bytes)
     set_document_pdf_url(document_id, object_path)
 
-    # The ledger records *that* a PDF exists and where, never a signed link:
-    # ledger rows are permanent and a credential-bearing URL in one would
-    # outlive its own expiry as a written-down secret.
     append_ledger(
         citizen_id=citizen_id,
         event_type=LedgerEventType.PDF_GENERATED,
-        payload={"document_id": str(document_id), "object_path": object_path},
+        payload=pdf_generated_payload(document_id, object_path, pdf_bytes, doc["fields"]),
         document_id=document_id,
     )
 
@@ -345,9 +366,11 @@ def get_ledger(
             payload_hash=r["payload_hash"],
             prev_hash=r["prev_hash"],
             row_hash=r["row_hash"],
-            created_at=r["created_at"] if isinstance(r["created_at"], datetime) else r["created_at"],
+            created_at=r["created_at"],
+            payload=_json.loads(r["payload"]) if isinstance(r["payload"], str) else r["payload"],
+            hashed_at=r.get("ts_iso"),
         )
         for r in rows
     ]
-    verified = verify_chain(rows, genesis_hash=get_settings().ledger_genesis_hash)
-    return LedgerResponse(entries=entries, verified=verified)
+    verified = verify_chain(rows, genesis_hash=GENESIS_HASH)
+    return LedgerResponse(entries=entries, verified=verified, genesis_hash=GENESIS_HASH)

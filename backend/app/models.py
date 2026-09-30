@@ -182,11 +182,17 @@ class LedgerEntry(BaseModel):
     prev_hash: str
     row_hash: str
     created_at: datetime
+    # What a verifier needs to recompute the hashes without trusting the
+    # server's `verified` flag: the payload itself, and the exact timestamp
+    # string that went into row_hash (see scripts/verify_ledger.py).
+    payload: dict[str, Any] = Field(default_factory=dict)
+    hashed_at: str | None = None
 
 
 class LedgerResponse(BaseModel):
     entries: list[LedgerEntry]
     verified: bool
+    genesis_hash: str
 
 
 class ChatToolCall(BaseModel):
