@@ -158,8 +158,13 @@ def set_document_pdf_url(document_id: UUID, pdf_url: str) -> None:
 
 
 def generate_ref_number(document_id: UUID) -> str:
+    """`CV-XXXX-XXXX` from the document UUID — not a real registration number.
+
+    Eight hex digits (4.3e9 values). The old four (65,536) made two citizens
+    sharing a number likely after a few hundred documents (birthday bound).
+    """
     raw = str(document_id).replace("-", "").upper()
-    return f"CV-{raw[:4]}"
+    return f"CV-{raw[:4]}-{raw[4:8]}"
 
 
 def finalize_document(

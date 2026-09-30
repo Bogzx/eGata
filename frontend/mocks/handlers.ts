@@ -200,7 +200,9 @@ export const handlers = [
     const d = documents.get(String(params.id));
     if (!d) return HttpResponse.json({ detail: "not found" }, { status: 404 });
     const body = (await request.json()) as { delivery: "save" | "send" | "print" };
-    const refSuffix = d.id.replace(/-/g, "").slice(0, 4).toUpperCase();
+    const hex = d.id.replace(/-/g, "").toUpperCase();
+    // Same format as backend/app/documents.py generate_ref_number.
+    const refSuffix = `${hex.slice(0, 4)}-${hex.slice(4, 8)}`;
     const updated: Document = {
       ...d,
       status: "finalized",
