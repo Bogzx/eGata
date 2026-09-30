@@ -18,6 +18,7 @@ from typing import Any
 from uuid import UUID
 
 from app.db import get_pg_connection
+from app.ledger_signing import sign_row
 
 # The first prev_hash of every chain. A protocol constant, not configuration:
 # `ledger_tip_hash()` in migrations/009 hard-codes the same value, so a
@@ -67,25 +68,32 @@ def append_ledger(
     itself, then returns what it stored. A caller cannot write a row whose
     hash disagrees with its payload.
     """
+    doc = str(document_id) if document_id is not None else None
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
             "select l.id, l.payload_hash, l.prev_hash, l.row_hash, "
             "ledger_row_ts_iso(l.created_at) as ts_iso "
             "from append_ledger(%s, %s, %s, %s) as l;",
-            (
-                str(citizen_id),
-                str(document_id) if document_id is not None else None,
-                event_type.value,
-                canonical_json(payload),
-            ),
+            (str(citizen_id), doc, event_type.value, canonical_json(payload)),
         )
         row = cur.fetchone()
         if row is None:
             raise RuntimeError("append_ledger returned no row")
+        # Same transaction: a row is never committed without its signature.
+        key_id, signature = sign_row(
+            citizen_id=str(citizen_id), document_id=doc,
+            row_id=int(row["id"]), row_hash=str(row["row_hash"]),
+        )
+        cur.execute(
+            "insert into ledger_signatures (ledger_id, key_id, signature) values (%s, %s, %s);",
+            (int(row["id"]), key_id, signature),
+        )
         conn.commit()
 
     return {
         "id": int(row["id"]),
+        "key_id": key_id,
+        "signature": signature,
         "event_type": event_type.value,
         "payload": payload,
         "payload_hash": str(row["payload_hash"]),
@@ -104,12 +112,43 @@ def fetch_ledger_for_document(document_id: UUID | str) -> list[dict[str, Any]]:
     """
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
-            "select id, event_type, payload, payload_hash, prev_hash, row_hash, "
-            "created_at, ledger_row_ts_iso(created_at) as ts_iso "
-            "from ledger where document_id = %s order by id asc;",
+            "select l.id, l.citizen_id, l.document_id, l.event_type, l.payload, "
+            "l.payload_hash, l.prev_hash, l.row_hash, l.created_at, "
+            "ledger_row_ts_iso(l.created_at) as ts_iso, s.key_id, s.signature "
+            "from ledger l left join ledger_signatures s on s.ledger_id = l.id "
+            "where l.document_id = %s order by l.id asc;",
             (str(document_id),),
         )
         return list(cur.fetchall())
+
+
+def sign_unsigned_rows(limit: int = 1000) -> int:
+    """Sign rows written before migrations/014 (or by a key-less process).
+
+    Run at startup, so upgrading a deployment attests its existing history;
+    ledger_signatures.signed_at records when. Returns how many were signed.
+    """
+    with get_pg_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            "select l.id, l.citizen_id, l.document_id, l.row_hash from ledger l "
+            "where not exists (select 1 from ledger_signatures s where s.ledger_id = l.id) "
+            "order by l.id limit %s;",
+            (limit,),
+        )
+        rows = cur.fetchall()
+        for r in rows:
+            key_id, signature = sign_row(
+                citizen_id=str(r["citizen_id"]),
+                document_id=str(r["document_id"]) if r["document_id"] else None,
+                row_id=int(r["id"]), row_hash=str(r["row_hash"]),
+            )
+            cur.execute(
+                "insert into ledger_signatures (ledger_id, key_id, signature) "
+                "values (%s, %s, %s) on conflict (ledger_id) do nothing;",
+                (int(r["id"]), key_id, signature),
+            )
+        conn.commit()
+    return len(rows)
 
 
 def sha256_hex(data: bytes) -> str:
@@ -137,4 +176,37 @@ def verify_chain(rows: list[dict[str, Any]], genesis_hash: str = GENESIS_HASH) -
         if expected_row_hash != r["row_hash"]:
             return False
         prev = r["row_hash"]
+    return True
+
+
+def verify_signatures(
+    rows: list[dict[str, Any]], *, citizen_id: str, document_id: str | None
+) -> bool:
+    """Every row carries a valid signature by a published key.
+
+    Server-side counterpart of the signature check in scripts/verify_ledger.py
+    and frontend/lib/ledgerVerify.ts.
+    """
+    import base64
+
+    from cryptography.exceptions import InvalidSignature
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
+    from app.ledger_signing import published_keys, statement
+
+    keys = {k["key_id"]: base64.b64decode(k["public_key"]) for k in published_keys()}
+    for r in rows:
+        key_id, signature = r.get("key_id"), r.get("signature")
+        if not key_id or not signature or key_id not in keys:
+            return False
+        stmt = statement(
+            key_id=key_id, citizen_id=citizen_id, document_id=document_id,
+            row_id=int(r["id"]), row_hash=str(r["row_hash"]),
+        )
+        try:
+            Ed25519PublicKey.from_public_bytes(keys[key_id]).verify(
+                base64.b64decode(signature), canonical_json(stmt).encode("utf-8")
+            )
+        except (InvalidSignature, ValueError):
+            return False
     return True

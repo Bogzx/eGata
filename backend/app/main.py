@@ -110,8 +110,41 @@ if _SENTRY_DSN:
         log.warning("sentry-sdk not installed — error reporting disabled")
 
 
+def _check_ledger_setup() -> None:
+    """Load (or, in dev, generate) the signing key, sign any history written
+    before migrations/014, and say so if the backend connects with rights
+    that could bypass the ledger's protections."""
+    from app.db import get_pg_connection
+    from app.ledger import sign_unsigned_rows
+    from app.ledger_signing import signing_key
+
+    key = signing_key()
+    log.info("ledger signing key %s (source: %s)", key.key_id, key.source)
+    try:
+        signed = sign_unsigned_rows()
+        if signed:
+            log.warning("ledger: signed %d rows written before signing existed", signed)
+        with get_pg_connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "select current_user as me, "
+                "(select rolsuper from pg_roles where rolname = current_user) as su, "
+                "(select tableowner from pg_tables where tablename = 'ledger') as owner;"
+            )
+            row = cur.fetchone()
+        if row and (row["su"] or row["me"] == row["owner"]):
+            log.warning(
+                "INSECURE CONFIG: the backend connects to Postgres as %s (%s). That role "
+                "can drop the ledger's append-only triggers. Connect as egata_app "
+                "(README: 'Upgrading an existing database').",
+                row["me"], "superuser" if row["su"] else "owner of ledger",
+            )
+    except Exception:
+        log.exception("ledger startup checks failed (database unreachable?)")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    _check_ledger_setup()
     init_worker()
     try:
         yield
@@ -201,6 +234,28 @@ app.include_router(reminders_router)
 app.include_router(twilio_router)
 app.include_router(demo_router)
 app.include_router(health_router)
+
+
+@app.get("/.well-known/egata-ledger-keys.json")
+def ledger_keys() -> dict[str, object]:
+    """Public keys that sign the audit ledger (no auth: they are public).
+
+    Compare the key_id with a copy obtained elsewhere (a README, a printed
+    notice at the counter) — a key fetched from the same server that signs is
+    only trust-on-first-use.
+    """
+    from app.ledger_signing import STATEMENT_TYPE, STATEMENT_VERSION, published_keys
+
+    return {
+        "algorithm": "Ed25519",
+        "statement": {
+            "v": STATEMENT_VERSION,
+            "type": STATEMENT_TYPE,
+            "fields": ["v", "type", "key_id", "citizen_id", "document_id", "row_id", "row_hash"],
+            "encoding": "canonical JSON (sorted keys, no whitespace, UTF-8)",
+        },
+        "keys": published_keys(),
+    }
 
 
 @app.get("/health")

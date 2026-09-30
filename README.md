@@ -108,11 +108,15 @@ reference number of the form `CV-XXXX` is generated from the document UUID.
 No primărie receives anything; the number is not a real registration number.
 
 **Row-level security is decorative.** `migrations/004_rls_policies.sql`
-defines per-citizen policies, but the backend connects with the owner /
-service-role credential and bypasses all of them. Authorization is entirely
-application-level (`_require_owner` in `backend/app/documents.py`). The
-policies would start mattering the day a client talked to the database
-directly, which nothing does.
+defines per-citizen policies keyed on Supabase's `auth.uid()`, which is NULL
+for a backend connection. The backend's role (`egata_app`, or the owner on
+older setups) passes them through: `migrations/014` gives `egata_app` an
+explicit allow-all policy. Authorization is application-level
+(`_require_owner` in `backend/app/documents.py`, the conversation checks in
+`backend/app/agent.py`). The policies would start mattering the day a client
+talked to the database directly, which nothing does. What the database
+itself *does* enforce for `egata_app` is the ledger: SELECT only, appends
+only through `append_ledger()`.
 
 **The PDF is not digitally signed.** No key signs it; there is no PAdES /
 eIDAS signature and no seal a third party could validate. What exists: the
@@ -121,17 +125,30 @@ PDF is served through short-lived HMAC-signed (local) or Supabase-signed
 PDF swapped in storage afterwards no longer matches its ledger row. A
 qualified signature is on the roadmap and needs a trust-service provider.
 
-**The ledger is tamper-evident, not tamper-proof.** Rows are chained,
-`UPDATE`/`DELETE`/`TRUNCATE` are blocked by triggers, and hashes are derived
-server-side. The chain is **unkeyed** sha256 with no external anchor, so:
-anyone with database write access (the owner can drop the triggers; plain
-`INSERT` is not revoked) can append or rebuild rows with valid-looking
-hashes, and cutting rows off the end of a chain is not detectable from the
-chain alone. It detects edits to existing rows and to the stored PDF. The
-citizen can check a document independently —
-`python backend/scripts/verify_ledger.py` re-derives every hash from the API
-output and compares a PDF file — and should keep the printed head hash: if a
-later export no longer contains it, history was rewritten.
+**The ledger is tamper-evident, not tamper-proof.** What holds:
+
+- Rows are hash-chained, and each is **Ed25519-signed** with a key kept
+  outside the database. Someone who can write to Postgres but does not hold
+  the key cannot produce a rewritten chain that verifies against the
+  published public key.
+- The backend's own role cannot INSERT into, change or truncate the ledger,
+  or drop its triggers. It appends only through `append_ledger()`.
+- A citizen can verify everything independently (`verify_ledger.py`, or the
+  documents drawer in the browser) and keep a **signed receipt** of the
+  current head (`--save-receipt`). If a later export no longer contains that
+  head, the receipt proves the rewrite, and the operator cannot deny having
+  signed it.
+
+What doesn't hold:
+
+- Whoever holds the **signing key** (the operator) can still rebuild and
+  re-sign history. Only citizens holding earlier receipts would notice.
+- Cutting rows off the end of a chain is invisible without a receipt.
+- There is no external anchor. Periodically timestamping chain heads with an
+  RFC 3161 TSA, or publishing them somewhere the operator doesn't control, is
+  the recommended next step.
+- The database owner or a superuser can still bypass everything at the SQL
+  level. The point is that the application and its credential cannot.
 
 **The reminders worker runs in-process.** `APScheduler` inside the FastAPI
 process, so two replicas would do the work twice. Fine for one container.
@@ -510,24 +527,48 @@ row_hash = sha256(event_type || payload_hash || prev_hash || ts_iso)
 - Nothing hash-shaped crosses the wire. The function receives the canonical
   JSON and derives prev_hash, both hashes and the timestamp itself, so a
   caller cannot store a hash that disagrees with its payload.
-- Append-only: `UPDATE`/`DELETE` are revoked and rejected by a trigger.
-  `POST /demo/reset` appends a `demo_reset` marker rather than deleting.
+- Append-only: `UPDATE`/`DELETE`/`TRUNCATE` are rejected by triggers, and the
+  backend's role `egata_app` has only SELECT on `ledger`. Appends go through
+  `append_ledger()`, which is `SECURITY DEFINER` with a pinned `search_path`,
+  and whose EXECUTE is revoked from PUBLIC (on Supabase, that also closes it
+  to the `anon` REST role). `POST /demo/reset` appends a `demo_reset` marker
+  rather than deleting.
+- **Signatures** (`migrations/014`, `backend/app/ledger_signing.py`). In the
+  same transaction as each append, the backend signs
+  `canonical_json({v, type: "egata-ledger-head", key_id, citizen_id,
+  document_id, row_id, row_hash})` with Ed25519. `row_hash` commits to every
+  earlier row, so each signature attests the whole chain up to that row.
+  Signatures live in the append-only `ledger_signatures` table. The private
+  key comes from `LEDGER_SIGNING_KEY` (PEM or base64 seed) or
+  `LEDGER_SIGNING_KEY_FILE`, never from the database. In dev it is generated
+  on first start with a loud warning. Public keys, including retired ones
+  listed in `LEDGER_RETIRED_PUBLIC_KEYS`, are served unauthenticated at
+  `GET /.well-known/egata-ledger-keys.json` and embedded in every ledger
+  response. Rows from before signing existed are signed at the next backend
+  start (`ledger_signatures.signed_at` shows when).
 - `GET /documents/{id}/ledger` returns the rows — with each `payload` and
   `hashed_at`, the exact timestamp string inside `row_hash` — **and** a
   `verified: bool` recomputed server-side. The documents drawer does not rely
-  on that flag: `frontend/lib/ledgerVerify.ts` re-derives every hash in the
-  browser and shows the result, the PDF fingerprint and the head hash (the
-  server flag is only a fallback when WebCrypto is unavailable).
+  on that flag: `frontend/lib/ledgerVerify.ts` re-derives every hash and checks
+  every Ed25519 signature in the browser (WebCrypto). It shows the result, the
+  signing key, the PDF fingerprint and the head hash. The server flag is only
+  a fallback when WebCrypto is unavailable.
 - Don't take the server's word for it:
 
   ```bash
   python backend/scripts/verify_ledger.py --api http://localhost:8000 \
-      --token "$JWT" --document <id> --pdf cerere.pdf
-  # or: python backend/scripts/verify_ledger.py saved-ledger.json --pdf cerere.pdf
+      --token "$JWT" --document <id> --pdf cerere.pdf \
+      --public-key <base64 key you got independently> --save-receipt receipt.json
+  # later: … --receipt receipt.json   → fails with "HISTORY REWRITTEN" if the
+  #                                      signed head is gone
+  # or offline: python backend/scripts/verify_ledger.py saved-ledger.json --pdf cerere.pdf
   ```
 
-  Standard library only, no `app` imports — a second implementation of the
-  format. Exit 0 when every hash re-derives and the PDF matches.
+  Standard library only — Ed25519 included — and no `app` imports: a second
+  implementation of the format. Without `--public-key` / `--keys-file` it uses
+  the key embedded in the export and says so, which only proves the export is
+  self-consistent. Exit 0 when every hash and signature checks out and the PDF
+  matches.
 - Seven event types: `doc_created`, `completed_draft`, `pdf_generated`,
   `delivered`, `redirected`, `reminder_created`, `demo_reset`.
 
@@ -697,6 +738,9 @@ no second one under `backend/`. Every variable has a working default in
 | `DEMO_RESET_TOKEN` | Required header for `/demo/reset` (else 401) |
 | `REMINDERS_POLL_SECONDS` | Worker tick interval (default `5`) |
 | `LOG_LEVEL` | `INFO` default; `DEBUG` traces every audio chunk |
+| `APP_DB_PASSWORD` | Login for `egata_app`, the least-privilege backend role (set by `scripts.bootstrap_local_db`) |
+| `LEDGER_SIGNING_KEY`, `LEDGER_SIGNING_KEY_FILE` | Ed25519 key that signs ledger rows (PEM or base64 seed; file generated in dev) |
+| `LEDGER_RETIRED_PUBLIC_KEYS` | Comma-separated base64 public keys of rotated-out signing keys |
 | `LOG_REDACT_PII` | `1` (default) masks CNPs, e-mails and phone numbers in every log line; `0` for local debugging |
 | `SENTRY_DSN` | Optional — if set, FastAPI integration is wired |
 | `NEXT_PUBLIC_USE_MOCKS` | `1` runs the frontend offline with MSW |
@@ -795,7 +839,7 @@ Four services:
 |---|---|
 | `db` | `pgvector/pgvector:pg16` on a named volume; healthchecked |
 | `migrate` | one-shot — applies `migrations/*.sql`, seeds three citizens, builds the offline search index, prints what does and doesn't work without keys. Idempotent |
-| `backend` | waits for `migrate` to succeed; PDFs on the `egata-pdfs` volume |
+| `backend` | waits for `migrate` to succeed; connects as `egata_app`; PDFs on the `egata-pdfs` volume, the ledger signing key on `egata-keys` |
 | `frontend` | waits for backend health |
 
 Procedures, scenarios, institutions and templates are bind-mounted, so editing
@@ -805,7 +849,37 @@ Everything has a default, so no `.env` is required. Copy `.env.example` to
 `.env` to change ports, plug in Azure keys (the chat then switches from the
 offline agent to the LLM), or switch `STORAGE_BACKEND` to `supabase`.
 
-Reset the whole thing: `docker compose down -v` (drops both volumes).
+Reset the whole thing: `docker compose down -v` (drops the database, PDFs
+and the dev signing key).
+
+### Upgrading an existing database
+
+`migrations/014` (ledger signatures + the `egata_app` role) is additive.
+Nothing has to change for an existing deployment to keep working.
+
+- **Compose:** `docker compose up --build`. `migrate` applies 014 and gives
+  `egata_app` a login from `APP_DB_PASSWORD`. The backend reconnects as
+  `egata_app`, generates a signing key into the `egata-keys` volume and signs
+  the existing history on first start.
+- **A backend connecting as the owner** (e.g. a Supabase project using the
+  `postgres` user) keeps working unchanged: owners bypass the new grants and
+  policies. It signs the existing history at its next start and logs
+  `INSECURE CONFIG: the backend connects to Postgres as …`. To finish the
+  upgrade:
+  1. `APP_DB_PASSWORD=<strong password> SUPABASE_DB_URL=<owner url> python -m scripts.bootstrap_local_db`
+     (sets the login; re-run to rotate it).
+  2. Point the backend's `SUPABASE_DB_URL` at `egata_app` (on Supabase's
+     pooler the user is `egata_app.<project-ref>`). Keep the owner URL for
+     migrations and `scripts.index_rag` only.
+  3. Set `LEDGER_SIGNING_KEY` from your secret store and restart. The startup
+     log names the key id, which is what `/.well-known/egata-ledger-keys.json`
+     publishes.
+- **If `CREATE ROLE` is not allowed** (some managed Postgres plans), 014 logs
+  a notice, skips the role, and everything runs as before as the owner.
+  Signatures still apply.
+- **Key rotation:** add the old *public* key (from the well-known endpoint)
+  to `LEDGER_RETIRED_PUBLIC_KEYS`, set the new `LEDGER_SIGNING_KEY`, restart.
+  Old rows keep verifying.
 
 ---
 

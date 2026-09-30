@@ -187,12 +187,26 @@ class LedgerEntry(BaseModel):
     # string that went into row_hash (see scripts/verify_ledger.py).
     payload: dict[str, Any] = Field(default_factory=dict)
     hashed_at: str | None = None
+    # Ed25519 over the row's head statement (app/ledger_signing.py); null for
+    # rows not yet signed.
+    key_id: str | None = None
+    signature: str | None = None
+
+
+class LedgerSigningKey(BaseModel):
+    key_id: str
+    algorithm: str
+    public_key: str
+    status: str
 
 
 class LedgerResponse(BaseModel):
     entries: list[LedgerEntry]
     verified: bool
     genesis_hash: str
+    citizen_id: str | None = None
+    document_id: str | None = None
+    signing_keys: list[LedgerSigningKey] = Field(default_factory=list)
 
 
 class ChatToolCall(BaseModel):

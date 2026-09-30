@@ -52,6 +52,8 @@ class FakeLedgerDB:
 
     def __init__(self) -> None:
         self.rows: list[dict[str, Any]] = []
+        # migrations/014: ledger_signatures, keyed by ledger id.
+        self.signatures: dict[int, tuple[str, str]] = {}
         self._clock = datetime(2026, 5, 23, 10, 0, 0, tzinfo=timezone.utc)
         self.rejected_updates = 0
 
@@ -141,11 +143,13 @@ class FakeLedgerDB:
         return row
 
     def for_document(self, document_id: str) -> list[dict[str, Any]]:
-        return [
-            {k: v for k, v in r.items() if k not in {"citizen_id", "document_id"}}
-            for r in self.rows
-            if r["document_id"] == document_id
-        ]
+        out = []
+        for r in self.rows:
+            if r["document_id"] != document_id:
+                continue
+            key_id, signature = self.signatures.get(r["id"], (None, None))
+            out.append({**r, "key_id": key_id, "signature": signature})
+        return out
 
 
 class _FakeCursor:
@@ -170,8 +174,11 @@ class _FakeCursor:
             self._result = [self.db.append_recomputing(*params)]
         elif "append_ledger(" in s:
             self._result = [self.db.append_trusting(*params)]
-        elif "from ledger where document_id" in s:
+        elif "from ledger where document_id" in s or "where l.document_id" in s:
             self._result = self.db.for_document(params[0])
+        elif s.startswith("insert into ledger_signatures"):
+            self.db.signatures[int(params[0])] = (params[1], params[2])
+            self._result = []
         elif s.startswith("update ledger") or s.startswith("delete from ledger"):
             # The immutability trigger added in migration 009.
             self.db.rejected_updates += 1
