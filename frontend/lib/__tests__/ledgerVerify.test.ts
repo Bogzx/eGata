@@ -32,6 +32,12 @@ describe("verifyLedger", () => {
     expect((await verifyLedger(e)).status).toBe("broken");
   });
 
+  it("detects reordered rows", async () => {
+    const e = entries();
+    [e[1], e[2]] = [e[2]!, e[1]!];
+    expect((await verifyLedger(e)).status).toBe("broken");
+  });
+
   it("detects a changed timestamp", async () => {
     const e = entries();
     e[0]!.hashed_at = e[0]!.hashed_at!.replace("09:00:00", "08:00:00");
@@ -45,6 +51,14 @@ describe("verifyLedger", () => {
 });
 
 describe("canonicalJson", () => {
+  it("orders keys by code point, as Python does", () => {
+    // UTF-16 order puts the astral 𝐀 (U+1D400, surrogates D835 DC00) before
+    // U+FF01; code-point order, Python's, puts it after.
+    expect(canonicalJson({ "\u{1D400}": 1, "\uFF01": 2, a: 3 })).toBe(
+      '{"a":3,"\uFF01":2,"\u{1D400}":1}',
+    );
+  });
+
   it("matches Python's json.dumps(sort_keys, compact, ensure_ascii=False)", () => {
     expect(canonicalJson({ b: "ș", a: [1, { d: null, c: true }] })).toBe(
       '{"a":[1,{"c":true,"d":null}],"b":"ș"}',
