@@ -132,12 +132,26 @@ def find_field(procedure: Procedure, name: str) -> ProcedureField | None:
     return None
 
 
+# Longest value a single form field may hold. The longest legitimate values
+# (a free-text "scop" or an address) are a few hundred characters; this only
+# stops a runaway model or client from writing megabytes into a form.
+MAX_FIELD_LENGTH = 2000
+
+
 def validate_field_value(procedure: Procedure, name: str, value: Any) -> None:
     """Raise FieldValidationError if the value violates the procedure schema."""
     fld = find_field(procedure, name)
     if fld is None:
         raise FieldValidationError(
             f"Câmp necunoscut '{name}' pentru procedura '{procedure.id}'."
+        )
+    if value is not None and not isinstance(value, (str, bool, int, float)):
+        raise FieldValidationError(
+            f"Valoare invalidă pentru '{name}': se acceptă doar text, număr sau da/nu."
+        )
+    if isinstance(value, str) and len(value) > MAX_FIELD_LENGTH:
+        raise FieldValidationError(
+            f"Valoarea pentru '{name}' depășește {MAX_FIELD_LENGTH} de caractere."
         )
     if fld.options is not None and isinstance(value, str):
         if value not in fld.options:

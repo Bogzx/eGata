@@ -35,6 +35,10 @@ async def execute(
     doc = fetch_document(UUID(doc_id))
     if str(doc["citizen_id"]) != session.citizen_id:
         return ToolResult(error="Acest document nu îți aparține.")
+    if doc.get("status") == "finalized":
+        # Delivered forms are frozen: the ledger has already recorded the PDF
+        # rendered from these values.
+        return ToolResult(error="Documentul a fost deja finalizat și nu mai poate fi modificat.")
 
     reg = get_registry()
     proc = reg.get(doc["procedure_id"])

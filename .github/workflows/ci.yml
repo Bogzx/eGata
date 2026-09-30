@@ -79,8 +79,8 @@ jobs:
       - name: Apply migrations + seed
         run: python -m scripts.bootstrap_local_db
 
-      - name: Ledger integration tests
-        run: pytest -q tests/test_ledger_postgres.py
+      - name: Ledger + document API integration tests
+        run: pytest -q tests/test_ledger_postgres.py tests/test_api_postgres.py
 
   frontend:
     name: frontend · vitest + tsc
