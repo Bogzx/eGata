@@ -11,8 +11,9 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -282,8 +283,56 @@ def test_receipt_proves_a_re_signed_rewrite(tmp_path: Path) -> None:
     assert verify_ledger.main([str(ledger), *_pinned(), "--receipt", str(receipt)]) == 1
 
 
+def test_reordered_rows_are_detected(tmp_path: Path) -> None:
+    body = _export(_rows())
+    body["entries"][1], body["entries"][2] = body["entries"][2], body["entries"][1]
+    ledger = tmp_path / "l.json"
+    ledger.write_text(json.dumps(body), encoding="utf-8")
+    assert verify_ledger.main([str(ledger), *_pinned()]) == 1
+
+
+def test_receipt_detects_a_truncated_tail(tmp_path: Path) -> None:
+    """Dropping the newest rows leaves a chain that verifies on its own; a
+    receipt for a dropped row is what gives it away."""
+    body = _export(_rows())
+    ledger = tmp_path / "l.json"
+    receipt = tmp_path / "receipt.json"
+    ledger.write_text(json.dumps(body), encoding="utf-8")
+    assert verify_ledger.main([str(ledger), *_pinned(), "--save-receipt", str(receipt)]) == 0
+    body["entries"] = body["entries"][:-1]
+    ledger.write_text(json.dumps(body), encoding="utf-8")
+    assert verify_ledger.main([str(ledger), *_pinned()]) == 0
+    assert verify_ledger.main([str(ledger), *_pinned(), "--receipt", str(receipt)]) == 1
+
+
+def test_receipt_must_match_the_citizen_too(tmp_path: Path) -> None:
+    body = _export(_rows())
+    ledger = tmp_path / "l.json"
+    receipt = tmp_path / "receipt.json"
+    ledger.write_text(json.dumps(body), encoding="utf-8")
+    assert verify_ledger.main([str(ledger), *_pinned(), "--save-receipt", str(receipt)]) == 0
+    body["citizen_id"] = "99999999-9999-9999-9999-999999999999"
+    ledger.write_text(json.dumps(body), encoding="utf-8")
+    problems = verify_ledger.check_receipt(
+        json.loads(receipt.read_text(encoding="utf-8")), body,
+        verify_ledger._keys_from(body["signing_keys"]),
+    )
+    assert problems == ["receipt is for another citizen"]
+
+
 def test_well_known_keys_endpoint_is_public() -> None:
     r = TestClient(app).get("/.well-known/egata-ledger-keys.json")
     assert r.status_code == 200
     keys = r.json()["keys"]
     assert keys[0]["key_id"].startswith("ed25519:") and keys[0]["status"] == "current"
+
+
+@pytest.mark.parametrize("payload", [{"score": 1.0}, {"n": 2**60}, {"xs": [0.5]}, {"when": object()}])
+def test_payloads_the_browser_cannot_re_encode_are_refused(payload: dict[str, Any]) -> None:
+    """ledgerVerify.ts re-encodes payloads with JSON.stringify; floats and
+    unsafe integers would hash differently there."""
+    from app.ledger import LedgerEventType, append_ledger
+
+    with patch("app.ledger.get_pg_connection") as conn, pytest.raises(TypeError):
+        append_ledger(citizen_id=uuid4(), event_type=LedgerEventType.DOC_CREATED, payload=payload)
+    conn.assert_not_called()

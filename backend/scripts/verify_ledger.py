@@ -238,6 +238,8 @@ def check_receipt(receipt: dict[str, Any], body: dict[str, Any], keys: dict[str,
         return ["receipt signature does not verify"]
     if receipt["document_id"] != body.get("document_id"):
         return ["receipt is for another document"]
+    if receipt["citizen_id"] != body.get("citizen_id"):
+        return ["receipt is for another citizen"]
     held = {int(e["id"]): e["row_hash"] for e in body.get("entries", [])}
     if held.get(int(receipt["row_id"])) != receipt["row_hash"]:
         return [

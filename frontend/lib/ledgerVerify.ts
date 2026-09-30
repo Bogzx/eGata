@@ -40,6 +40,18 @@ export type LedgerCheck =
   | { status: "broken"; rows: number; reason: string }
   | { status: "unavailable"; reason: string };
 
+/** Python sorts dict keys by code point; Array.prototype.sort compares UTF-16
+ * code units, which orders an astral character before U+E000–U+FFFF. */
+function compareCodePoints(a: string, b: string): number {
+  const x = Array.from(a);
+  const y = Array.from(b);
+  for (let i = 0; i < Math.min(x.length, y.length); i++) {
+    const d = x[i]!.codePointAt(0)! - y[i]!.codePointAt(0)!;
+    if (d !== 0) return d;
+  }
+  return x.length - y.length;
+}
+
 export function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) {
     return "[" + value.map(canonicalJson).join(",") + "]";
@@ -49,7 +61,7 @@ export function canonicalJson(value: unknown): string {
     return (
       "{" +
       Object.keys(obj)
-        .sort()
+        .sort(compareCodePoints)
         .map((k) => JSON.stringify(k) + ":" + canonicalJson(obj[k]))
         .join(",") +
       "}"

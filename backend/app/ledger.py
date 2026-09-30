@@ -44,6 +44,36 @@ def canonical_json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
+_MAX_SAFE_INT = 2**53 - 1
+
+
+def _require_portable(value: Any, path: str = "payload") -> None:
+    """Only values every verifier encodes byte-for-byte like canonical_json.
+
+    The browser (frontend/lib/ledgerVerify.ts) re-derives payload hashes with
+    JSON.stringify, which writes 1.0 as `1` and 1e-07 as `1e-7`, and loses
+    integers beyond 2**53. A payload holding one would hash differently there
+    and an honest chain would show as broken, so it is refused here instead.
+    """
+    if isinstance(value, bool) or value is None or isinstance(value, str):
+        return
+    if isinstance(value, int):
+        if abs(value) > _MAX_SAFE_INT:
+            raise TypeError(f"{path}: integer outside ±2**53 is not portable")
+        return
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if not isinstance(k, str):
+                raise TypeError(f"{path}: non-string key {k!r}")
+            _require_portable(v, f"{path}.{k}")
+        return
+    if isinstance(value, list):
+        for i, v in enumerate(value):
+            _require_portable(v, f"{path}[{i}]")
+        return
+    raise TypeError(f"{path}: {type(value).__name__} is not allowed in a ledger payload")
+
+
 def compute_payload_hash(payload: dict[str, Any]) -> str:
     digest = hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest()
     return "0x" + digest
@@ -68,6 +98,7 @@ def append_ledger(
     itself, then returns what it stored. A caller cannot write a row whose
     hash disagrees with its payload.
     """
+    _require_portable(payload)
     doc = str(document_id) if document_id is not None else None
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
