@@ -190,10 +190,8 @@ def login_roeid(req: LoginROeIDRequest) -> ChallengeResponse:
 @router.post("/login-mrz", response_model=ChallengeResponse)
 def login_mrz(req: LoginMRZRequest) -> ChallengeResponse:
     log.info(
-        "login-mrz: cnp_hint=***%s nume=%s prenume=%s",
+        "login-mrz: cnp_hint=***%s",
         req.cnp[-4:] if len(req.cnp) >= 4 else req.cnp,
-        req.nume,
-        req.prenume,
     )
     citizen = fetch_citizen_by_mrz(req.cnp, req.nume, req.prenume)
     challenge_id = issue_otp(citizen["id"], citizen["phone"])

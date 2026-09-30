@@ -23,10 +23,12 @@ def _configure_logging() -> None:
     `docker logs`. Set LOG_LEVEL=DEBUG to see per-audio-chunk traces.
     """
     level = os.environ.get("LOG_LEVEL", "INFO").upper()
+    redact = os.environ.get("LOG_REDACT_PII", "1") != "0"
     logging.config.dictConfig(
         {
             "version": 1,
             "disable_existing_loggers": False,
+            "filters": {"pii": {"()": "app.log_redaction.PiiRedactingFilter"}},
             "formatters": {
                 "default": {
                     "format": "%(asctime)s %(levelname)-7s [%(name)s] %(message)s",
@@ -38,6 +40,8 @@ def _configure_logging() -> None:
                     "class": "logging.StreamHandler",
                     "stream": "ext://sys.stderr",
                     "formatter": "default",
+                    # CNP / e-mail / phone never reach the log sink.
+                    "filters": ["pii"] if redact else [],
                 },
             },
             "loggers": {
