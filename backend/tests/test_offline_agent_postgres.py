@@ -71,6 +71,7 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Any:
     # configured (migrations/014) — the whole flow must work without owner
     # rights. Test fixtures keep writing with TEST_DATABASE_URL.
     monkeypatch.setenv("SUPABASE_DB_URL", os.environ.get("APP_DATABASE_URL") or TEST_DATABASE_URL or "")
+    monkeypatch.setenv("DISTRIBUTED_LOCKS", "1")  # real advisory locks for every turn
     monkeypatch.setenv("AGENT_BACKEND", "offline")
     monkeypatch.setenv("EMBEDDINGS_BACKEND", "local")
     monkeypatch.setenv("STORAGE_BACKEND", "local")

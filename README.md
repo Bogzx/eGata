@@ -150,8 +150,14 @@ What doesn't hold:
 - The database owner or a superuser can still bypass everything at the SQL
   level. The point is that the application and its credential cannot.
 
-**The reminders worker runs in-process.** `APScheduler` inside the FastAPI
-process, so two replicas would do the work twice. Fine for one container.
+**The reminders worker runs in-process, but is replica-safe.** `APScheduler`
+runs inside each FastAPI process. Each tick takes a Postgres advisory lock,
+so with several replicas only one works through the pending events and the
+others skip that tick. Conversation turns are serialized the same way, with
+a per-conversation advisory lock held for the turn. The review gate ("the
+citizen confirmed the form") lives on the session row. Nothing that has to
+be consistent across replicas is kept in process memory any more.
+`DISTRIBUTED_LOCKS=0` falls back to in-process locks (unit tests).
 
 ---
 
@@ -595,7 +601,8 @@ byte-identical (`test_ledger_postgres.py`, `test_api_postgres.py`).
 
 `backend/app/worker.py` boots an **APScheduler** background job inside the
 FastAPI lifespan that polls the `pending_delivered_events` SQL view every
-`REMINDERS_POLL_SECONDS` (default 5). For each new `delivered` ledger row, it:
+`REMINDERS_POLL_SECONDS` (default 5), under a cluster-wide advisory lock so
+one replica does each tick. For each new `delivered` ledger row, it:
 
 1. Looks up the procedure's `next_steps[]`.
 2. Filters by `applies_if` expressions against the combined context of
@@ -749,6 +756,7 @@ no second one under `backend/`. Every variable has a working default in
 | `APP_DB_PASSWORD` | Login for `egata_app`, the least-privilege backend role (set by `scripts.bootstrap_local_db`) |
 | `LEDGER_SIGNING_KEY`, `LEDGER_SIGNING_KEY_FILE` | Ed25519 key that signs ledger rows (PEM or base64 seed; file generated in dev) |
 | `LEDGER_RETIRED_PUBLIC_KEYS` | Comma-separated base64 public keys of rotated-out signing keys |
+| `DISTRIBUTED_LOCKS` | `1` (default): Postgres advisory locks serialize conversation turns and the reminders worker across replicas; `0`: in-process only |
 | `LOG_REDACT_PII` | `1` (default) masks CNPs, e-mails and phone numbers in every log line; `0` for local debugging |
 | `SENTRY_DSN` | Optional — if set, FastAPI integration is wired |
 | `NEXT_PUBLIC_USE_MOCKS` | `1` runs the frontend offline with MSW |

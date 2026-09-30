@@ -82,7 +82,7 @@ async def execute(
     if (
         type == "choice"
         and session.state == SessionState.REVIEWING
-        and not is_review_confirmed(session.id)
+        and not is_review_confirmed(session)
     ):
         # `output` (not `error`) so the frontend doesn't bubble this as a
         # user-visible system message — this guidance is for the LLM only.

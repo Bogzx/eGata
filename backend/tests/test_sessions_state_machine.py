@@ -122,3 +122,18 @@ def test_resolve_pending_widget_pops():
 def test_resolve_pending_widget_missing_returns_none():
     s = Session(id="sess_x", citizen_id="abc")
     assert s.resolve_pending_widget("nope") is None
+
+
+def test_review_gate_opens_only_on_da_to_a_confirm_in_reviewing():
+    from app.sessions import PendingWidget, apply_review_confirmation
+
+    confirm = PendingWidget("w", "confirm", "Sunt corecte?")
+    s = Session(id="s", citizen_id="c", state=SessionState.REVIEWING)
+    assert not apply_review_confirmation(s, confirm, "Nu")
+    assert not apply_review_confirmation(s, PendingWidget("w", "choice", "?"), "Da")
+    assert apply_review_confirmation(s, confirm, "Da") and s.review_confirmed
+    # Leaving REVIEWING (an edit) closes the gate again.
+    transition(s, SessionState.FILLING)
+    assert not s.review_confirmed
+    filling = Session(id="f", citizen_id="c", state=SessionState.FILLING)
+    assert not apply_review_confirmation(filling, confirm, "Da")
