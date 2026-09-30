@@ -59,6 +59,7 @@ from app.sessions import (
     IllegalTransitionError,
     Session as DbSession,
     SessionState,
+    SessionOwnershipError,
     fetch_or_create_session,
     session_lock,
     transition,
@@ -233,13 +234,40 @@ class VoiceBridgeSession:
     async def _run_inner(self) -> None:
         assert self.start_payload is not None
 
-        self.db_session = fetch_or_create_session(
-            self.citizen_id, session_id=self.conv_id
-        )
+        try:
+            self.db_session = fetch_or_create_session(
+                self.citizen_id, session_id=self.conv_id
+            )
+        except SessionOwnershipError:
+            log.warning(
+                "voice_ws: forbidden conv=%s requester=%s",
+                self.conv_id,
+                self.citizen_id,
+            )
+            await self.send_json({"type": "error", "detail": "Not your conversation"})
+            await self.ws.close(code=4403)
+            return
         if (
             self.start_payload.document_id
             and not self.db_session.active_document_id
         ):
+            from fastapi import HTTPException
+
+            from app.agent import check_document_owner
+
+            try:
+                check_document_owner(self.start_payload.document_id, self.citizen_id)
+            except (HTTPException, ValueError):
+                log.warning(
+                    "voice_ws: forbidden doc=%s requester=%s",
+                    self.start_payload.document_id,
+                    self.citizen_id,
+                )
+                # Drop the session reference so _run_locked does not persist it.
+                self.db_session = None
+                await self.send_json({"type": "error", "detail": "Not your document"})
+                await self.ws.close(code=4403)
+                return
             self.db_session.active_document_id = self.start_payload.document_id
             if self.db_session.state != SessionState.FILLING:
                 try:

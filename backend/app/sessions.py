@@ -220,13 +220,28 @@ def fetch_session(session_id: str) -> Session | None:
     return _row_to_session(dict(row)) if row else None
 
 
+class SessionOwnershipError(PermissionError):
+    """A caller named a conversation that belongs to another citizen."""
+
+
 def fetch_or_create_session(
     citizen_id: str | UUID, session_id: str | None = None
 ) -> Session:
-    """If `session_id` is given AND exists, return it. Otherwise insert one."""
+    """If `session_id` is given AND exists, return it. Otherwise insert one.
+
+    Raises SessionOwnershipError when the existing session belongs to a
+    different citizen. `conversation_id` arrives from the client, and the
+    session it names carries the history (profile values, filled fields) and
+    the `citizen_id` every tool acts as — handing it to whoever asks would let
+    one citizen read and drive another's conversation.
+    """
     if session_id:
         existing = fetch_session(session_id)
         if existing is not None:
+            if existing.citizen_id != str(citizen_id):
+                raise SessionOwnershipError(
+                    f"session {session_id} does not belong to this citizen"
+                )
             return existing
     return insert_session(citizen_id, session_id=session_id)
 
