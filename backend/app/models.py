@@ -219,8 +219,15 @@ class ChatPreferences(BaseModel):
     voice_only: bool = False
 
 
+# The shapes the server mints (sessions.new_session_id, the voice socket's
+# conv_ ids). Anything else is refused: a client-chosen id like
+# "citizen:<uuid>:new" would share the lock key agent.py uses for that
+# citizen's first turn, and could hold it.
+CONVERSATION_ID_PATTERN = r"^(sess|conv)_[A-Za-z0-9_-]{1,64}$"
+
+
 class AgentChatRequest(BaseModel):
-    conversation_id: str | None = None
+    conversation_id: str | None = Field(default=None, pattern=CONVERSATION_ID_PATTERN)
     document_id: UUID | None = None
     message: str
     preferences: ChatPreferences | None = None
@@ -240,7 +247,7 @@ class WidgetResultRequest(BaseModel):
     updated snapshot back — bypassing the LLM round-trip that used to
     re-parse "Da" / "27.04.2026" / "proprietar" as plain text.
     """
-    conversation_id: str
+    conversation_id: str = Field(pattern=CONVERSATION_ID_PATTERN)
     widget_id: str
     # Value may be string (choice/date), bool (confirm), or numeric.
     value: Any
