@@ -27,6 +27,9 @@ log = logging.getLogger("auth")
 DEFAULT_DEMO_PERSONA = "maria-ionescu"
 MOCK_OTP_CODE = "123456"
 CHALLENGE_TTL_SECONDS = 300
+# Wrong codes allowed per challenge before it is burned (migrations/013).
+# Five guesses at a 6-digit code is a 1-in-200,000 chance per challenge.
+MAX_OTP_ATTEMPTS = 5
 
 PERSONA_TO_CNP: dict[str, str] = {
     "maria-ionescu": "2851014123456",
@@ -120,7 +123,7 @@ def verify_otp_and_consume(challenge_id: str, code: str) -> str:
     )
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
-            "select citizen_id, phone, twilio_sid, expires_at, consumed "
+            "select citizen_id, phone, twilio_sid, expires_at, consumed, attempts "
             "from otp_challenges where id = %s for update;",
             (challenge_id,),
         )
@@ -139,13 +142,28 @@ def verify_otp_and_consume(challenge_id: str, code: str) -> str:
             )
             raise ValueError("challenge expired")
 
+        if row["attempts"] >= MAX_OTP_ATTEMPTS:
+            log.warning("verify_otp: attempts exhausted challenge=%s", challenge_id)
+            raise ValueError("too many attempts")
+
+        def reject() -> None:
+            # Count the miss and commit it before raising — the exception
+            # would otherwise roll the increment back with everything else.
+            cur.execute(
+                "update otp_challenges set attempts = attempts + 1, "
+                "consumed = (attempts + 1 >= %s) where id = %s;",
+                (MAX_OTP_ATTEMPTS, challenge_id),
+            )
+            conn.commit()
+            raise ValueError("invalid code")
+
         if settings.mock_otp:
-            if code != MOCK_OTP_CODE:
+            if not secrets.compare_digest(code or "", MOCK_OTP_CODE):
                 log.warning(
                     "verify_otp: mock mode rejected wrong code challenge=%s",
                     challenge_id,
                 )
-                raise ValueError("invalid code")
+                reject()
             log.info("verify_otp: mock approved challenge=%s", challenge_id)
         else:
             try:
@@ -166,7 +184,7 @@ def verify_otp_and_consume(challenge_id: str, code: str) -> str:
                 phone_hint(row["phone"]),
             )
             if check.status != "approved":
-                raise ValueError("invalid code")
+                reject()
 
         cur.execute("update otp_challenges set consumed = true where id = %s;", (challenge_id,))
         conn.commit()
