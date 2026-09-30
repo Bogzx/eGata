@@ -711,7 +711,7 @@ no second one under `backend/`. Every variable has a working default in
 cd backend  && pytest                       # offline: no database, no pdflatex, no keys
 cd frontend && npm run test                 # Vitest
 cd frontend && npx tsc --noEmit             # typecheck
-cd frontend && npm run e2e                  # Playwright + axe — needs a LIVE backend
+cd frontend && npm run e2e                  # Playwright — needs a running stack (see below)
 ```
 
 Three kinds of backend test are opt-in and skip by default, because they need
@@ -726,11 +726,13 @@ export TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/egata
 pytest tests/test_ledger_postgres.py tests/test_api_postgres.py tests/test_offline_agent_postgres.py
 ```
 
-`.github/workflows/ci.yml` runs four jobs on every PR: backend pytest; the
-ledger, document-API and offline-agent suites against a
-`pgvector/pgvector:pg16` service; frontend `tsc --noEmit` + vitest; and all
-23 templates through real `pdflatex`. Playwright is deliberately excluded —
-`frontend/e2e/` drives a live Azure-backed backend.
+`.github/workflows/ci.yml` runs five jobs on every PR: backend ruff + pytest;
+the ledger, document-API and offline-agent suites against a
+`pgvector/pgvector:pg16` service; frontend `tsc --noEmit` + vitest; all 23
+templates through real `pdflatex`; and Playwright against the full
+`docker compose up` stack with no keys (the offline agent answers the chat).
+Locally: `E2E_BASE_URL=http://localhost:3000 API_BASE=http://127.0.0.1:8000 npm run e2e`
+with the compose stack up.
 
 Backend coverage:
 
