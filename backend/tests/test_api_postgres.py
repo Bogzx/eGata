@@ -184,3 +184,30 @@ def test_foreign_conversation_is_refused_with_a_real_session(api: Any) -> None:
         headers=_hdr(intruder),
     )
     assert r.status_code == 403
+
+
+def test_otp_guessing_is_capped(api: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.auth import MAX_OTP_ATTEMPTS
+
+    monkeypatch.setenv("MOCK_OTP", "1")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+
+    def challenge() -> str:
+        r = api.post("/auth/login-roeid", json={"persona_id": "maria-ionescu"})
+        assert r.status_code == 200, r.text
+        return r.json()["challenge_id"]
+
+    # A couple of typos, then the right code: still fine.
+    ch = challenge()
+    for _ in range(2):
+        assert api.post("/auth/otp", json={"challenge_id": ch, "code": "000000"}).status_code == 401
+    assert api.post("/auth/otp", json={"challenge_id": ch, "code": "123456"}).status_code == 200
+
+    # Exhaust the attempts: the challenge is burned, even for the right code.
+    ch = challenge()
+    for _ in range(MAX_OTP_ATTEMPTS):
+        assert api.post("/auth/otp", json={"challenge_id": ch, "code": "000000"}).status_code == 401
+    r = api.post("/auth/otp", json={"challenge_id": ch, "code": "123456"})
+    assert r.status_code == 401
