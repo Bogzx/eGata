@@ -56,6 +56,9 @@ def _configure_logging() -> None:
                 "twilio_bridge": {"level": level, "handlers": ["stderr"], "propagate": False},
                 "complete_document": {"level": level, "handlers": ["stderr"], "propagate": False},
                 "auth": {"level": level, "handlers": ["stderr"], "propagate": False},
+                "offline_agent": {"level": level, "handlers": ["stderr"], "propagate": False},
+                "files": {"level": level, "handlers": ["stderr"], "propagate": False},
+                "storage": {"level": level, "handlers": ["stderr"], "propagate": False},
                 # Quiet noisy third-party loggers (they propagate to root → stderr otherwise).
                 "httpx": {"level": "WARNING"},
                 "httpcore": {"level": "WARNING"},
@@ -63,6 +66,10 @@ def _configure_logging() -> None:
                 "hpack": {"level": "WARNING"},
                 "websockets": {"level": "INFO"},
             },
+            # Anything else (a new explicitly named logger, a library) goes
+            # through the same redacting handler instead of Python's
+            # last-resort stderr handler, which has no filter.
+            "root": {"level": "WARNING", "handlers": ["stderr"]},
         }
     )
 
