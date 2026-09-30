@@ -67,6 +67,10 @@ jobs:
     env:
       SUPABASE_DB_URL: postgresql://postgres:postgres@localhost:5432/egata
       TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/egata
+      # bootstrap gives egata_app this password; the API and offline-agent
+      # suites then run the backend as that least-privilege role.
+      APP_DB_PASSWORD: ci-app-password
+      APP_DATABASE_URL: postgresql://egata_app:ci-app-password@localhost:5432/egata
     steps:
       - uses: actions/checkout@v4
 

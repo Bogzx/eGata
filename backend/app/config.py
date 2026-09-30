@@ -45,6 +45,15 @@ class Settings(BaseSettings):
     # tests set it in conftest.py:15.
     mock_otp: bool = Field(default=False)
 
+    # Ed25519 key that signs every ledger row (app/ledger_signing.py). PEM or
+    # base64 of the 32-byte seed. Unset: the PEM at ledger_signing_key_file,
+    # generated there on first run with a warning (dev only).
+    ledger_signing_key: str = Field(default="")
+    ledger_signing_key_file: str = Field(default="./.data/ledger-signing-key.pem")
+    # Comma-separated base64 public keys of rotated-out signing keys, still
+    # published so rows they signed keep verifying.
+    ledger_retired_public_keys: str = Field(default="")
+
     # Which agent answers /agent/chat: "azure" (the LLM), "offline" (the
     # deterministic scripted agent in app/offline_agent.py — no API key, no
     # cost) or "auto" (azure when AZURE_OPENAI_API_KEY is set, else offline).

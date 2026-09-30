@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 
 from app.documents import pdf_generated_payload
 from app.ledger import GENESIS_HASH, compute_payload_hash, compute_row_hash
+from app.ledger_signing import sign_row
 from app.main import app
 
 CITIZEN = UUID("11111111-1111-1111-1111-111111111111")
@@ -58,6 +59,9 @@ def _chain_for_document(document_id: str) -> list[dict]:
             "created_at": ts,
             "ts_iso": ts_iso,
         })
+        rows[-1]["key_id"], rows[-1]["signature"] = sign_row(
+            citizen_id=str(CITIZEN), document_id=document_id, row_id=i + 1, row_hash=row_hash,
+        )
         prev = row_hash
     return rows
 

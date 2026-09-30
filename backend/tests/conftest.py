@@ -13,3 +13,5 @@ os.environ.setdefault("AZURE_VOICELIVE_API_KEY", "test-azure-voicelive")
 os.environ.setdefault("AZURE_VOICELIVE_ENDPOINT", "https://test.services.ai.azure.com/")
 os.environ.setdefault("JWT_SIGNING_SECRET", "test-secret")
 os.environ.setdefault("MOCK_OTP", "1")
+# Fixed Ed25519 seed so tests never write a generated key to ./.data.
+os.environ.setdefault("LEDGER_SIGNING_KEY", "ZWdhdGEtdGVzdC1sZWRnZXItc2lnbmluZy1rZXktMzI=")

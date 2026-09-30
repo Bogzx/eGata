@@ -57,6 +57,9 @@ services:
     environment:
       SUPABASE_DB_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-egata}
       JWT_SIGNING_SECRET: ${JWT_SIGNING_SECRET:-dev-only-not-a-secret}
+      # Login password for egata_app, the least-privilege role the backend
+      # uses (migrations/014). Set on every run, so changing it here rotates it.
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-egata-app-dev-only}
       AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
       AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
       AZURE_OPENAI_EMBED_DEPLOYMENT: ${AZURE_OPENAI_EMBED_DEPLOYMENT:-text-embedding-3-large}
@@ -79,7 +82,16 @@ services:
       PORT: "8000"
       LOG_LEVEL: ${LOG_LEVEL:-info}
 
-      SUPABASE_DB_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-egata}
+      # Not the owner: egata_app may only SELECT the ledger and append through
+      # append_ledger(), and cannot drop its triggers (migrations/014).
+      SUPABASE_DB_URL: postgresql://egata_app:${APP_DB_PASSWORD:-egata-app-dev-only}@db:5432/${POSTGRES_DB:-egata}
+
+      # Ed25519 key that signs every ledger row. Unset: generated on first
+      # start into the egata-keys volume (with a warning). Production: set it
+      # from a secret store. Public keys: /.well-known/egata-ledger-keys.json
+      LEDGER_SIGNING_KEY: ${LEDGER_SIGNING_KEY:-}
+      LEDGER_SIGNING_KEY_FILE: /data/keys/ledger-signing-key.pem
+      LEDGER_RETIRED_PUBLIC_KEYS: ${LEDGER_RETIRED_PUBLIC_KEYS:-}
 
       # PDFs go to the volume below, served by /files/pdf with short-lived
       # HMAC-signed links. Set this to `supabase` (and fill SUPABASE_URL +
@@ -119,6 +131,7 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - egata-pdfs:/data/pdfs
+      - egata-keys:/data/keys
       # Edit a procedure or template and restart the backend — no rebuild.
       - ./backend/procedures:/app/procedures
       - ./backend/templates:/app/templates
@@ -158,3 +171,4 @@ services:
 volumes:
   egata-db-data:
   egata-pdfs:
+  egata-keys:

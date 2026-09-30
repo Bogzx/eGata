@@ -19,7 +19,9 @@ from app.ledger import (
     fetch_ledger_for_document,
     sha256_hex,
     verify_chain,
+    verify_signatures,
 )
+from app.ledger_signing import published_keys
 from app.models import (
     CreateDocumentRequest,
     DeliverRequest,
@@ -27,6 +29,7 @@ from app.models import (
     GeneratePDFResponse,
     LedgerEntry,
     LedgerResponse,
+    LedgerSigningKey,
     PatchFieldsRequest,
 )
 from app.pdf import render_and_compile
@@ -474,8 +477,19 @@ def get_ledger(
             created_at=r["created_at"],
             payload=_json.loads(r["payload"]) if isinstance(r["payload"], str) else r["payload"],
             hashed_at=r.get("ts_iso"),
+            key_id=r.get("key_id"),
+            signature=r.get("signature"),
         )
         for r in rows
     ]
-    verified = verify_chain(rows, genesis_hash=GENESIS_HASH)
-    return LedgerResponse(entries=entries, verified=verified, genesis_hash=GENESIS_HASH)
+    verified = verify_chain(rows, genesis_hash=GENESIS_HASH) and verify_signatures(
+        rows, citizen_id=str(doc["citizen_id"]), document_id=str(document_id)
+    )
+    return LedgerResponse(
+        entries=entries,
+        verified=verified,
+        genesis_hash=GENESIS_HASH,
+        citizen_id=str(doc["citizen_id"]),
+        document_id=str(document_id),
+        signing_keys=[LedgerSigningKey(**k) for k in published_keys()],
+    )

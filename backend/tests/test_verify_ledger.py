@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 
 from app.documents import pdf_generated_payload
 from app.ledger import GENESIS_HASH, compute_payload_hash, compute_row_hash
+from app.ledger_signing import sign_row
 from app.main import app
 from app.security import mint_access_token
 from scripts import verify_ledger
@@ -55,6 +56,9 @@ def _rows() -> list[dict]:
                 "created_at": ts,
                 "ts_iso": ts_iso,
             }
+        )
+        rows[-1]["key_id"], rows[-1]["signature"] = sign_row(
+            citizen_id=str(CITIZEN), document_id=str(DOC), row_id=i + 1, row_hash=rh
         )
         prev = rh
     return rows
@@ -176,3 +180,110 @@ def test_generate_pdf_endpoint_records_the_hash() -> None:
     assert r.status_code == 200, r.text
     payload = ledger.call_args.kwargs["payload"]
     assert payload["pdf_sha256"] == verify_ledger._sha256(PDF)
+
+
+# ---- signatures (migrations/014) ------------------------------------------
+
+
+def test_stdlib_ed25519_matches_rfc8032_vector_1() -> None:
+    pub = bytes.fromhex("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a")
+    sig = bytes.fromhex(
+        "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e06522490155"
+        "5fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b"
+    )
+    assert verify_ledger.ed25519_verify(pub, b"", sig)
+    assert not verify_ledger.ed25519_verify(pub, b"x", sig)
+    assert not verify_ledger.ed25519_verify(pub, b"", sig[:-1] + bytes([sig[-1] ^ 1]))
+
+
+def test_stdlib_ed25519_agrees_with_cryptography() -> None:
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    for i in range(5):
+        key = Ed25519PrivateKey.generate()
+        pub = key.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+        msg = f"mesaj {i} ăîșț".encode() * (i + 1)
+        sig = key.sign(msg)
+        assert verify_ledger.ed25519_verify(pub, msg, sig)
+        other = Ed25519PrivateKey.generate().public_key().public_bytes(
+            serialization.Encoding.Raw, serialization.PublicFormat.Raw
+        )
+        assert not verify_ledger.ed25519_verify(other, msg, sig)
+
+
+def _pinned() -> list[str]:
+    from app.ledger_signing import signing_key
+
+    return ["--public-key", signing_key().public_b64]
+
+
+def test_signatures_verify_against_a_pinned_key(tmp_path: Path) -> None:
+    body = _export(_rows())
+    assert body["signing_keys"][0]["status"] == "current"
+    ledger = tmp_path / "l.json"
+    ledger.write_text(json.dumps(body), encoding="utf-8")
+    assert verify_ledger.main([str(ledger), *_pinned()]) == 0
+
+
+def test_a_chain_signed_by_another_key_is_rejected(tmp_path: Path) -> None:
+    import base64
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    # Someone with database access but not the key rebuilds the chain and
+    # signs it with a key of their own, publishing that key in the export.
+    body = _export(_rows())
+    rogue = Ed25519PrivateKey.generate()
+    raw = rogue.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    rogue_id = verify_ledger.key_id_for(raw)
+    for e in body["entries"]:
+        msg = verify_ledger._statement(rogue_id, body["citizen_id"], body["document_id"], e["id"], e["row_hash"])
+        e["key_id"], e["signature"] = rogue_id, base64.b64encode(rogue.sign(msg)).decode()
+    body["signing_keys"] = [{"key_id": rogue_id, "public_key": base64.b64encode(raw).decode(),
+                             "algorithm": "Ed25519", "status": "current"}]
+    ledger = tmp_path / "l.json"
+    ledger.write_text(json.dumps(body), encoding="utf-8")
+    assert verify_ledger.main([str(ledger)]) == 0  # self-consistent: why the key must be pinned
+    assert verify_ledger.main([str(ledger), *_pinned()]) == 1
+
+
+def test_unsigned_rows_fail_unless_allowed(tmp_path: Path) -> None:
+    body = _export(_rows())
+    body["entries"][1]["signature"] = None
+    ledger = tmp_path / "l.json"
+    ledger.write_text(json.dumps(body), encoding="utf-8")
+    assert verify_ledger.main([str(ledger), *_pinned()]) == 1
+    assert verify_ledger.main([str(ledger), *_pinned(), "--allow-unsigned"]) == 0
+
+
+def test_receipt_proves_a_re_signed_rewrite(tmp_path: Path) -> None:
+    """The key holder rewrites the last row and re-signs everything: the chain
+    verifies again, but the citizen's earlier receipt no longer fits."""
+    from app.ledger_signing import sign_row
+
+    body = _export(_rows())
+    ledger = tmp_path / "l.json"
+    receipt = tmp_path / "receipt.json"
+    ledger.write_text(json.dumps(body), encoding="utf-8")
+    assert verify_ledger.main([str(ledger), *_pinned(), "--save-receipt", str(receipt)]) == 0
+    assert verify_ledger.main([str(ledger), *_pinned(), "--receipt", str(receipt)]) == 0
+
+    last = body["entries"][-1]
+    last["payload"]["ref_number"] = "CV-ALTA"
+    last["payload_hash"] = compute_payload_hash(last["payload"])
+    last["row_hash"] = compute_row_hash(last["event_type"], last["payload_hash"], last["prev_hash"], last["hashed_at"])
+    last["key_id"], last["signature"] = sign_row(
+        citizen_id=body["citizen_id"], document_id=body["document_id"], row_id=last["id"], row_hash=last["row_hash"]
+    )
+    ledger.write_text(json.dumps(body), encoding="utf-8")
+    assert verify_ledger.main([str(ledger), *_pinned()]) == 0
+    assert verify_ledger.main([str(ledger), *_pinned(), "--receipt", str(receipt)]) == 1
+
+
+def test_well_known_keys_endpoint_is_public() -> None:
+    r = TestClient(app).get("/.well-known/egata-ledger-keys.json")
+    assert r.status_code == 200
+    keys = r.json()["keys"]
+    assert keys[0]["key_id"].startswith("ed25519:") and keys[0]["status"] == "current"

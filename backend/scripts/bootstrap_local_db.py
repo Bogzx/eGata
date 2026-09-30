@@ -27,6 +27,7 @@ import sys
 from pathlib import Path
 
 import psycopg
+import psycopg.sql
 
 MIG_DIR = Path(__file__).resolve().parents[1] / "migrations"
 
@@ -89,6 +90,26 @@ def _count(cur: psycopg.Cursor, table: str) -> int:
     return int(row[0]) if row else 0
 
 
+def _enable_app_login(cur: psycopg.Cursor) -> str:
+    """Give `egata_app` (migrations/014) a login when APP_DB_PASSWORD is set.
+
+    The password comes from the environment on every run, so rotating it is
+    re-running this script with a new value. Returns a status line.
+    """
+    password = os.environ.get("APP_DB_PASSWORD", "").strip()
+    cur.execute("select 1 from pg_roles where rolname = 'egata_app';")
+    if cur.fetchone() is None:
+        return "egata_app role missing (no CREATE ROLE privilege?) — backend must use the owner"
+    if not password:
+        return "egata_app exists without a login — set APP_DB_PASSWORD to enable it"
+    cur.execute(
+        psycopg.sql.SQL("alter role egata_app with login password {}").format(
+            psycopg.sql.Literal(password)
+        )
+    )
+    return "egata_app can log in (least-privilege backend role; ledger is append-only for it)"
+
+
 def _dsn() -> str:
     """Read SUPABASE_DB_URL directly rather than through app.config.
 
@@ -143,6 +164,8 @@ def main() -> int:
                 "insert into schema_migrations (filename) values (%s);", (path.name,)
             )
 
+        app_role = _enable_app_login(cur)
+
         # Cheap (a few dozen rows, no network) and keeps the offline index in
         # step with procedure/scenario JSON edits on every start.
         from scripts.index_rag import index_local
@@ -158,6 +181,7 @@ def main() -> int:
     print()
     print(f"Schema ready. {citizens} demo citizens seeded.")
     print(f"Offline procedure index: {local_indexed} entries.")
+    print(f"App role: {app_role}.")
     print()
     print("Works with no API keys:")
     print("  login (mock OTP 123456) · profile · procedure catalogue ·")

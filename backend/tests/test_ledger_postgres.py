@@ -244,3 +244,68 @@ def test_invalid_event_type_is_rejected(pg: Any, citizen_id: UUID) -> None:
             "select * from append_ledger(%s, null, 'not_a_real_event', '{}');",
             (str(citizen_id),),
         )
+
+
+# ---- migrations/014: signatures and the least-privilege role ---------------
+
+APP_DATABASE_URL = os.environ.get("APP_DATABASE_URL")
+
+
+def test_every_appended_row_is_signed(pg: Any, citizen_id: UUID) -> None:
+    from app.ledger import LedgerEventType, append_ledger, fetch_ledger_for_document, verify_signatures
+
+    doc = _new_document(pg, citizen_id)
+    for event in (LedgerEventType.DOC_CREATED, LedgerEventType.COMPLETED_DRAFT):
+        append_ledger(citizen_id=citizen_id, event_type=event, payload={"d": str(doc)}, document_id=doc)
+    rows = fetch_ledger_for_document(doc)
+    assert all(r["signature"] and r["key_id"] for r in rows)
+    assert verify_signatures(rows, citizen_id=str(citizen_id), document_id=str(doc))
+    # A signature is bound to its chain: the same rows do not verify as
+    # another citizen's.
+    assert not verify_signatures(rows, citizen_id=str(uuid4()), document_id=str(doc))
+
+
+def test_rows_from_before_signing_are_signed_at_startup(pg: Any, citizen_id: UUID) -> None:
+    from app.ledger import fetch_ledger_for_document, sign_unsigned_rows, verify_signatures
+
+    doc = _new_document(pg, citizen_id)
+    with pg.cursor() as cur:  # an old-style append: no signature row
+        cur.execute(
+            "select * from append_ledger(%s, %s, 'doc_created', '{}');", (str(citizen_id), str(doc))
+        )
+    assert fetch_ledger_for_document(doc)[0]["signature"] is None
+    assert sign_unsigned_rows() >= 1
+    rows = fetch_ledger_for_document(doc)
+    assert verify_signatures(rows, citizen_id=str(citizen_id), document_id=str(doc))
+
+
+def test_signatures_are_append_only(pg: Any, citizen_id: UUID) -> None:
+    from app.ledger import LedgerEventType, append_ledger
+
+    row = append_ledger(citizen_id=citizen_id, event_type=LedgerEventType.DOC_CREATED, payload={})
+    with pytest.raises(psycopg.errors.RestrictViolation), pg.cursor() as cur:
+        cur.execute("update ledger_signatures set signature = 'x' where ledger_id = %s;", (row["id"],))
+
+
+@pytest.mark.skipif(not APP_DATABASE_URL, reason="APP_DATABASE_URL (egata_app login) not set")
+def test_app_role_can_only_append_through_the_function(citizen_id: UUID) -> None:
+    from psycopg.rows import dict_row
+
+    with psycopg.connect(APP_DATABASE_URL, row_factory=dict_row, autocommit=True) as app:
+        row = app.execute(
+            "select id from append_ledger(%s, null, 'doc_created', '{}');", (str(citizen_id),)
+        ).fetchone()
+        assert row is not None
+        for sql, params in (
+            (
+                "insert into ledger (citizen_id, event_type, payload_hash, prev_hash, row_hash) "
+                "values (gen_random_uuid(), 'doc_created', 'x', 'y', 'z')",
+                (),
+            ),
+            ("update ledger set row_hash = 'x' where id = %s", (row["id"],)),
+            ("delete from ledger where id = %s", (row["id"],)),
+            ("alter table ledger disable trigger ledger_no_update", ()),
+            ("drop trigger ledger_no_delete on ledger", ()),
+        ):
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                app.execute(sql, params)
