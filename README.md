@@ -8,9 +8,13 @@ Built for the Cluj Hackathon 2026 (Bosch Cluj, May 22–24).
 A citizen logs in once with their digital ID (or scans the MRZ on the back of the
 CI), describes what they need in plain Romanian — by voice or text — and eGata
 runs a stateful agent that picks the right procedure, asks only for what's
-genuinely missing, generates a signed LaTeX PDF, delivers it (save / SMS /
-print), writes every milestone to a tamper-evident hash-chain ledger, and
-queues proactive reminders for the next legal steps.
+genuinely missing, renders the form to PDF with LaTeX, delivers it (save /
+SMS / print), writes every milestone — including the SHA-256 of the PDF — to
+a tamper-evident hash-chain ledger you can verify yourself, and queues
+proactive reminders for the next legal steps.
+
+> The PDF is not digitally signed. "Signed" anywhere in this project means
+> a short-lived *signed download link*. See [What's demo-only](#whats-demo-only).
 
 ---
 
@@ -58,12 +62,13 @@ This is a three-day hackathon build. The table below is triaged honestly:
 | 5 multi-step real-life scenarios (e.g. *cumpărare apartament*) | shipped | |
 | 17 external institutions catalog (ANAF, CNAS, DRPCIV, SPCLEP-MAI, …) | shipped | |
 | LaTeX → `pdflatex` → PDF pipeline, all 23 templates rendered in CI | shipped | |
-| Hash-chain ledger (sha256), append-only, chain-verified per document | shipped | |
+| Hash-chain ledger (sha256), append-only, per-document chains that bind the PDF's hash; verifiable off-server with `scripts/verify_ledger.py` | shipped | tamper-evident, not tamper-proof — see below |
 | Background worker — `next_steps[]` → reminders with `applies_if` filtering | shipped | |
 | Accessibility: simple-language, voice-only, large-text, kiosk modes | shipped | |
 | Stateful agent, 6-state machine with state-gated tool dispatch | shipped | |
-| Romanian text chat with the agent | partial | needs a paid Azure OpenAI key; no offline fallback |
-| RAG over procedures + scenarios via pgvector (768-d) | partial | index must be built with a paid embedding deployment |
+| Romanian text chat — **offline agent** | shipped | no key needed; a deterministic script (keyword search, then field by field), not an LLM — it says so |
+| Romanian text chat — LLM agent (Azure OpenAI) | partial | needs a paid Azure OpenAI key |
+| Procedure search via pgvector (768-d) | shipped | local lexical index built automatically; the Azure embedding index needs a paid deployment |
 | Azure VoiceLive browser WebSocket bridge (PCM16, streaming partials) | partial | needs a separate Azure VoiceLive resource |
 | Twilio Media Streams ↔ VoiceLive phone bridge (μ-law 8 kHz) | partial | needs Twilio + a public tunnel; not exercised by tests |
 | Delivery mode **send** (Twilio SMS) | partial | needs Twilio credentials; `save`/`print` work offline |
@@ -109,11 +114,24 @@ application-level (`_require_owner` in `backend/app/documents.py`). The
 policies would start mattering the day a client talked to the database
 directly, which nothing does.
 
+**The PDF is not digitally signed.** No key signs it; there is no PAdES /
+eIDAS signature and no seal a third party could validate. What exists: the
+PDF is served through short-lived HMAC-signed (local) or Supabase-signed
+*links*, and the ledger records the SHA-256 of the exact bytes stored, so a
+PDF swapped in storage afterwards no longer matches its ledger row. A
+qualified signature is on the roadmap and needs a trust-service provider.
+
 **The ledger is tamper-evident, not tamper-proof.** Rows are chained,
-`UPDATE`/`DELETE` are revoked and blocked by a trigger, and hashes are
-recomputed server-side — but the database owner can still drop the trigger.
-It detects casual and accidental mutation. It is not an external anchor and
-does not pretend to be one.
+`UPDATE`/`DELETE`/`TRUNCATE` are blocked by triggers, and hashes are derived
+server-side. The chain is **unkeyed** sha256 with no external anchor, so:
+anyone with database write access (the owner can drop the triggers; plain
+`INSERT` is not revoked) can append or rebuild rows with valid-looking
+hashes, and cutting rows off the end of a chain is not detectable from the
+chain alone. It detects edits to existing rows and to the stored PDF. The
+citizen can check a document independently —
+`python backend/scripts/verify_ledger.py` re-derives every hash from the API
+output and compares a PDF file — and should keep the printed head hash: if a
+later export no longer contains it, history was rewritten.
 
 **The reminders worker runs in-process.** `APScheduler` inside the FastAPI
 process, so two replicas would do the work twice. Fine for one container.
@@ -201,16 +219,21 @@ Postgres+pgvector, applies the migrations, seeds three citizens, and stores
 PDFs on a local volume. No Supabase project, no cloud database, no API key.
 
 **What works with zero configuration:** login (persona → OTP `123456`) ·
-profile · the 23-procedure catalogue · creating and filling a document ·
-real `pdflatex` rendering · save/print delivery · the audit ledger and its
-timeline · reminders.
+profile · the 23-procedure catalogue · **text chat with the offline agent** ·
+creating and filling a document · real `pdflatex` rendering · save/print
+delivery · the audit ledger and its timeline · reminders.
 
-**What does not:** the agent chat. It calls Azure OpenAI for both the model
-and the RAG embeddings, and there is no offline substitute — so the
-conversational flow, which is the headline feature, needs a paid key. See
-[Turning the chat on](#turning-the-chat-on).
+The offline agent (`backend/app/offline_agent.py`) is a deterministic script,
+not an LLM, and its first reply says so: it finds the procedure by keyword
+search over a local index the `migrate` step builds, confirms it, asks for
+the missing fields one at a time, and walks review and delivery through the
+same tools, state machine, PDF and ledger as the LLM agent. Try *"vreau să-mi
+schimb domiciliul"*, *"am pierdut buletinul"* or *"ce proceduri sunt?"*.
 
-### Turning the chat on
+**What needs a key:** the LLM agent (free-form conversation, paraphrases the
+keyword search misses) and voice. See [Turning the LLM on](#turning-the-llm-on).
+
+### Turning the LLM on
 
 ```bash
 cp .env.example .env
@@ -219,8 +242,12 @@ docker compose up -d --build
 docker compose run --rm migrate python -m scripts.index_rag   # ~28 embedding calls
 ```
 
-The embedding deployment used to build the index must be the same one used at
-query time, or retrieval degrades silently with no error.
+With a key set, `AGENT_BACKEND=auto` (the default) switches the chat to the
+LLM and search to the Azure index; `AGENT_BACKEND=offline` keeps the script.
+Every vector records the model that built it and search only reads the
+current model's rows (`migrations/012`), so the local and Azure indexes live
+side by side. Re-index after changing `AZURE_OPENAI_EMBED_DEPLOYMENT` — two
+Azure deployments are not told apart.
 
 ### Running it without Docker
 
@@ -234,8 +261,8 @@ cd backend
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 cp ../.env.example .env                                # set SUPABASE_DB_URL at minimum
-python -m scripts.bootstrap_local_db                   # migrations + seed; safe to re-run
-python -m scripts.index_rag                            # only if you have an Azure key
+python -m scripts.bootstrap_local_db                   # migrations + seed + offline index; safe to re-run
+python -m scripts.index_rag                            # Azure index — only if you have a key
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -243,7 +270,7 @@ Verify:
 
 ```bash
 curl http://localhost:8000/health        # {"status":"ok","service":"egata-backend"}
-curl http://localhost:8000/healthz       # liveness — used by the Railway healthcheck
+curl http://localhost:8000/healthz       # dependency report (Postgres, keys, agent backend); always 200
 ```
 
 Frontend:
@@ -297,6 +324,9 @@ caveat is in `frontend/.env.local.example`.
   which is why it defaults to off.
 - JWTs are HS256, 24 h TTL by default, issued by `app.security.mint_access_token`.
 - All authenticated routes accept the JWT as `Authorization: Bearer <token>`.
+- A `conversation_id` or `document_id` sent to `/agent/chat*`,
+  `/agent/widget-result` or the voice socket must belong to the caller
+  (403 / close 4403 otherwise); ownership is checked before any work starts.
 
 ### Conversational agent
 
@@ -320,6 +350,10 @@ as a hard guarantee — not a soft hint to the LLM.
 filling/reviewing — a mid-fill remark ("vreau și impozit cândva") must not
 abandon the draft. The agent can still answer with text; it just can't mutate
 state.
+
+**Backends** (`AGENT_BACKEND`): the Azure OpenAI LLM, or the offline
+scripted agent (`app/offline_agent.py`). Both drive the tools above through
+the same dispatcher; `/healthz` reports which one is active.
 
 **Transports**:
 
@@ -377,15 +411,19 @@ Three JSON catalogs, all loaded once and cached:
   + external-institution steps into a coherent plan with a `complexitate` and a
   `termen_total`.
 
-- **`backend/institutions/` (16 files)** — external bodies (ANAF, ANEVAR,
+- **`backend/institutions/` (17 files)** — external bodies (ANAF, ANEVAR,
   AJOFM, banca, casa-pensii, CNAS, DGASPC, diriginte-șantier, DRPCIV, instanță,
-  notariat, OCPI-ANCPI, ONRC, SPCLEP-MAI, spital-medic, auditor-energetic). Each
+  notariat, OCPI-ANCPI, ONRC, SPCLEP-MAI, spital-medic, auditor-energetic,
+  stare-civilă). Each
   carries a `note_ai_cannot_complete` string that bubbles to the UI when the
   agent surfaces a redirect.
 
-**RAG (`backend/app/embeddings.py`)** — `text-embedding-3-large` reduced to
-**768 dimensions** via the `dimensions` parameter, stored in `rag_entries`
-(pgvector). Reindex with `python -m scripts.index_rag`.
+**RAG (`backend/app/embeddings.py`)** — two embedders into one 768-d
+pgvector column (`rag_entries`): `text-embedding-3-large` reduced via the
+`dimensions` parameter, or the offline lexical embedder
+(`app/local_embeddings.py`: hashed diacritic-folded words, stems and
+trigrams). `EMBEDDINGS_BACKEND` picks one; the local index is rebuilt by
+`scripts.bootstrap_local_db`, the Azure one by `python -m scripts.index_rag`.
 
 ### Documents, PDF & delivery
 
@@ -393,16 +431,30 @@ Full document lifecycle is auditable end-to-end:
 
 | Step | Endpoint | Ledger event |
 |---|---|---|
-| Create draft | `POST /documents` | `doc_created` |
-| Patch fields | `PATCH /documents/{id}/fields` | — |
-| Mark complete | implicit via `complete_document` tool | `completed_draft` |
-| Render PDF | `POST /documents/{id}/generate-pdf` | `pdf_generated` |
-| Deliver | `POST /documents/{id}/deliver` (`save` / `send` / `print`) | `delivered` |
+| Create draft | `POST /documents` (or the agent's `start_procedure`, which also prefills profile fields) | `doc_created` |
+| Patch fields | `PATCH /documents/{id}/fields` — validated against the schema (unknown field, bad option, non-scalar or >2000 chars → 422) | — |
+| Draft complete | when the last required field (with `applies_if`) is filled, via PATCH or `set_field` | `completed_draft` |
+| Render PDF | `POST /documents/{id}/generate-pdf` | `pdf_generated` (with `pdf_sha256`, `fields_sha256`) |
+| Deliver | `POST /documents/{id}/deliver` (`save` / `send` / `print`) — needs every required field and a PDF rendered from the current fields, else 422 / 409 | `delivered` |
 | Inspect chain | `GET /documents/{id}/ledger` | (read-only verify) |
 
+A finalized document is frozen: PATCH, generate-pdf and deliver return 409,
+and the agent's `set_field` refuses it.
+
 **PDF pipeline** (`backend/app/pdf.py`): LaTeX template + `{{ field }}`
-placeholders → safe LaTeX escaping (`\&`, `\%`, `\_`, …) → `pdflatex`
-subprocess → object storage → **short-lived signed URL**.
+placeholders → every value sanitized and escaped → `pdflatex` subprocess →
+object storage → **short-lived signed URL** (the link is signed; the PDF is not).
+
+Field values come from citizens and from the model, so they are treated as
+hostile. All ten TeX specials are escaped, so `\input`, `\write18` or `^^`
+escapes cannot be formed; whitespace is collapsed (a blank line inside
+`\underline{}` used to abort three templates); control characters,
+pictographs and letters the preamble cannot set (CJK, Cyrillic, …) are
+folded to a base letter or `?` rather than failing the render. `pdflatex`
+runs with `-no-shell-escape` and kpathsea `openin_any=p` / `openout_any=p`,
+so even a template bug could neither run a program nor read outside its
+build directory. A failed render returns a PII-free error; the TeX log,
+which echoes field values, stays in the server log.
 
 The completed forms carry full name, CNP and home address, so the bucket is
 private and links expire after 15 minutes. Two storage backends, same
@@ -418,7 +470,7 @@ it is handed out rather than baked into a row that outlives it. Ledger
 payloads record the object path, never a credential-bearing link.
 
 Every template is rendered through real `pdflatex` in CI, with values full of
-LaTeX metacharacters (`backend/tests/test_template_rendering.py`), and
+LaTeX metacharacters and injection attempts (`backend/tests/test_template_rendering.py`), and
 `backend/tests/test_template_field_parity.py` asserts each procedure's field
 schema matches its template's placeholders in both directions.
 
@@ -445,15 +497,29 @@ row_hash = sha256(event_type || payload_hash || prev_hash || ts_iso)
   whitespace, UTF-8, `ensure_ascii=False` (Romanian characters survive verbatim).
 - `prev_hash` = tip of the chain for **that (citizen, document) pair**, which
   is the same slice `GET /documents/{id}/ledger` reads back and verifies.
-  Events with no document (reminders) form one per-citizen chain. Genesis is
-  configurable via `LEDGER_GENESIS_HASH`.
+  Events with no document (reminders) form one per-citizen chain. Every chain
+  starts at the all-zero genesis hash (a protocol constant; it used to be a
+  setting that, if changed, broke every verification).
+- `pdf_generated` carries `pdf_sha256` (the stored bytes) and `fields_sha256`
+  (the values rendered), binding the ledger to the document's content.
 - Nothing hash-shaped crosses the wire. The function receives the canonical
   JSON and derives prev_hash, both hashes and the timestamp itself, so a
   caller cannot store a hash that disagrees with its payload.
 - Append-only: `UPDATE`/`DELETE` are revoked and rejected by a trigger.
   `POST /demo/reset` appends a `demo_reset` marker rather than deleting.
-- `GET /documents/{id}/ledger` returns the rows **and** a `verified: bool`
-  recomputed server-side — the AuditTimeline UI surfaces this badge.
+- `GET /documents/{id}/ledger` returns the rows — with each `payload` and
+  `hashed_at`, the exact timestamp string inside `row_hash` — **and** a
+  `verified: bool` recomputed server-side, which the AuditTimeline UI shows.
+- Don't take the server's word for it:
+
+  ```bash
+  python backend/scripts/verify_ledger.py --api http://localhost:8000 \
+      --token "$JWT" --document <id> --pdf cerere.pdf
+  # or: python backend/scripts/verify_ledger.py saved-ledger.json --pdf cerere.pdf
+  ```
+
+  Standard library only, no `app` imports — a second implementation of the
+  format. Exit 0 when every hash re-derives and the PDF matches.
 - Seven event types: `doc_created`, `completed_draft`, `pdf_generated`,
   `delivered`, `redirected`, `reminder_created`, `demo_reset`.
 
@@ -462,9 +528,11 @@ Scope note: this is tamper-**evident**, not tamper-proof — see
 
 Tests: canonical JSON stability, tamper detection and broken-link rejection
 (`test_ledger.py`); two interleaved documents each verifying on their own
-(`test_ledger_chain_scope.py`); and the same against a real Postgres in CI,
-which is the only way to check that the timestamp string the database hashes
-and the one Python rehashes are byte-identical (`test_ledger_postgres.py`).
+(`test_ledger_chain_scope.py`); the verifier script against honest, edited,
+truncated and PDF-swapped exports (`test_verify_ledger.py`); and the same
+against a real Postgres in CI, which is the only way to check that the
+timestamp string the database hashes and the one Python rehashes are
+byte-identical (`test_ledger_postgres.py`, `test_api_postgres.py`).
 
 ### Proactive reminders worker
 
@@ -554,7 +622,7 @@ to regenerate `contracts/openapi.yaml` after route changes.
 | GET | `/files/pdf/{citizen}/{file}` | Signed PDF download (local storage backend only) |
 | POST | `/demo/reset` | Clear documents/reminders, mark the ledger, reseed |
 | GET | `/health` | App-level health |
-| GET | `/healthz` | Liveness probe (no Postgres dependency) |
+| GET | `/healthz` | Dependency report (Postgres, keys, active agent/embeddings backend); always 200 |
 
 ---
 
@@ -609,17 +677,19 @@ no second one under `backend/`. Every variable has a working default in
 | `STORAGE_BACKEND` | `local` (volume + signed `/files/pdf` links), `supabase` (private bucket), or `auto` |
 | `PDF_STORAGE_DIR` | Where the local backend keeps PDFs |
 | `PUBLIC_BASE_URL` | Browser-reachable backend URL; local signed PDF links are built from it |
-| `AZURE_OPENAI_*` | Chat (`gpt-5-mini`) + embeddings (`text-embedding-3-large`) |
+| `AGENT_BACKEND` | `auto` (LLM if an Azure key is set, else offline) · `offline` · `azure` |
+| `EMBEDDINGS_BACKEND` | `auto` · `local` (offline lexical index) · `azure` |
+| `AZURE_OPENAI_*` | LLM chat (`gpt-5-mini`) + embeddings (`text-embedding-3-large`) |
 | `AZURE_VOICELIVE_*` | Realtime voice (`gpt-realtime`, `gpt-4o-mini-transcribe`) |
 | `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` | Parallel Speech SDK for streaming user transcript partials |
 | `JWT_SIGNING_SECRET`, `JWT_ALGORITHM`, `JWT_EXPIRES_SECONDS` | Token signing (`openssl rand -hex 32`) |
 | `MOCK_OTP` | `1` skips Twilio and accepts `123456` — an auth bypass. **Defaults to `0`** |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`, `TWILIO_PHONE_NUMBER` | Real SMS + voice |
 | `ALLOW_ORIGINS` | CORS allow-list (comma-separated; covers `:3000/:3001/:3030` by default) |
-| `LEDGER_GENESIS_HASH` | Genesis hash for the audit chain |
 | `DEMO_RESET_TOKEN` | Required header for `/demo/reset` (else 401) |
 | `REMINDERS_POLL_SECONDS` | Worker tick interval (default `5`) |
 | `LOG_LEVEL` | `INFO` default; `DEBUG` traces every audio chunk |
+| `LOG_REDACT_PII` | `1` (default) masks CNPs, e-mails and phone numbers in every log line; `0` for local debugging |
 | `SENTRY_DSN` | Optional — if set, FastAPI integration is wired |
 | `NEXT_PUBLIC_USE_MOCKS` | `1` runs the frontend offline with MSW |
 | `NEXT_PUBLIC_API_BASE_URL` | Backend base URL for the frontend |
@@ -630,25 +700,29 @@ no second one under `backend/`. Every variable has a working default in
 ## Running tests
 
 ```bash
-cd backend  && pytest                       # 175 pass, 56 skipped (opt-in suites)
-cd frontend && npm run test                 # 27 Vitest tests
+cd backend  && pytest                       # offline: no database, no pdflatex, no keys
+cd frontend && npm run test                 # Vitest
 cd frontend && npx tsc --noEmit             # typecheck
 cd frontend && npm run e2e                  # Playwright + axe — needs a LIVE backend
 ```
 
-Two backend suites are opt-in and skip by default, because they need something
-the machine may not have. CI runs both:
+Three kinds of backend test are opt-in and skip by default, because they need
+something the machine may not have. CI runs all of them:
 
 ```bash
-RUN_PDF_TESTS=1 pytest tests/test_template_rendering.py    # needs pdflatex (~70s)
-TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/egata   pytest tests/test_ledger_postgres.py                     # needs Postgres+pgvector
+RUN_PDF_TESTS=1 pytest tests/test_template_rendering.py    # needs pdflatex
+
+# needs Postgres+pgvector with migrations applied:
+#   docker compose up -d db && SUPABASE_DB_URL=... python -m scripts.bootstrap_local_db
+export TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/egata
+pytest tests/test_ledger_postgres.py tests/test_api_postgres.py tests/test_offline_agent_postgres.py
 ```
 
-`.github/workflows/ci.yml` runs four jobs on every PR: backend pytest,
-the ledger suite against a `pgvector/pgvector:pg16` service, frontend
-`tsc --noEmit` + vitest, and all 23 templates through real `pdflatex`.
-Playwright is deliberately excluded — `frontend/e2e/` drives a live
-Azure-backed backend and cannot run without a paid key.
+`.github/workflows/ci.yml` runs four jobs on every PR: backend pytest; the
+ledger, document-API and offline-agent suites against a
+`pgvector/pgvector:pg16` service; frontend `tsc --noEmit` + vitest; and all
+23 templates through real `pdflatex`. Playwright is deliberately excluded —
+`frontend/e2e/` drives a live Azure-backed backend.
 
 Backend coverage:
 
@@ -659,17 +733,31 @@ Backend coverage:
   verifying on its own; caller-supplied hashes refused
 - `test_ledger_postgres.py` — the same against a real Postgres, plus the
   append-only trigger (opt-in)
+- `test_api_postgres.py` — the document lifecycle through the real routes,
+  SQL, ledger function and storage: schema validation, delivery
+  preconditions, frozen finalized documents, cross-citizen access, and the
+  result checked with `scripts/verify_ledger.py` (opt-in)
+- `test_offline_agent_postgres.py` — whole offline-agent conversations the
+  way the frontend drives them, from request to a verified ledger (opt-in)
+- `test_verify_ledger.py` — the standalone verifier against honest, edited,
+  truncated and PDF-swapped exports
+- `test_conversation_ownership.py` — foreign conversation / document ids
+  refused on every agent endpoint
+- `test_document_guards.py`, `test_log_redaction.py`, `test_offline_mode.py`
+  — PATCH validation and frozen documents; PII masking in logs; backend
+  selection, local-search quality on the real catalogue, the agent's parsing
 - `test_storage_privacy.py` — private bucket, bounded TTL, no public URLs
 - `test_local_storage.py` — signed-link tampering, expiry, cross-document
   reuse and path traversal all refused
 - `test_template_field_parity.py` — all 23 procedures: field set ↔ placeholder
   set, in both directions
 - `test_template_rendering.py` — all 23 templates through real `pdflatex`
-  with LaTeX-hostile input (opt-in)
+  with LaTeX-hostile and injection input; absolute `\input` refused (opt-in)
 - `test_config_defaults.py` — settings fail closed
 - `test_prompt_tool_references.py` — every tool a system prompt names exists
 - `test_applies_if.py` — conditional field expression evaluator
-- `test_pdf.py` — LaTeX escape + render security
+- `test_pdf.py` — LaTeX escaping, sanitizing of hostile input, sandboxed
+  and PII-free pdflatex failures
 - `test_embeddings.py` — cosine, source text, registry validation
 - `test_procedure_state.py` — required/applicable field computation
 - `test_reminders_selection.py` — applies_if filtering for next_steps
@@ -696,7 +784,7 @@ Four services:
 | Service | What it does |
 |---|---|
 | `db` | `pgvector/pgvector:pg16` on a named volume; healthchecked |
-| `migrate` | one-shot — applies `migrations/*.sql`, seeds three citizens, prints what does and doesn't work offline. Idempotent |
+| `migrate` | one-shot — applies `migrations/*.sql`, seeds three citizens, builds the offline search index, prints what does and doesn't work without keys. Idempotent |
 | `backend` | waits for `migrate` to succeed; PDFs on the `egata-pdfs` volume |
 | `frontend` | waits for backend health |
 
@@ -704,8 +792,8 @@ Procedures, scenarios, institutions and templates are bind-mounted, so editing
 a JSON schema or a `.tex` only needs a backend restart, not a rebuild.
 
 Everything has a default, so no `.env` is required. Copy `.env.example` to
-`.env` to change ports, plug in Azure keys, or switch `STORAGE_BACKEND` to
-`supabase`.
+`.env` to change ports, plug in Azure keys (the chat then switches from the
+offline agent to the LLM), or switch `STORAGE_BACKEND` to `supabase`.
 
 Reset the whole thing: `docker compose down -v` (drops both volumes).
 
@@ -747,7 +835,6 @@ execution model.
 ## License
 
 MIT — see [LICENSE](LICENSE).
-- `PITCH_QA.md` — judge-facing Q&A for the live pitch
 
 ---
 
