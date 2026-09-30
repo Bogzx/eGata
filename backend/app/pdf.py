@@ -173,9 +173,9 @@ def compile_pdf(tex_source: str) -> bytes:
                         "-no-shell-escape",
                         "-interaction=nonstopmode",
                         "-halt-on-error",
-                        "-output-directory",
-                        str(d),
-                        str(tex_path),
+                        # Relative to cwd=d: with openin_any=p, TeX Live 2023
+                        # (Ubuntu 24.04) refuses to open an absolute input path.
+                        tex_path.name,
                     ],
                     cwd=d,
                     env={**os.environ, **_PDFLATEX_ENV},
