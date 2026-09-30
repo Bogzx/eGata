@@ -56,3 +56,23 @@ def test_azure_endpoints_have_no_baked_in_resource(
         monkeypatch, "AZURE_OPENAI_ENDPOINT", "AZURE_VOICELIVE_ENDPOINT"
     )
     assert getattr(settings, field) == ""
+
+
+def test_demo_grade_settings_are_flagged() -> None:
+    from app.config import Settings, insecure_settings_warnings
+
+    demo = Settings(
+        supabase_db_url="postgresql://x",
+        jwt_signing_secret="dev-only-not-a-secret",
+        mock_otp=True,
+        allow_origins="*",
+    )
+    assert len(insecure_settings_warnings(demo)) == 3
+
+    real = Settings(
+        supabase_db_url="postgresql://x",
+        jwt_signing_secret="a" * 64,
+        mock_otp=False,
+        allow_origins="https://cluj-hackathon.vercel.app",
+    )
+    assert insecure_settings_warnings(real) == []

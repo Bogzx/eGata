@@ -173,3 +173,30 @@ def resolved_embeddings_backend(settings: Settings | None = None) -> str:
         keyless="local",
         has_key=bool(s.azure_openai_api_key),
     )
+
+
+# Values from .env.example / docker-compose / older examples: fine on a laptop,
+# a forgery kit anywhere else (the secret signs JWTs, PDF links and phone
+# stream tokens).
+_KNOWN_DEV_SECRETS = frozenset(
+    {"dev-only-not-a-secret", "change-me-32-bytes", "change-me-in-production",
+     "dev-secret-change-me", "test-secret", "secret", "changeme"}
+)
+
+
+def insecure_settings_warnings(settings: Settings | None = None) -> list[str]:
+    """Demo-grade settings worth a loud line in the startup log."""
+    s = settings or get_settings()
+    out: list[str] = []
+    if s.mock_otp:
+        out.append(
+            "MOCK_OTP is on: anyone can log in as any seeded citizen with code 123456."
+        )
+    if s.jwt_signing_secret in _KNOWN_DEV_SECRETS or len(s.jwt_signing_secret) < 32:
+        out.append(
+            "JWT_SIGNING_SECRET is a known dev value or shorter than 32 chars; it signs "
+            "session tokens, PDF links and phone-stream tokens. Use `openssl rand -hex 32`."
+        )
+    if "*" in [o.strip() for o in s.allow_origins.split(",")]:
+        out.append("ALLOW_ORIGINS contains '*'.")
+    return out
