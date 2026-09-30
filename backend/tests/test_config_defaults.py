@@ -76,3 +76,19 @@ def test_demo_grade_settings_are_flagged() -> None:
         allow_origins="https://cluj-hackathon.vercel.app",
     )
     assert insecure_settings_warnings(real) == []
+
+
+def test_auto_agent_with_endpoint_but_no_key_is_flagged(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.config import backend_choice_warnings, resolved_agent_backend
+
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
+    s = _settings_without(monkeypatch, "AZURE_OPENAI_API_KEY", "AGENT_BACKEND")
+    assert resolved_agent_backend(s) == "offline"
+    assert any("OFFLINE" in w for w in backend_choice_warnings(s))
+
+    monkeypatch.setenv("AGENT_BACKEND", "offline")  # deliberate: no warning
+    assert backend_choice_warnings(_settings_without(monkeypatch, "AZURE_OPENAI_API_KEY")) == []
+
+    monkeypatch.delenv("AGENT_BACKEND")
+    monkeypatch.delenv("AZURE_OPENAI_ENDPOINT")  # keyless demo stack: no warning
+    assert backend_choice_warnings(_settings_without(monkeypatch, "AZURE_OPENAI_API_KEY")) == []
