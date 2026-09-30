@@ -32,7 +32,8 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
 
-from app.agent_tools import REGISTRY as TOOLS_REGISTRY, ToolContext, dispatch, permitted_tools
+from app.agent_tools import REGISTRY as TOOLS_REGISTRY
+from app.agent_tools import ToolContext, dispatch, permitted_tools
 from app.azure_clients import (
     get_openai_client,
     history_to_openai_messages,

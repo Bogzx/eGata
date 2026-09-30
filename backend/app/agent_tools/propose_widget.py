@@ -14,7 +14,6 @@ widget after a lookup_procedure match).
 """
 from __future__ import annotations
 
-from typing import Any
 from uuid import uuid4
 
 from app.agent_tools import Tool, ToolContext, ToolResult, register
@@ -26,7 +25,7 @@ _ALLOWED_TYPES = {"choice", "confirm", "date"}
 async def execute(
     session: Session,
     ctx: ToolContext,
-    type: str,
+    type: str,  # noqa: A002 — the tool's argument name, as the model sends it
     question: str,
     options: list[str] | None = None,
     target_field: str | None = None,

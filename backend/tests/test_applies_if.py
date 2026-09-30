@@ -1,7 +1,7 @@
 """Pure-logic tests for the applies_if expression evaluator (Plan 4)."""
 import pytest
 
-from app.applies_if import evaluate, ParseError
+from app.applies_if import ParseError, evaluate
 
 
 def test_literal_true():

@@ -94,6 +94,7 @@ def preview_pdf(
     the "Vezi documentul" preview popup in MatchesPane.
     """
     from fastapi import Response
+
     from app.citizens import fetch_citizen_by_id
     from app.pdf import render_and_compile
 

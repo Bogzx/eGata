@@ -3,7 +3,6 @@ from fastapi.testclient import TestClient
 
 from app.scenarios import build_scenario_plan, get_scenarios_registry
 
-
 EXPECTED_SCENARIO_IDS = {
     "sc-cumparare-apartament",
     "sc-vanzare-apartament",

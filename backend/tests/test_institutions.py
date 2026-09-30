@@ -1,7 +1,6 @@
 """Institutions catalog loads, all expected IDs present."""
 from app.institutions import get_institutions_registry
 
-
 EXPECTED_IDS = {
     "notariat",
     "ocpi-ancpi",

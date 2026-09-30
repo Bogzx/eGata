@@ -77,10 +77,10 @@ from app.demo import router as demo_router
 from app.documents import router as documents_router
 from app.files import router as files_router
 from app.health import router as health_router
-from app.pdf import PdfRendererUnavailable, PdfRenderError
+from app.pdf import PdfRenderError, PdfRendererUnavailable
 from app.procedures import router as procedures_router
-from app.scenarios import router as scenarios_router
 from app.reminders import router as reminders_router
+from app.scenarios import router as scenarios_router
 from app.twilio_bridge import router as twilio_router
 from app.worker import init_worker, shutdown_worker
 

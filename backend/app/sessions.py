@@ -199,7 +199,7 @@ def insert_session(
     sid = session_id or new_session_id()
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
-            f"insert into sessions (id, citizen_id) values (%s, %s) "
+            f"insert into sessions (id, citizen_id) values (%s, %s) "  # noqa: S608 — constant column list
             f"returning {_SELECT_COLS};",
             (sid, str(citizen_id)),
         )
@@ -213,7 +213,7 @@ def insert_session(
 def fetch_session(session_id: str) -> Session | None:
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
-            f"select {_SELECT_COLS} from sessions where id = %s;",
+            f"select {_SELECT_COLS} from sessions where id = %s;",  # noqa: S608 — constant column list
             (session_id,),
         )
         row = cur.fetchone()

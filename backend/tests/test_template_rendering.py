@@ -107,7 +107,7 @@ def test_template_survives_nasty_input(proc_path: Path) -> None:
     pdf = render_and_compile(proc["template"], fields)
     assert pdf.startswith(b"%PDF-")
     assert b"root:x:0:0" not in pdf
-    assert not Path("/tmp/egata-pwned").exists()
+    assert not Path("/tmp/egata-pwned").exists()  # noqa: S108 — the \write18 target above
 
 
 def test_paranoid_file_access_blocks_absolute_input(tmp_path: Path) -> None:

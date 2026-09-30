@@ -72,7 +72,6 @@ def test_reviewing_back_to_filling_for_applies_if_changes():
 
 
 def test_redirected_is_terminal_except_re_exploring():
-    s = Session(id="sess_x", citizen_id="abc", state=SessionState.REDIRECTED)
     assert can_transition(SessionState.REDIRECTED, SessionState.EXPLORING)
     assert not can_transition(SessionState.REDIRECTED, SessionState.FILLING)
 

@@ -71,8 +71,8 @@ def _new_document(pg: Any, citizen_id: UUID) -> UUID:
 def test_interleaved_documents_verify_against_real_postgres(
     pg: Any, citizen_id: UUID
 ) -> None:
-    from app.ledger import GENESIS_HASH
     from app.ledger import (
+        GENESIS_HASH,
         LedgerEventType,
         append_ledger,
         fetch_ledger_for_document,
@@ -114,8 +114,8 @@ def test_interleaved_documents_verify_against_real_postgres(
 def test_citizen_scoped_rows_do_not_join_a_document_chain(
     pg: Any, citizen_id: UUID
 ) -> None:
-    from app.ledger import GENESIS_HASH
     from app.ledger import (
+        GENESIS_HASH,
         LedgerEventType,
         append_ledger,
         fetch_ledger_for_document,

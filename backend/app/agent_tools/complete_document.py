@@ -38,8 +38,8 @@ from app.documents import (
 )
 from app.ledger import LedgerEventType, append_ledger
 from app.pdf import render_and_compile
-from app.procedures import get_registry
 from app.procedure_state import all_required_satisfied
+from app.procedures import get_registry
 from app.sessions import Session, SessionState, is_review_confirmed
 from app.storage import (
     create_signed_pdf_url,

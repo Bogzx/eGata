@@ -24,10 +24,8 @@ import logging
 import secrets
 import time
 from dataclasses import dataclass, field
-from typing import Any, TYPE_CHECKING
+from typing import Any
 from uuid import UUID
-
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from azure.ai.voicelive.aio import connect as voicelive_connect
 from azure.ai.voicelive.models import (
@@ -45,8 +43,10 @@ from azure.ai.voicelive.models import (
     RequestSession,
     ServerEventType,
 )
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from app.agent_tools import REGISTRY as TOOLS_REGISTRY, ToolContext, dispatch, permitted_tools
+from app.agent_tools import REGISTRY as TOOLS_REGISTRY
+from app.agent_tools import ToolContext, dispatch, permitted_tools
 from app.azure_clients import (
     get_voicelive_credential,
     history_to_user_only_texts,
@@ -57,17 +57,16 @@ from app.config import get_settings
 from app.security import decode_token
 from app.sessions import (
     IllegalTransitionError,
-    Session as DbSession,
-    SessionState,
     SessionOwnershipError,
+    SessionState,
     fetch_or_create_session,
     session_lock,
     transition,
     update_session,
 )
-
-if TYPE_CHECKING:
-    from azure.ai.voicelive.aio import VoiceLiveConnection
+from app.sessions import (
+    Session as DbSession,
+)
 
 router = APIRouter(prefix="/agent", tags=["voice"])
 log = logging.getLogger("agent_voice")
@@ -1039,8 +1038,8 @@ class VoiceBridgeSession:
             return recap
         try:
             from app.documents import fetch_document
-            from app.procedures import get_registry
             from app.procedure_state import evaluate_field_states
+            from app.procedures import get_registry
 
             doc = fetch_document(UUID(doc_id))
             fields = doc.get("fields") or {}

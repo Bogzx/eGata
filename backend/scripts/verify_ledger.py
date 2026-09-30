@@ -86,7 +86,9 @@ def verify_pdf(entries: list[dict[str, Any]], pdf_bytes: bytes) -> list[str]:
 
 
 def _fetch(api: str, token: str, document: str) -> dict[str, Any]:
-    req = urllib.request.Request(
+    if not api.startswith(("http://", "https://")):
+        raise SystemExit(f"--api must be an http(s) URL, got {api!r}")
+    req = urllib.request.Request(  # noqa: S310 — scheme checked above
         f"{api.rstrip('/')}/documents/{document}/ledger",
         headers={"Authorization": f"Bearer {token}"},
     )
