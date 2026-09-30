@@ -1,4 +1,4 @@
-"""Auto-patch backend/templates/*.tex (excluding base.tex and the 5 new ones
+r"""Auto-patch backend/templates/*.tex (excluding base.tex and the 5 new ones
 already image-upgraded) to use real stema + Code 39 barcode images.
 
 Differences from patch_fillables.py:

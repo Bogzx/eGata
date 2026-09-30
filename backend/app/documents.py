@@ -311,7 +311,7 @@ def _latest_pdf_matches_fields(document_id: UUID, fields: dict[str, Any]) -> boo
         if isinstance(payload, str):
             payload = _json.loads(payload)
         expected = sha256_hex(canonical_json(fields).encode("utf-8"))
-        return payload.get("fields_sha256") == expected
+        return bool(payload.get("fields_sha256") == expected)
     return False
 
 

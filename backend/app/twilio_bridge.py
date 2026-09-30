@@ -255,14 +255,14 @@ async def _run_phone_voicelive_session(
 
                 elif et == ServerEventType.RESPONSE_FUNCTION_CALL_ARGUMENTS_DONE:
                     call_id = getattr(event, "call_id", "") or ""
-                    slot = pending_tool_calls.pop(call_id, None)
+                    done_slot: dict[str, str] | None = pending_tool_calls.pop(call_id, None)
                     name = (
-                        (slot.get("name") if slot else "")
+                        (done_slot.get("name") if done_slot else "")
                         or getattr(event, "name", "")
                         or ""
                     )
                     args_buf = (
-                        (slot.get("args") if slot else "")
+                        (done_slot.get("args") if done_slot else "")
                         or getattr(event, "arguments", "")
                         or ""
                     )
@@ -277,6 +277,7 @@ async def _run_phone_voicelive_session(
                             args_buf[:200],
                         )
 
+                    output_payload: dict[str, Any]
                     if name not in PHONE_TOOL_ALLOWLIST:
                         log.warning(
                             "twilio_voicelive: phone tried disallowed tool=%s session=%s",
@@ -387,7 +388,7 @@ def _webhook_signature_ok(request: Request, params: dict[str, str]) -> bool:
     # is not the one Twilio signed; TWILIO_WEBHOOK_PUBLIC_URL pins it.
     url = settings.twilio_webhook_public_url or str(request.url)
     signature = request.headers.get("X-Twilio-Signature", "")
-    return RequestValidator(settings.twilio_auth_token).validate(url, params, signature)
+    return bool(RequestValidator(settings.twilio_auth_token).validate(url, params, signature))
 
 
 # ---- WebSocket endpoint ----
@@ -397,7 +398,7 @@ async def _await_authorized_start(ws: WebSocket) -> dict[str, Any] | None:
     """Read frames until `start`; return it if its stream token verifies."""
     while True:
         raw = await asyncio.wait_for(ws.receive_text(), timeout=START_FRAME_TIMEOUT_SECONDS)
-        msg = json.loads(raw)
+        msg: dict[str, Any] = json.loads(raw)
         if msg.get("event") == "connected":
             continue
         if msg.get("event") != "start":

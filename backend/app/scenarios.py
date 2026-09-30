@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from app.institutions import get_institutions_registry
 from app.models import (
+    ActNecesar,
     ResolvedActeNecesareItem,
     ResolvedExternalStep,
     ResolvedInScopeStep,
@@ -49,7 +50,7 @@ def get_scenarios_registry() -> dict[str, Scenario]:
     return out
 
 
-def resolve_act(act) -> ResolvedActeNecesareItem:
+def resolve_act(act: ActNecesar) -> ResolvedActeNecesareItem:
     """Enrich an ActNecesar with institution name + ai-cannot-complete note when applicable."""
     institutie_nume: str | None = None
     note_ai: str | None = None
@@ -99,8 +100,8 @@ def build_scenario_plan(scenario_id: str) -> ScenarioPlan | None:
         )
 
     resolved_external: list[ResolvedExternalStep] = []
-    for step in sc.external_steps:
-        inst = insts.get(step.institutie_id)
+    for ext in sc.external_steps:
+        inst = insts.get(ext.institutie_id)
         if inst is None:
             continue
         resolved_external.append(
@@ -110,8 +111,8 @@ def build_scenario_plan(scenario_id: str) -> ScenarioPlan | None:
                 scope=inst.scope,
                 url=inst.url,
                 phone=inst.phone,
-                obligatoriu=step.obligatoriu,
-                note=step.note,
+                obligatoriu=ext.obligatoriu,
+                note=ext.note,
                 note_ai_cannot_complete=inst.note_ai_cannot_complete,
             )
         )

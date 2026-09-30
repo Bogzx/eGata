@@ -12,12 +12,12 @@ EXPECTED_SCENARIO_IDS = {
 }
 
 
-def test_registry_loads_all_scenarios():
+def test_registry_loads_all_scenarios() -> None:
     reg = get_scenarios_registry()
     assert set(reg.keys()) == EXPECTED_SCENARIO_IDS
 
 
-def test_scenario_in_scope_procedure_ids_all_resolve():
+def test_scenario_in_scope_procedure_ids_all_resolve() -> None:
     """Every in_scope_steps[].procedure_id must exist in the procedure registry."""
     from app.procedures import get_registry as get_procedures
     procs = get_procedures()
@@ -29,7 +29,7 @@ def test_scenario_in_scope_procedure_ids_all_resolve():
     assert unresolved == []
 
 
-def test_scenario_institutie_ids_all_resolve():
+def test_scenario_institutie_ids_all_resolve() -> None:
     """Every external_steps[].institutie_id must exist in the institutions registry."""
     from app.institutions import get_institutions_registry
     insts = get_institutions_registry()
@@ -41,7 +41,7 @@ def test_scenario_institutie_ids_all_resolve():
     assert unresolved == []
 
 
-def test_build_scenario_plan_resolves_all_refs():
+def test_build_scenario_plan_resolves_all_refs() -> None:
     plan = build_scenario_plan("sc-cumparare-apartament")
     assert plan is not None
     assert plan.scenario_id == "sc-cumparare-apartament"
@@ -54,18 +54,18 @@ def test_build_scenario_plan_resolves_all_refs():
     assert "Oficiul de Cadastru și Publicitate Imobiliară (ANCPI)" in titles
 
 
-def test_build_scenario_plan_returns_none_for_unknown():
+def test_build_scenario_plan_returns_none_for_unknown() -> None:
     assert build_scenario_plan("sc-does-not-exist") is None
 
 
-def test_scenario_with_no_external_steps():
+def test_scenario_with_no_external_steps() -> None:
     plan = build_scenario_plan("sc-certificat-fiscal")
     assert plan is not None
     assert plan.external_steps == []
     assert len(plan.in_scope_steps) == 1
 
 
-def test_endpoint_returns_plan():
+def test_endpoint_returns_plan() -> None:
     from app.main import app
     client = TestClient(app)
     res = client.get("/scenarios/sc-cumparare-apartament")
@@ -75,7 +75,7 @@ def test_endpoint_returns_plan():
     assert len(body["in_scope_steps"]) == 3
 
 
-def test_endpoint_404_unknown():
+def test_endpoint_404_unknown() -> None:
     from app.main import app
     client = TestClient(app)
     res = client.get("/scenarios/sc-does-not-exist")

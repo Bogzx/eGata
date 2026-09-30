@@ -40,6 +40,9 @@ jobs:
       - name: ruff
         run: ruff check .
 
+      - name: mypy (strict; app/ clean, baseline for old tests/scripts)
+        run: python -m scripts.mypy_baseline
+
       - name: pytest
         run: pytest -q
 

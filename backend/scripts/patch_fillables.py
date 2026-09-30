@@ -1,4 +1,4 @@
-"""Auto-patch every -fillable.tex in scenarii/ to use real stema + Code 39 barcode
+r"""Auto-patch every -fillable.tex in scenarii/ to use real stema + Code 39 barcode
 images, based on form_inventory.json.
 
 Three substitution rules:

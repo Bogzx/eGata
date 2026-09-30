@@ -260,7 +260,9 @@ async def step(
         try:
             # Don't set temperature — gpt-5 reasoning models reject anything
             # other than the default (1). Let the model decide.
-            stream = await client.chat.completions.create(
+            # History is kept as plain dicts; the SDK's TypedDict overloads
+            # cannot see that they are well-formed message params.
+            stream = await client.chat.completions.create(  # type: ignore[call-overload]
                 model=settings.azure_openai_chat_deployment,
                 messages=call_messages,
                 tools=tools or None,
@@ -330,7 +332,7 @@ async def step(
             finish_reason,
         )
 
-        iter_cleaned = strip_thinking(accumulated_text)
+        iter_cleaned = strip_thinking(accumulated_text) or ""
 
         assistant_msg: dict[str, Any] = {"role": "assistant"}
         if iter_cleaned:

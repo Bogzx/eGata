@@ -150,7 +150,7 @@ def _resolve_session(req: AgentChatRequest, citizen_id: UUID) -> Session:
     return session
 
 
-def _sse(event: str, data: dict) -> bytes:
+def _sse(event: str, data: dict[str, Any]) -> bytes:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n".encode()
 
 

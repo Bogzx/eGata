@@ -138,9 +138,10 @@ async def execute(
             cached_path = str(doc["pdf_url"])
             if cached_path.startswith("http"):
                 cached_path = pdf_object_path(doc["citizen_id"], doc["id"])
-            cached_pdf_url = await asyncio.to_thread(
+            signed: str | None = await asyncio.to_thread(
                 create_signed_pdf_url, cached_path
-            ) or ""
+            )
+            cached_pdf_url = signed or ""
         # On retry the caller may pass "download" even though the row is
         # persisted as "save" — preserve the caller's intent so the UI
         # re-triggers the browser download.

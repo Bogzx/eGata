@@ -23,7 +23,7 @@ from openai import AzureOpenAI
 from app import local_embeddings
 from app.config import get_settings, resolved_embeddings_backend
 from app.db import get_pg_connection
-from app.models import Procedure
+from app.models import Procedure, Scenario
 
 EMBEDDING_DIM = 768
 
@@ -71,7 +71,7 @@ def procedure_source_text(proc: Procedure) -> str:
     return "\n".join(p for p in parts if p)
 
 
-def scenario_source_text(sc) -> str:
+def scenario_source_text(sc: Scenario) -> str:
     """Authored summary + synonyms + sample queries — never chunked."""
     parts = [sc.summary_for_rag, " ".join(sc.synonyms), " ".join(sc.sample_queries)]
     return "\n".join(p for p in parts if p)
