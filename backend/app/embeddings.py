@@ -1,9 +1,16 @@
-"""Azure OpenAI embedding pipeline for procedure RAG.
+"""Embedding pipeline for procedure RAG.
 
-Vectors are reduced to 768d via the `dimensions` parameter so the pgvector
-column shape stays compatible across embedding-model swaps. Re-run
-`scripts.index_rag` whenever the underlying embedding deployment changes;
-vectors from different providers/models are not interchangeable.
+Two embedders, one 768-d vector space shape:
+
+- azure: the Azure OpenAI embedding deployment, reduced to 768d via the
+  `dimensions` parameter.
+- local: app.local_embeddings — deterministic, offline, lexical. Used when
+  there is no Azure key, so the procedure search works from a bare
+  `docker compose up`.
+
+Vectors from different models are not comparable, so every row records the
+model that built it (migrations/012) and search only looks at rows from the
+current one. Re-run `scripts.index_rag` whenever the Azure deployment changes.
 """
 from __future__ import annotations
 
@@ -13,7 +20,8 @@ from typing import Any
 
 from openai import AzureOpenAI
 
-from app.config import get_settings
+from app import local_embeddings
+from app.config import get_settings, resolved_embeddings_backend
 from app.db import get_pg_connection
 from app.models import Procedure
 
@@ -34,7 +42,16 @@ def _client() -> AzureOpenAI:
     )
 
 
+def embedding_model_id() -> str:
+    """The tag stored with (and searched by) every vector — see migrations/012."""
+    if resolved_embeddings_backend() == "local":
+        return local_embeddings.MODEL_ID
+    return "azure"
+
+
 def embed_text(text: str) -> list[float]:
+    if resolved_embeddings_backend() == "local":
+        return local_embeddings.embed(text)
     s = get_settings()
     resp = _client().embeddings.create(
         model=s.azure_openai_embed_deployment,
@@ -77,6 +94,7 @@ def upsert_rag_entry(
     kind: str,
     source_text: str,
     embedding: list[float],
+    model: str | None = None,
 ) -> None:
     if len(embedding) != EMBEDDING_DIM:
         raise ValueError(f"Embedding must be {EMBEDDING_DIM}-dim, got {len(embedding)}")
@@ -85,12 +103,12 @@ def upsert_rag_entry(
     vec_literal = "[" + ",".join(f"{x:.7f}" for x in embedding) + "]"
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
-            "insert into rag_entries (id, kind, embedding, source_text) "
-            "values (%s, %s, %s::vector, %s) "
-            "on conflict (id) do update set "
+            "insert into rag_entries (id, kind, embedding, source_text, embedding_model) "
+            "values (%s, %s, %s::vector, %s, %s) "
+            "on conflict (id, embedding_model) do update set "
             "kind = excluded.kind, embedding = excluded.embedding, "
             "source_text = excluded.source_text, updated_at = now();",
-            (entry_id, kind, vec_literal, source_text),
+            (entry_id, kind, vec_literal, source_text, model or embedding_model_id()),
         )
         conn.commit()
 
@@ -108,9 +126,9 @@ def search_top_k_rag(query_embedding: list[float], k: int = 5) -> list[dict[str,
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
             "select id, kind, 1 - (embedding <=> %s::vector) as score "
-            "from rag_entries "
+            "from rag_entries where embedding_model = %s "
             "order by embedding <=> %s::vector asc limit %s;",
-            (vec_literal, vec_literal, k),
+            (vec_literal, embedding_model_id(), vec_literal, k),
         )
         return [dict(r) for r in cur.fetchall()]
 
@@ -121,8 +139,8 @@ def search_top_k(query_embedding: list[float], k: int = 3) -> list[dict[str, Any
     with get_pg_connection() as conn, conn.cursor() as cur:
         cur.execute(
             "select id as procedure_id, 1 - (embedding <=> %s::vector) as score "
-            "from rag_entries where kind = 'procedure' "
+            "from rag_entries where kind = 'procedure' and embedding_model = %s "
             "order by embedding <=> %s::vector asc limit %s;",
-            (vec_literal, vec_literal, k),
+            (vec_literal, embedding_model_id(), vec_literal, k),
         )
         return [dict(r) for r in cur.fetchall()]

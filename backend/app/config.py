@@ -45,6 +45,14 @@ class Settings(BaseSettings):
     # tests set it in conftest.py:15.
     mock_otp: bool = Field(default=False)
 
+    # Which agent answers /agent/chat: "azure" (the LLM), "offline" (the
+    # deterministic scripted agent in app/offline_agent.py — no API key, no
+    # cost) or "auto" (azure when AZURE_OPENAI_API_KEY is set, else offline).
+    agent_backend: str = Field(default="auto")
+    # Same choice for procedure-search embeddings: "azure" (text-embedding
+    # deployment), "local" (app/local_embeddings.py) or "auto".
+    embeddings_backend: str = Field(default="auto")
+
     # Azure OpenAI — used for text chat (session_engine) + embeddings.
     # No default: a personal resource name here leaked a tenant and silently
     # misrouted a stranger's requests to somebody else's endpoint. Empty means
@@ -128,3 +136,36 @@ class Settings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
+
+
+def _resolve(configured: str, *, name: str, keyed: str, keyless: str, has_key: bool) -> str:
+    value = (configured or "auto").strip().lower()
+    if value == "auto":
+        return keyed if has_key else keyless
+    if value not in {keyed, keyless}:
+        raise RuntimeError(f"{name}={configured!r} is not one of auto|{keyed}|{keyless}")
+    return value
+
+
+def resolved_agent_backend(settings: Settings | None = None) -> str:
+    """'azure' or 'offline'."""
+    s = settings or get_settings()
+    return _resolve(
+        s.agent_backend,
+        name="AGENT_BACKEND",
+        keyed="azure",
+        keyless="offline",
+        has_key=bool(s.azure_openai_api_key),
+    )
+
+
+def resolved_embeddings_backend(settings: Settings | None = None) -> str:
+    """'azure' or 'local'."""
+    s = settings or get_settings()
+    return _resolve(
+        s.embeddings_backend,
+        name="EMBEDDINGS_BACKEND",
+        keyed="azure",
+        keyless="local",
+        has_key=bool(s.azure_openai_api_key),
+    )
