@@ -21,6 +21,7 @@ import audioop
 import base64
 import json
 import logging
+import re
 import secrets
 import time
 from dataclasses import dataclass, field
@@ -54,6 +55,7 @@ from app.azure_clients import (
 )
 from app.citizens import fetch_citizen_by_id
 from app.config import get_settings
+from app.models import CONVERSATION_ID_PATTERN
 from app.security import decode_token
 from app.sessions import (
     IllegalTransitionError,
@@ -175,11 +177,16 @@ class VoiceBridgeSession:
         token = payload.get("token")
         if not isinstance(token, str) or not token:
             raise RuntimeError("Missing token in start frame")
+        conversation_id = payload.get("conversation_id")
+        if conversation_id is not None and not (
+            isinstance(conversation_id, str) and re.match(CONVERSATION_ID_PATTERN, conversation_id)
+        ):
+            raise RuntimeError("Malformed conversation_id")
         prefs = payload.get("preferences") or {}
         return VoiceStartPayload(
             token=token,
             document_id=payload.get("document_id"),
-            conversation_id=payload.get("conversation_id"),
+            conversation_id=conversation_id,
             simple_language=bool(prefs.get("simple_language")),
             voice_only=bool(prefs.get("voice_only")),
         )

@@ -112,3 +112,18 @@ def test_widget_result_refuses_foreign_conversation() -> None:
             headers=_hdr(INTRUDER),
         )
     assert r.status_code == 403
+
+
+@pytest.mark.parametrize("path", ["/agent/chat/stream", "/agent/chat"])
+def test_conversation_id_must_have_a_server_minted_shape(path: str) -> None:
+    """agent.py locks a citizen's first turn on "citizen:<id>:new"; a client
+    must not be able to name that key as its conversation."""
+    client = TestClient(app)
+    with patch("app.agent.fetch_session", return_value=None), patch("app.agent.step") as step:
+        r = client.post(
+            path,
+            json={"conversation_id": f"citizen:{OWNER}:new", "message": "salut"},
+            headers=_hdr(INTRUDER),
+        )
+    assert r.status_code == 422
+    step.assert_not_called()
