@@ -7,7 +7,8 @@ from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import ExpiredSignatureError, JWTError, jwt
+import jwt
+from jwt import ExpiredSignatureError, InvalidTokenError
 
 from app.config import get_settings
 
@@ -39,13 +40,18 @@ def decode_token(token: str) -> dict[str, Any]:
     try:
         return cast(
             dict[str, Any],
-            jwt.decode(token, settings.jwt_signing_secret, algorithms=[settings.jwt_algorithm]),
+            jwt.decode(
+                token,
+                settings.jwt_signing_secret,
+                algorithms=[settings.jwt_algorithm],
+                options={"require": ["exp", "sub"]},
+            ),
         )
     except ExpiredSignatureError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired"
         ) from exc
-    except JWTError as exc:
+    except InvalidTokenError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
 
 
