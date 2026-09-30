@@ -396,11 +396,11 @@ async def _review(turn: _Turn, message: str) -> None:
     session = turn.session
     delivery = _delivery_for(message)
 
-    if not is_review_confirmed(session.id):
+    if not is_review_confirmed(session):
         if _is_yes(message):
             # Typed instead of clicked: same effect as the widget's Da.
             _drop_pending(session, question=REVIEW_QUESTION)
-            mark_review_confirmed(session.id)
+            mark_review_confirmed(session)
         elif ":" in message and await _correct(turn, message):
             return
         elif _is_no(message):
@@ -455,7 +455,7 @@ async def _correct(turn: _Turn, message: str) -> bool:
         turn.say(f"Nu am putut modifica „{fld.label}”: {result.error}")
         return True
     turn.say(f"Am modificat „{fld.label}”.")
-    clear_review_confirmed(turn.session.id)
+    clear_review_confirmed(turn.session)
     await _ask_next(turn)
     return True
 

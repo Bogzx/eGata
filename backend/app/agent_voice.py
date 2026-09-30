@@ -1080,7 +1080,9 @@ class VoiceBridgeSession:
             return
 
         from app.agent import _coerce_widget_value
+        from app.sessions import apply_review_confirmation
 
+        apply_review_confirmation(self.db_session, widget, value)
         user_visible = str(value) if not isinstance(value, str) else value
 
         # Only dispatch set_field when there's a document to write into.

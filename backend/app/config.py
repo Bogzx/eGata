@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     # published so rows they signed keep verifying.
     ledger_retired_public_keys: str = Field(default="")
 
+    # Serialize conversation turns and the reminders worker across backend
+    # replicas with Postgres advisory locks. 0 keeps in-process locks only.
+    distributed_locks: bool = Field(default=True)
+
     # Which agent answers /agent/chat: "azure" (the LLM), "offline" (the
     # deterministic scripted agent in app/offline_agent.py — no API key, no
     # cost) or "auto" (azure when AZURE_OPENAI_API_KEY is set, else offline).

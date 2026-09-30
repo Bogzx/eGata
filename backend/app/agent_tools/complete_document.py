@@ -74,7 +74,7 @@ async def execute(
     # user-visible system message — guidance is for the LLM only.
     if (
         session.state == SessionState.REVIEWING
-        and not is_review_confirmed(session.id)
+        and not is_review_confirmed(session)
     ):
         return ToolResult(
             output={
