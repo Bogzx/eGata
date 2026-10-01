@@ -7,17 +7,18 @@ permitted — this is a hard guarantee, not a soft hint to the LLM.
 Tools take a `Session` and `ToolContext` and return a `ToolResult` that
 the dispatcher folds back into the session before snapshotting.
 
-Tool inventory (SP2 collapses the old 7-tool surface to 6 cleaner ones):
+Tool inventory: seven tools, permitted per state
+(tests/test_agent_guardrails.py pins this matrix):
 
-  exploring         confirming_match    filling         reviewing       delivered         redirected
-  ─────────────────────────────────────────────────────────────────────────────────────────────────
-  lookup_procedure  lookup_procedure                                    lookup_procedure  lookup_procedure
-  list_procedures   list_procedures                                     list_procedures   list_procedures
-                    start_procedure                                     start_procedure
-                    propose_widget      propose_widget
-                                        set_field       set_field
-                                                        complete_document
-  find_redirect     find_redirect                                       find_redirect     find_redirect
+  tool                exploring  confirming_match  filling  reviewing  delivered  redirected
+  ──────────────────────────────────────────────────────────────────────────────────────────
+  lookup_procedure        ✓             ✓                                  ✓          ✓
+  list_procedures         ✓             ✓                                  ✓          ✓
+  find_redirect           ✓             ✓                                  ✓          ✓
+  start_procedure                       ✓                                  ✓
+  propose_widget                        ✓             ✓         ✓
+  set_field                                           ✓         ✓
+  complete_document                                             ✓
 
 `find_redirect` is intentionally OFF during FILLING/REVIEWING: a mid-fill
 mention ("vreau și impozit cândva") must not flip the session to
@@ -155,7 +156,19 @@ async def dispatch(
         _summarize(args),
     )
     started = time.perf_counter()
-    tool = get_tool(name)
+    tool = REGISTRY.get(name)
+    if tool is None:
+        # A model can name a tool that does not exist. Refuse it like an
+        # out-of-state call, so the turn goes on and the model hears what it
+        # may call, instead of the exception ending the turn (text) or the
+        # call (voice).
+        log.warning("dispatch: unknown tool conv=%s tool=%s", session.id, name)
+        return ToolResult(
+            error=(
+                f"Tool {name!r} does not exist; "
+                f"permitted now: {permitted_tools(session.state)}"
+            )
+        )
     if session.state not in tool.valid_states:
         msg = (
             f"Tool {name!r} not permitted in state {session.state.value!r}; "
