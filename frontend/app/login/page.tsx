@@ -46,8 +46,7 @@ function KioskLogin() {
       const c = await api.loginMrz({ cnp: r.cnp, nume: r.nume, prenume: r.prenume });
       nav(router, c);
     } catch (e) {
-      if (e instanceof ApiError) setError(t("common.error"));
-      else throw e;
+      setError(t(e instanceof ApiError ? "common.error" : "common.server_unreachable"));
     }
   }
 

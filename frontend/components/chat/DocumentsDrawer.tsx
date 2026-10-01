@@ -35,7 +35,8 @@ function statusKind(d: Document): "ok" | "wip" {
 }
 
 function statusLabel(d: Document): string {
-  return d.status === "finalized" ? "Trimisă" : "În lucru";
+  // "Finalizată", not "Trimisă": eGata completes the form, the citizen files it.
+  return d.status === "finalized" ? "Finalizată" : "În lucru";
 }
 
 function formatDate(s: string): string {
@@ -55,7 +56,7 @@ const EVENT_LABELS: Record<LedgerEntry["event_type"], string> = {
   doc_created: "Document creat",
   completed_draft: "Schiță finalizată",
   pdf_generated: "PDF generat",
-  delivered: "Trimis la primărie",
+  delivered: "Cerere finalizată",
   redirected: "Redirecționat",
   reminder_created: "Amintire setată",
 };
@@ -444,7 +445,7 @@ function DocDetail({
           </div>
           <div>
             <div className="dm-label">
-              {doc.status === "finalized" ? "Trimis" : "Stare"}
+              {doc.status === "finalized" ? "Finalizat" : "Stare"}
             </div>
             <div className="dm-value">
               {doc.delivered_at ? formatDate(doc.delivered_at) : status}

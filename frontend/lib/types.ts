@@ -314,6 +314,8 @@ export type FrontendEvent =
       pdf_url: string;
       delivery: "save" | "send" | "print" | "download";
       ref_number: string;
+      /** Only for delivery "send": whether the SMS actually left. */
+      sms_sent?: boolean;
     }
   | { type: "redirect"; target: string; name: string; url: string }
   | {

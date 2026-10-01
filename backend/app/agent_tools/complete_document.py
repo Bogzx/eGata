@@ -107,7 +107,7 @@ async def execute(
                     f"încă nu a primit răspuns. AȘTEAPTĂ alegerea cetățeanului, "
                     f"apoi apelează complete_document cu delivery-ul corespunzător "
                     f"răspunsului ('save' pentru Salvare PDF, 'send' pentru "
-                    f"Trimitere la primărie, 'print' pentru Tipărire, "
+                    f"Confirmare pe SMS, 'print' pentru Tipărire, "
                     f"'download' pentru Descarcă PDF)."
                 ),
             }
@@ -212,10 +212,11 @@ async def execute(
     # SMS is best-effort: a Twilio blip MUST NOT cause the LLM to retry and
     # double-finalize. Log + carry on; the doc is already finalized and the
     # delivery frontend_event will still fire.
+    sms_sent = False
     if delivery == "send":
         try:
             phone = await asyncio.to_thread(fetch_phone_for_citizen, citizen_uuid)
-            await asyncio.to_thread(send_delivery_sms, phone, ref_number)
+            sms_sent = await asyncio.to_thread(send_delivery_sms, phone, ref_number)
         except Exception:  # noqa: BLE001
             log.exception(
                 "send_delivery_sms failed for doc=%s ref=%s — doc remains "
@@ -233,6 +234,9 @@ async def execute(
             "delivery": delivery,
             "ref_number": finalized["ref_number"],
             "status": finalized["status"],
+            # Whether a text actually left (no Twilio, or MOCK_OTP: it did
+            # not), so neither the agent nor the done screen claims one did.
+            "sms_sent": sms_sent,
         },
         transition_to=SessionState.DELIVERED,
         frontend_event={
@@ -241,6 +245,7 @@ async def execute(
             "pdf_url": pdf_url,
             "delivery": delivery,
             "ref_number": ref_number,
+            "sms_sent": sms_sent,
         },
     )
 
