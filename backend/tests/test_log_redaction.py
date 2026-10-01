@@ -135,3 +135,32 @@ def test_main_registers_the_sentry_scrubber() -> None:
     source = inspect.getsource(app.main)
     assert "before_send=scrub_sentry_event" in source
     assert "before_send_transaction=scrub_sentry_event" in source
+
+
+def test_sentry_identifiers_survive_the_scrub() -> None:
+    """32-hex ids sometimes hold 13 consecutive digits; they must not be read
+    as CNPs (nor a release tag as an e-mail) — that would break the link
+    between an event and its trace. Personal data next to them is masked."""
+    from app.log_redaction import scrub_sentry_event
+
+    trace = "0cb6792c3052405081607d5ed023ff11"  # contains 3052405081607
+    span = "a1b2c3d4e5f6a7b8"
+    event = {
+        "event_id": trace,
+        "release": "egata@1.4.2",
+        "contexts": {"trace": {"trace_id": trace, "span_id": span, "parent_span_id": span}},
+        "spans": [{"span_id": span, "trace_id": trace, "description": "row 2851014123456"}],
+        "exception": {"values": [{"value": "Failing row contains (2851014123456)",
+                                  "stacktrace": {"frames": [{"vars": {"cnp": "'2851014123456'"}}]}}]},
+        "user": {"id": trace, "email": "maria@example.com"},
+    }
+    out = scrub_sentry_event(event, {})
+
+    assert out["event_id"] == trace and out["release"] == "egata@1.4.2"
+    assert out["contexts"]["trace"] == {"trace_id": trace, "span_id": span, "parent_span_id": span}
+    assert out["spans"][0]["trace_id"] == trace and out["spans"][0]["span_id"] == span
+    assert out["user"]["id"] == trace
+    # ...while the personal data beside them is still masked.
+    assert out["spans"][0]["description"] == "row [CNP]"
+    assert "2851014123456" not in str(out["exception"])
+    assert out["user"]["email"] == "[email]"
