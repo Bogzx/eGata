@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import Any
 
 _PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(?<!\d)[1-9]\d{12}(?!\d)"), "[CNP]"),
@@ -28,6 +29,33 @@ def redact(text: str) -> str:
     for pattern, replacement in _PATTERNS:
         text = pattern.sub(replacement, text)
     return text
+
+
+def redact_structure(value: Any) -> Any:
+    """`redact` applied to every string inside nested dicts, lists and tuples."""
+    if isinstance(value, str):
+        return redact(value)
+    if isinstance(value, dict):
+        return {k: redact_structure(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [redact_structure(v) for v in value]
+    if isinstance(value, tuple):
+        return tuple(redact_structure(v) for v in value)
+    return value
+
+
+def scrub_sentry_event(event: Any, _hint: Any) -> Any:
+    """Sentry `before_send` / `before_send_transaction` hook.
+
+    `send_default_pii=False` keeps Sentry from attaching request bodies and
+    user info, but the event still carries exception messages, breadcrumbs
+    (copies of log lines, taken before our handler filter runs) and frame
+    variables — where a CNP or phone number ends up when a database error
+    quotes the failing row. Every string in the event is masked before it
+    leaves the process. Applied regardless of LOG_REDACT_PII: this data goes
+    to a third party, not to a local terminal.
+    """
+    return redact_structure(event)
 
 
 _EXC_FORMATTER = logging.Formatter()
