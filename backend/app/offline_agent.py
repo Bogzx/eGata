@@ -54,8 +54,10 @@ OFFLINE_NOTICE = (
 # The exact prompts the LLM path uses (session_engine / propose_widget), so the
 # frontend treats both backends' widgets the same.
 REVIEW_QUESTION = "Verifică datele din dreapta. Sunt complete și corecte?"
-DELIVERY_QUESTION = "Cum vrei să trimitem cererea?"
-DELIVERY_OPTIONS = ["Salvare PDF", "Trimitere la primărie", "Tipărire", "Descarcă PDF"]
+DELIVERY_QUESTION = "Cum vrei să primești cererea completată?"
+# "send" texts the citizen their reference (Twilio). Nothing here files the
+# form with the primărie, so no option may say it does.
+DELIVERY_OPTIONS = ["Salvare PDF", "Confirmare pe SMS", "Tipărire", "Descarcă PDF"]
 _DELIVERY_BY_KEYWORD = [
     ("descarc", "download"),
     ("salv", "save"),
@@ -416,12 +418,12 @@ async def _review(turn: _Turn, message: str) -> None:
 
     if delivery is None:
         if not any(w.question == DELIVERY_QUESTION for w in session.pending_widgets):
-            turn.say("Datele sunt confirmate. Cum vrei să trimitem cererea?")
+            turn.say("Datele sunt confirmate. Cum vrei să primești cererea completată?")
             await turn.call(
                 "propose_widget", type="choice", question=DELIVERY_QUESTION, options=DELIVERY_OPTIONS
             )
         else:
-            turn.say("Alege cum trimitem cererea.")
+            turn.say("Alege cum vrei să primești cererea.")
         return
 
     _drop_pending(session, question=DELIVERY_QUESTION)
@@ -431,9 +433,16 @@ async def _review(turn: _Turn, message: str) -> None:
         return
     ref = result.output.get("ref_number")
     turn.say(
-        f"Gata! Cererea este finalizată, cu numărul {ref}. PDF-ul e disponibil în "
+        f"Gata! Cererea e completată, cu referința {ref}. PDF-ul e disponibil în "
         "dreapta și în „Documentele mele”; fiecare pas e înregistrat în jurnalul de audit."
     )
+    if delivery == "send":
+        turn.say(
+            "Ți-am trimis referința pe SMS."
+            if result.output.get("sms_sent")
+            else "SMS-ul nu e configurat pe acest server, așa că nu a plecat niciun mesaj."
+        )
+    turn.say("eGata nu depune cererea pentru tine: semnează PDF-ul și depune-l la ghișeul primăriei.")
     turn.say("Te mai pot ajuta cu altceva?")
 
 
