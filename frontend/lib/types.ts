@@ -259,7 +259,14 @@ export type WidgetSpec =
     };
 
 export type Message =
-  | { id: string; role: "user"; text: string; via: "text" | "voice"; live?: boolean }
+  | {
+      id: string;
+      role: "user";
+      text: string;
+      /** "widget": the echo of a clicked widget answer, not typed or spoken. */
+      via: "text" | "voice" | "widget";
+      live?: boolean;
+    }
   | { id: string; role: "agent"; text: string; widgets?: WidgetSpec[]; live?: boolean }
   | { id: string; role: "system"; text: string };
 

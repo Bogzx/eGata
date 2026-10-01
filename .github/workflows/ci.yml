@@ -177,7 +177,25 @@ jobs:
         env:
           E2E_BASE_URL: http://localhost:3000
           API_BASE: http://127.0.0.1:8000
+          # flow.spec.ts saves one picture per step of the headline flow.
+          E2E_SCREENSHOTS_DIR: e2e-screenshots
         run: npx playwright test
+
+      - name: Screenshots of the flow
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: frontend/e2e-screenshots/
+          if-no-files-found: ignore
+
+      - name: Traces and videos of failed tests
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: frontend/test-results/
+          if-no-files-found: ignore
 
       - name: Stack logs
         if: failure()
