@@ -12,6 +12,8 @@ from jwt import ExpiredSignatureError, InvalidTokenError
 
 from app.config import get_settings
 
+JWT_ISSUER = "egata"
+
 _bearer = HTTPBearer(auto_error=False)
 
 
@@ -22,7 +24,7 @@ def mint_access_token(citizen_id: UUID | str) -> str:
         "sub": str(citizen_id),
         "iat": now,
         "exp": now + settings.jwt_expires_seconds,
-        "iss": "egata",
+        "iss": JWT_ISSUER,
     }
     return jwt.encode(payload, settings.jwt_signing_secret, algorithm=settings.jwt_algorithm)
 
@@ -42,7 +44,11 @@ def decode_token(token: str) -> dict[str, Any]:
             token,
             settings.jwt_signing_secret,
             algorithms=[settings.jwt_algorithm],
-            options={"require": ["exp", "sub"]},
+            # Every token this app has minted carries iss="egata"; checking it
+            # keeps a token signed with the same secret for another purpose
+            # from passing as a login.
+            issuer=JWT_ISSUER,
+            options={"require": ["exp", "sub", "iss"]},
         )
     except ExpiredSignatureError as exc:
         raise HTTPException(
