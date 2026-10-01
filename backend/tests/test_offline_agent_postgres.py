@@ -127,7 +127,11 @@ def test_offline_conversation_from_request_to_verified_delivery(client: Any) -> 
     assert doc["fields"]["adresa_curenta"] == "Str. Veche 1, Cluj-Napoca"
     assert "Adresă nouă" in opened["message"]
 
-    chat.say("Str. Lungă 3, Cluj-Napoca")  # typed answer to the question asked
+    typed = chat.say("Str. Lungă 3, Cluj-Napoca")  # typed answer to the question asked
+    # Typing hid the open "Tip proprietate" choice in the browser, so it is
+    # proposed again rather than referred to ("alege de mai sus") while gone.
+    assert [t["name"] for t in typed["tool_calls"]] == ["set_field", "propose_widget"]
+    assert "de mai sus" not in typed["message"]
     reviewing = chat.click("proprietar", "Tip proprietate")  # last field → review
     assert reviewing is not None and chat.session().state.value == "reviewing"
 
