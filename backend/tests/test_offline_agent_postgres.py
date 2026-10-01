@@ -214,3 +214,36 @@ def test_address_parts_are_prefilled_not_asked(client: Any) -> None:
     assert doc["fields"]["localitate"] == "Cluj-Napoca"
     assert doc["fields"]["judet"] == "Cluj"
     assert "Strada?" not in opened["message"]
+
+
+def test_sms_delivery_claims_only_what_happened(client: Any) -> None:
+    """The suite runs with MOCK_OTP=1, like the demo stack, so no SMS leaves.
+    The tool result, the frontend event and the reply must all say so, and
+    nothing may claim the request was filed with the primărie."""
+    chat = Chat(client, _citizen())
+    chat.say("vreau să-mi schimb domiciliul")
+    chat.say("da")
+    chat.say("Str. Nouă 7")
+    chat.say("proprietar")
+    chat.say("da")
+    r = client.post(
+        "/agent/chat/stream",
+        json={"conversation_id": chat.conv, "message": "Confirmare pe SMS"},
+        headers=chat.h,
+    )
+    assert r.status_code == 200
+    payloads = [
+        json.loads(line.split(": ", 1)[1])
+        for line in r.text.splitlines()
+        if line.startswith("data: ")
+    ]
+    delivered = [p for p in payloads if isinstance(p, dict) and p.get("type") == "document_delivered"]
+    assert delivered and delivered[0]["delivery"] == "send"
+    assert delivered[0]["sms_sent"] is False
+    assert chat.session().state.value == "delivered"
+
+    text = r.text.lower()
+    assert "nu a plecat niciun mesaj" in text
+    assert "ți-am trimis" not in text
+    assert "trimisă la primărie" not in text
+    assert "nu depune cererea pentru tine" in text
