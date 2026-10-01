@@ -65,6 +65,10 @@ class ToolContext:
     """
     citizen_id: str
     citizen_attributes: dict[str, Any] = field(default_factory=dict)
+    # The citizen's own text for this turn, so a tool can act only on what
+    # the citizen said (complete_document's delivery). None where there is
+    # no text turn (voice, phone); those keep the pending-widget guard alone.
+    user_message: str | None = None
 
 
 @dataclass

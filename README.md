@@ -28,8 +28,9 @@ git clone https://github.com/Bogzx/eGata && cd eGata
 docker compose up --build      # Postgres + pgvector, migrations, backend, frontend
 ```
 
-Open <http://localhost:3000> → **Intră în cont** → persona **Maria Ionescu** →
-**Login cu ROeID** → code `123456`. Then type *vreau să-mi schimb domiciliul*:
+Open <http://localhost:3000>; it sends you to the login page. Pick persona
+**Maria Ionescu** → **Login cu ROeID** → code `123456`. The chat opens; type
+*vreau să-mi schimb domiciliul*:
 
 1. confirm the procedure it found;
 2. type the new address it asks for, pick *proprietar*;
@@ -102,11 +103,11 @@ reached.
 | call a tool it was not offered | the dispatcher checks the state on every call | `test_agent_guardrails.py` |
 | call a tool that does not exist | refused like an out-of-state call; the turn goes on | `test_agent_guardrails.py` |
 | ask how to deliver before the citizen confirmed the form | review gate on the session row (`propose_widget`) | `test_agent_guardrails.py` |
-| deliver on a choice it made itself | `complete_document` refuses while its own delivery question is open | `test_agent_guardrails.py` |
+| deliver on a choice it made itself | `complete_document` delivers only the option the citizen's own message names (clicked or typed), and never in the turn that asks | `test_agent_guardrails.py` |
 | drop a half-filled form for another procedure or institution | `lookup_procedure` / `find_redirect` are off in `filling` / `reviewing` | `test_agent_guardrails.py` |
 | change a delivered document | finalized documents are frozen (409; `set_field` off after delivery) | `test_document_guards.py`, `test_agent_guardrails.py` |
 | act on another citizen's conversation or document | ownership is checked at the endpoint, before the model runs | `test_conversation_ownership.py` |
-| write a document over the phone | the phone bridge only dispatches `lookup_procedure` / `find_redirect` | `test_agent_guardrails.py` |
+| write a document over the phone | `twilio_bridge.run_phone_tool` refuses every tool but `lookup_procedure` / `find_redirect` before the dispatcher | `test_agent_guardrails.py` |
 | smuggle LaTeX into the PDF | every value escaped; `pdflatex -no-shell-escape`, `openin_any=p` | `test_pdf.py`, `test_template_rendering.py` |
 
 ## A ledger the citizen can check
@@ -162,14 +163,14 @@ This is a three-day hackathon build. The table below is triaged honestly:
 | Romanian text chat — LLM agent (Azure OpenAI) | partial | needs a paid Azure OpenAI key |
 | Procedure search via pgvector (768-d) | shipped | local lexical index built automatically; the Azure embedding index needs a paid deployment |
 | Azure VoiceLive browser WebSocket bridge (PCM16, streaming partials) | partial | needs a separate Azure VoiceLive resource |
-| Twilio Media Streams ↔ VoiceLive phone bridge (μ-law 8 kHz) | partial | needs Twilio + a public tunnel; not exercised by tests |
+| Twilio Media Streams ↔ VoiceLive phone bridge (μ-law 8 kHz) | partial | needs Twilio + a public tunnel; the audio path is not exercised by tests (the signature check and the tool allowlist are) |
 | Delivery mode **send** (Twilio SMS) | partial | needs Twilio credentials; `save`/`print` work offline |
 | MRZ scanner via tesseract.js (camera / upload / manual) | partial | parses the MRZ, then looks the CNP up in the seed table |
 | ROeID login | demo-only | there is no ROeID integration; it maps a persona name to a seeded citizen |
 | OTP login with `MOCK_OTP=1` | demo-only | accepts the literal `123456`; off by default in code |
 | `POST /demo/reset`, three pre-seeded personas | demo-only | |
 | MSW frontend mocks | partial | cover the REST surface, **not** `/agent/chat/stream` |
-| Row-level security policies | demo-only | defined, but the backend connects as owner and bypasses them |
+| Row-level security policies | demo-only | defined, but keyed on Supabase's `auth.uid()`; the backend's role `egata_app` has an allow-all policy, and authorization is in the application (below) |
 
 ---
 

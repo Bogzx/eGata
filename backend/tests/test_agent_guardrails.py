@@ -16,10 +16,11 @@ The guarantees, and where each one lives:
   3. A tool that does not exist is refused the same way, and the turn goes on.
   4. The delivery picker cannot be shown before the citizen confirmed the
      filled form (`propose_widget`, review gate on the session row).
-  5. `complete_document` cannot run in the turn that asks the citizen how to
-     deliver, on a delivery the model chose (`complete_document`).
-  6. The phone bridge only ever dispatches read-only tools
-     (`twilio_bridge.PHONE_TOOL_ALLOWLIST`).
+  5. `complete_document` delivers only what the citizen chose: not in the
+     turn that asks, and in a later turn only the delivery the citizen's own
+     message names (`complete_document`, `ToolContext.user_message`).
+  6. The phone bridge only ever dispatches the two lookups
+     (`twilio_bridge.run_phone_tool`).
 
 Ownership (a conversation or document of another citizen) is enforced at the
 transport, before the model runs: see test_conversation_ownership.py.
@@ -40,6 +41,7 @@ from app.config import get_settings
 from app.sessions import PendingWidget, Session, SessionState
 
 DOC_ID = "11111111-2222-3333-4444-555555555555"
+CITIZEN_ID = "99999999-8888-7777-6666-555555555555"
 
 # Every state, and exactly what it permits. A change here is a change to what
 # the model can do, so it should be a deliberate one.
@@ -70,7 +72,7 @@ _SIDE_EFFECTS = [
     "app.agent_tools.complete_document.set_document_pdf_url",
     "app.agent_tools.complete_document.finalize_document",
     "app.agent_tools.complete_document.append_ledger",
-    "app.agent_tools.complete_document.send_delivery_sms",
+    "app.agent_tools.complete_document.text_reference_to_citizen",
 ]
 
 
@@ -138,17 +140,19 @@ def side_effects(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
 def _session(state: SessionState, **kw: Any) -> Session:
     doc = None if state in {SessionState.EXPLORING, SessionState.REDIRECTED} else DOC_ID
-    return Session(id="sess_guard", citizen_id="c-1", state=state, active_document_id=doc, **kw)
+    return Session(id="sess_guard", citizen_id=CITIZEN_ID, state=state, active_document_id=doc, **kw)
 
 
-def _turn(session: Session, model: ScriptedModel) -> list[Any]:
+def _turn(session: Session, model: ScriptedModel, message: str = "…") -> list[Any]:
+    """One chat turn in which the citizen wrote `message`."""
+
     async def run() -> list[Any]:
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(session_engine, "get_openai_client", lambda: model)
             return [
                 ev
                 async for ev in session_engine.step(
-                    session, "…", citizen_attrs={"nume_complet": "Maria Ionescu"}
+                    session, message, citizen_attrs={"nume_complet": "Maria Ionescu"}
                 )
             ]
 
@@ -321,12 +325,100 @@ def test_a_new_chat_turn_forgets_widgets_the_browser_hid() -> None:
     assert len(session.pending_widgets) == 1
 
 
+@pytest.mark.parametrize(
+    "message",
+    ["hmm, mai stau să mă gândesc", "da", "ok, mulțumesc"],
+)
+def test_a_later_turn_cannot_deliver_on_a_choice_the_citizen_did_not_make(
+    message: str, side_effects: list[str]
+) -> None:
+    """The delivery question was asked in an earlier turn; this turn starts
+    with it forgotten (the browser hid it). The citizen's message names no
+    delivery, so the model's pick must not go through."""
+    session = _session(SessionState.REVIEWING, review_confirmed=True)
+    model = ScriptedModel({"tool": ("complete_document", {"delivery": "save"})})
+    events = _turn(session, model, message)
+
+    [result] = _results(events)
+    assert result["output"].get("refused") is True
+    assert session.state is SessionState.REVIEWING
+    assert side_effects == []
+
+
+def test_the_delivery_must_be_the_one_the_citizen_named(side_effects: list[str]) -> None:
+    session = _session(SessionState.REVIEWING, review_confirmed=True)
+    model = ScriptedModel({"tool": ("complete_document", {"delivery": "print"})})
+    events = _turn(session, model, "Salvare PDF")
+
+    [result] = _results(events)
+    assert result["output"].get("refused") is True
+    assert "'print'" in result["output"]["reason"] and "'save'" in result["output"]["reason"]
+    assert side_effects == []
+
+
+def test_the_delivery_the_citizen_named_passes_the_gates(side_effects: list[str]) -> None:
+    """Clicked ("Salvare PDF") or typed ("salvează-l"), the citizen's own
+    choice gets past every check and on to the document itself."""
+    for message in ("Salvare PDF", "salvează-l, te rog"):
+        side_effects.clear()
+        session = _session(SessionState.REVIEWING, review_confirmed=True)
+        model = ScriptedModel({"tool": ("complete_document", {"delivery": "save"})})
+        events = _turn(session, model, message)
+
+        [result] = _results(events)
+        assert not result["output"].get("refused"), message
+        assert side_effects == ["app.agent_tools.complete_document.fetch_document"], message
+
+
 # ---- 4. the phone bridge ----
 
 
-def test_phone_sessions_can_only_read() -> None:
-    from app.twilio_bridge import PHONE_TOOL_ALLOWLIST
+@pytest.mark.parametrize(
+    "tool",
+    ["start_procedure", "set_field", "complete_document", "propose_widget",
+     "list_procedures", "submit_to_primarie"],
+)
+def test_phone_bridge_refuses_anything_but_lookups(
+    tool: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The function the bridge runs for every tool call from a phone
+    session: a name off the allowlist never reaches the dispatcher."""
+    from app import twilio_bridge
+    from app.agent_tools import ToolContext
 
-    writes = {"start_procedure", "set_field", "complete_document", "propose_widget"}
-    assert {"lookup_procedure", "find_redirect"} == PHONE_TOOL_ALLOWLIST
-    assert not PHONE_TOOL_ALLOWLIST & writes
+    reached: list[str] = []
+
+    async def dispatch(_session: Any, name: str, *_a: Any) -> Any:
+        reached.append(name)
+        raise AssertionError(f"dispatched {name} from a phone session")
+
+    monkeypatch.setattr(twilio_bridge, "dispatch", dispatch)
+    out = asyncio.run(
+        twilio_bridge.run_phone_tool(
+            Session(id="phone_1", citizen_id="c-1"), tool, {}, ToolContext(citizen_id="c-1")
+        )
+    )
+    assert out == {"error": "tool_not_available_on_phone"}
+    assert reached == []
+
+
+@pytest.mark.parametrize("tool", ["lookup_procedure", "find_redirect"])
+def test_phone_bridge_runs_the_lookups(tool: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app import twilio_bridge
+    from app.agent_tools import ToolContext, ToolResult
+
+    reached: list[str] = []
+
+    async def dispatch(_session: Any, name: str, *_a: Any) -> ToolResult:
+        reached.append(name)
+        return ToolResult(output={"matches": []})
+
+    monkeypatch.setattr(twilio_bridge, "dispatch", dispatch)
+    out = asyncio.run(
+        twilio_bridge.run_phone_tool(
+            Session(id="phone_1", citizen_id="c-1"), tool, {"query": "x"},
+            ToolContext(citizen_id="c-1"),
+        )
+    )
+    assert out == {"output": {"matches": []}}
+    assert reached == [tool]

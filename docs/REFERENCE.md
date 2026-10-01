@@ -71,11 +71,11 @@ npm run dev                                            # http://localhost:3000
 
 ### Demo walk-through
 
-1. Open `http://localhost:3000` → **Intră în cont**
+1. Open `http://localhost:3000`; with no session it sends you to `/login`
 2. Pick persona **Maria Ionescu** → **Login cu ROeID**
 3. OTP code: `123456` (accepted while `MOCK_OTP=1`)
-4. `/home`: pre-seeded documents + 2 reminders
-5. **Începe o cerere nouă** → type *"vreau să-mi schimb domiciliul"*
+4. The chat opens; **Documentele mele** holds the seeded documents and 2 reminders
+5. Type *"vreau să-mi schimb domiciliul"*
 6. Confirm the match → profile fields are filled in; the agent asks for the rest
    (type the new address, pick *proprietar*)
 7. Confirm the review (*Verifică datele din dreapta…* → **Da**); only then the
@@ -288,9 +288,10 @@ button for citizens who want to see the form before starting.
 
 - `save` — store in the citizen's "My documents" list.
 - `send` — texts the citizen the reference via Twilio (`TWILIO_PHONE_NUMBER`).
-  Without Twilio, or with `MOCK_OTP=1` (the demo stack), nothing is sent, and
-  `complete_document` reports `sms_sent: false` so neither the agent nor the
-  done screen claims otherwise.
+  `complete_document` reports `sms_status`: `sent` (Twilio accepted it),
+  `not_configured` (no Twilio, or `MOCK_OTP=1` as in the demo stack) or
+  `failed` (Twilio or the phone lookup raised; the document stays
+  finalized). The agent and the done screen say which.
 - `print` — return URL + a printable view; useful in **kiosk mode**.
 
 None of them files the request with the primărie. The done screen gives the
