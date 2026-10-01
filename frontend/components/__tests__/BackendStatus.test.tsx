@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { BackendStatus, probeBackend } from "../BackendStatus";
+import { BackendStatus, backendIsDown, probeBackend } from "../BackendStatus";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -36,7 +36,48 @@ describe("probeBackend", () => {
   });
 });
 
+describe("backendIsDown", () => {
+  it("is down only if the retry fails too", async () => {
+    const coldStart = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    expect(await backendIsDown("https://api.test", 0, coldStart)).toBe(false);
+    expect(coldStart).toHaveBeenCalledTimes(2);
+
+    const gone = vi.fn().mockResolvedValue(false);
+    expect(await backendIsDown("https://api.test", 0, gone)).toBe(true);
+    expect(gone).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry when the first probe answers", async () => {
+    const up = vi.fn().mockResolvedValue(true);
+    expect(await backendIsDown("https://api.test", 0, up)).toBe(false);
+    expect(up).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits before retrying", async () => {
+    vi.useFakeTimers();
+    const probe = vi.fn().mockResolvedValue(false);
+    const result = backendIsDown("https://api.test", 3000, probe);
+    await vi.advanceTimersByTimeAsync(2900);
+    expect(probe).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(await result).toBe(true);
+    expect(probe).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("BackendStatus", () => {
+  it("stays hidden when only the first probe fails (a cold start)", async () => {
+    const fetchColdStart = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchColdStart);
+    render(<BackendStatus retryDelayMs={0} />);
+    await waitFor(() => expect(fetchColdStart).toHaveBeenCalledTimes(2));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("renders nothing while the backend answers", async () => {
     const fetchOk = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchOk);
@@ -47,7 +88,7 @@ describe("BackendStatus", () => {
 
   it("says the demo server is offline and how to run it, and can be dismissed", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
-    render(<BackendStatus />);
+    render(<BackendStatus retryDelayMs={0} />);
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Serverul demo nu răspunde");
     expect(alert).toHaveTextContent("docker compose up");
