@@ -55,6 +55,41 @@ describe("sessionStore appendMessage", () => {
   });
 });
 
+describe("sessionStore open widgets", () => {
+  function agentWithTwoChoices() {
+    useSessionStore.setState({
+      messages: [
+        {
+          id: "a1",
+          role: "agent",
+          text: "Adresă nouă?",
+          widgets: [
+            { type: "choice", question: "Tip proprietate", options: ["proprietar"], targetField: "tip_proprietate", widgetId: "w1" },
+            { type: "choice", question: "Etaj", options: ["parter"], targetField: "etaj", widgetId: "w2" },
+          ],
+        },
+      ],
+    });
+  }
+  function openWidgetIds(): string[] {
+    const first = useSessionStore.getState().messages[0];
+    if (!first || first.role !== "agent") throw new Error("expected agent");
+    return (first.widgets ?? []).filter((w) => !w.submittedValue).map((w) => w.widgetId);
+  }
+
+  it("a typed reply dismisses every open widget", () => {
+    agentWithTwoChoices();
+    useSessionStore.getState().appendMessage({ id: "u1", role: "user", text: "Str. Lungă 3", via: "text" });
+    expect(openWidgetIds()).toEqual([]);
+  });
+
+  it("the echo of a clicked answer leaves the other widgets open", () => {
+    agentWithTwoChoices();
+    useSessionStore.getState().appendMessage({ id: "u1", role: "user", text: "proprietar", via: "widget" });
+    expect(openWidgetIds()).toEqual(["w1", "w2"]);
+  });
+});
+
 describe("sessionStore live messages", () => {
   it("begin → update → finalize lifecycle for an agent message", () => {
     useSessionStore.setState({ activeDocId: "d2" });

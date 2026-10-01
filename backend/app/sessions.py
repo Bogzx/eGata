@@ -380,6 +380,18 @@ async def _advisory_lock(key: str, wait_seconds: float) -> AsyncIterator[None]:
 # (migrations/015), so it holds across replicas and restarts.
 
 
+def dismiss_open_widgets(session: Session) -> None:
+    """Forget every widget still waiting for an answer.
+
+    Called at the start of each chat turn. A chat turn means the citizen
+    typed or spoke rather than clicked, and the browser has already hidden
+    every open widget (frontend/lib/sessionStore.ts, appendMessage). Kept
+    here, they would make the agent point at buttons that are gone, and
+    propose_widget would refuse to show the same question again.
+    """
+    session.pending_widgets = []
+
+
 def mark_review_confirmed(session: Session) -> None:
     session.review_confirmed = True
 

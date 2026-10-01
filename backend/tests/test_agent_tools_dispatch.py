@@ -22,6 +22,7 @@ from app.agent_tools import (
     ToolResult,
     UnknownToolError,
     dispatch,
+    get_tool,
     permitted_tools,
     register,
 )
@@ -112,10 +113,18 @@ def test_dispatch_swallows_illegal_transition_gracefully() -> None:
     assert "illegal_transition:delivered" in result.output.get("warnings", [])
 
 
-def test_dispatch_unknown_tool_raises() -> None:
-    sess = Session(id="s", citizen_id="c")
+def test_get_tool_unknown_raises() -> None:
     with pytest.raises(UnknownToolError):
-        asyncio.run(dispatch(sess, "no_such_tool", {}, _ctx()))
+        get_tool("no_such_tool")
+
+
+def test_dispatch_refuses_unknown_tool_without_raising() -> None:
+    """A hallucinated tool name is a refusal the model can recover from, not
+    an exception that ends the turn."""
+    sess = Session(id="s", citizen_id="c", state=SessionState.EXPLORING)
+    result = asyncio.run(dispatch(sess, "no_such_tool", {}, _ctx()))
+    assert result.error is not None and "does not exist" in result.error
+    assert sess.state is SessionState.EXPLORING
 
 
 def test_dispatch_catches_tool_exception() -> None:

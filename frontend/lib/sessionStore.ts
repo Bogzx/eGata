@@ -557,8 +557,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     // earlier agent bubbles. submittedValue is the same marker
     // ChatStream filters on — '__dismissed__' is distinguishable from
     // a real value if downstream code ever needs to tell them apart.
+    // The backend forgets them at the start of the next chat turn too
+    // (sessions.dismiss_open_widgets) and asks again. A widget click's own
+    // echo leaves its siblings alone: no turn follows that would re-ask.
     const prior = get().messages;
-    const cleaned = m.role === "user"
+    const cleaned = m.role === "user" && m.via !== "widget"
       ? prior.map((msg) => {
           if (msg.role !== "agent" || !msg.widgets) return msg;
           const widgets = msg.widgets.map((w) =>
@@ -635,7 +638,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         id: makeId(),
         role: "user",
         text: value,
-        via: "text",
+        via: "widget",
       });
       // Direct set_field path completed — clear the loading bubble we
       // turned on at click time. The chat-followup branch above returned
