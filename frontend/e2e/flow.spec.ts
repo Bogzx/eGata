@@ -41,11 +41,16 @@ test("request → form → PDF → ledger verified in the browser", async ({ pag
   await expect(composer).toBeVisible({ timeout: 20_000 });
 
   /** Type a message once the previous turn has finished streaming (the
-   * composer is disabled while one runs) and wait for it in the log. */
+   * composer is disabled while one runs) and wait for it in the log. A
+   * re-render can clear the draft between fill and click (the send button
+   * then stays disabled), so fill-and-send is retried until it goes out. */
   async function say(text: string): Promise<void> {
-    await expect(composer).toBeEnabled({ timeout: 30_000 });
-    await composer.fill(text);
-    await page.getByRole("button", { name: "Trimite mesajul" }).click();
+    const send = page.getByRole("button", { name: "Trimite mesajul" });
+    await expect(async () => {
+      await expect(composer).toBeEnabled();
+      await composer.fill(text);
+      await send.click({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
     await expect(page.getByRole("log").getByRole("listitem").filter({ hasText: text })).toBeVisible();
   }
 
@@ -57,6 +62,8 @@ test("request → form → PDF → ledger verified in the browser", async ({ pag
   await expect(page.locator(".bubble-agent").first()).toContainText("Schimbare domiciliu");
   await shot(page, "01-match");
   await confirmMatch.getByRole("button", { name: "Da" }).click();
+  // Opening the document moves the page to /r/<id>, which re-mounts the chat.
+  await page.waitForURL(/\/r\/[0-9a-f-]+$/, { timeout: 30_000 });
 
   // Profile fields are prefilled; it asks only for what is missing.
   const ownership = widget(page, /Tip proprietate/);
