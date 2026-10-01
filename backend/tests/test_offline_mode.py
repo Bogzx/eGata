@@ -9,7 +9,6 @@ import pytest
 
 from app import local_embeddings
 from app.config import Settings, resolved_agent_backend, resolved_embeddings_backend
-from app.delivery import delivery_from_text
 from app.embeddings import cosine_similarity, procedure_source_text, scenario_source_text
 from app.offline_agent import _is_greeting, _is_no, _is_yes
 from app.procedures import get_registry
@@ -114,17 +113,3 @@ def test_no_and_greeting() -> None:
     assert _is_no("Nu") and _is_no("nu, altceva")
     assert _is_greeting("Bună ziua!") and _is_greeting("")
     assert not _is_greeting("bună, vreau certificat fiscal")
-
-
-@pytest.mark.parametrize(
-    ("text", "delivery"),
-    [("Salvare PDF", "save"), ("Confirmare pe SMS", "send"), ("Tipărire", "print"),
-     ("Descarcă PDF", "download"), ("trimite-mi pe sms", "send"), ("nu știu", None),
-     # The review pane's buttons (frontend ReviewPane.requestDelivery) send these;
-     # complete_document only delivers what the citizen's message names.
-     ("Te rog generează PDF-ul și finalizează documentul cu Salvează.", "save"),
-     ("Te rog generează PDF-ul și finalizează documentul cu Trimite-mi pe SMS.", "send"),
-     ("Te rog generează PDF-ul și finalizează documentul cu Printează.", "print")],
-)
-def test_delivery_parsing(text: str, delivery: str | None) -> None:
-    assert delivery_from_text(text) == delivery

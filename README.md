@@ -103,7 +103,7 @@ reached.
 | call a tool it was not offered | the dispatcher checks the state on every call | `test_agent_guardrails.py` |
 | call a tool that does not exist | refused like an out-of-state call; the turn goes on | `test_agent_guardrails.py` |
 | ask how to deliver before the citizen confirmed the form | review gate on the session row (`propose_widget`) | `test_agent_guardrails.py` |
-| deliver on a choice it made itself | `complete_document` delivers only the option the citizen's own message names (clicked or typed), and never in the turn that asks | `test_agent_guardrails.py` |
+| deliver on a choice it made itself | `complete_document` never runs in the turn that asks, and in a later text turn delivers only the one option the citizen's own message names (clicked or typed; a question, a negated or a double choice is asked again). Voice turns carry no text, so there only the pending-widget guard holds | `test_agent_guardrails.py`, `test_delivery_choice.py` |
 | drop a half-filled form for another procedure or institution | `lookup_procedure` / `find_redirect` are off in `filling` / `reviewing` | `test_agent_guardrails.py` |
 | change a delivered document | finalized documents are frozen (409; `set_field` off after delivery) | `test_document_guards.py`, `test_agent_guardrails.py` |
 | act on another citizen's conversation or document | ownership is checked at the endpoint, before the model runs | `test_conversation_ownership.py` |
