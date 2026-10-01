@@ -350,7 +350,7 @@ async def _ask_next(turn: _Turn) -> None:
             turn.say(f"{fld.label}?{hint}")
             asked_text = True
     if not asked_text and missing:
-        turn.say("Alege din opțiunile de mai sus.")
+        turn.say("Alege una dintre variantele de mai jos.")
 
 
 async def _fill(turn: _Turn, message: str) -> None:
@@ -371,7 +371,9 @@ async def _fill(turn: _Turn, message: str) -> None:
     if target is None:
         target = next((f for f in missing if not f.options), None)
     if target is None:
-        turn.say("Alege din opțiunile de mai sus.")
+        # Only choices are left and the text matched none of them. Typing
+        # hid them in the browser, so ask them again.
+        await _ask_next(turn)
         return
 
     result = await turn.call("set_field", name=target.name, value=message.strip())

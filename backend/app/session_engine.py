@@ -44,7 +44,7 @@ from app.config import get_settings, resolved_agent_backend
 from app.documents import fetch_document
 from app.procedures import get_registry
 from app.prompts import build_system_prompt
-from app.sessions import Session, SessionState
+from app.sessions import Session, SessionState, dismiss_open_widgets
 from app.text_hygiene import strip_thinking
 
 log = logging.getLogger("session_engine")
@@ -176,6 +176,7 @@ async def step(
 ) -> AsyncIterator[Event]:
     """Drive one user→agent turn end-to-end. Mutates `session` in place."""
     settings = get_settings()
+    dismiss_open_widgets(session)
     if resolved_agent_backend(settings) == "offline":
         from app import offline_agent
 
