@@ -61,6 +61,37 @@ log = logging.getLogger("twilio_bridge")
 
 
 PHONE_TOOL_ALLOWLIST: set[str] = {"lookup_procedure", "find_redirect"}
+
+
+async def run_phone_tool(
+    phone_session: Session,
+    name: str,
+    args: dict[str, Any],
+    phone_ctx: ToolContext,
+) -> dict[str, Any]:
+    """The function_call_output for one tool call from a phone session.
+
+    A name outside PHONE_TOOL_ALLOWLIST never reaches the dispatcher: there
+    is no consent surface on a call, so a phone session must not open,
+    fill or deliver a document whatever the model asks for.
+    """
+    if name not in PHONE_TOOL_ALLOWLIST:
+        log.warning(
+            "twilio_voicelive: phone tried disallowed tool=%s session=%s",
+            name,
+            phone_session.id,
+        )
+        return {"error": "tool_not_available_on_phone"}
+    log.info(
+        "twilio_voicelive: tool_call session=%s name=%s args=%r",
+        phone_session.id,
+        name,
+        args,
+    )
+    result = await dispatch(phone_session, name, args, phone_ctx)
+    if result.error is not None:
+        return {"error": result.error, "output": result.output}
+    return {"output": result.output}
 _AZURE_PCM_RATE = 24000
 
 
@@ -278,31 +309,9 @@ async def _run_phone_voicelive_session(
                             args_buf[:200],
                         )
 
-                    output_payload: dict[str, Any]
-                    if name not in PHONE_TOOL_ALLOWLIST:
-                        log.warning(
-                            "twilio_voicelive: phone tried disallowed tool=%s session=%s",
-                            name,
-                            phone_session.id,
-                        )
-                        output_payload = {"error": "tool_not_available_on_phone"}
-                    else:
-                        log.info(
-                            "twilio_voicelive: tool_call session=%s name=%s args=%r",
-                            phone_session.id,
-                            name,
-                            args,
-                        )
-                        result = await dispatch(
-                            phone_session, name, args, phone_ctx
-                        )
-                        if result.error is not None:
-                            output_payload = {
-                                "error": result.error,
-                                "output": result.output,
-                            }
-                        else:
-                            output_payload = {"output": result.output}
+                    output_payload = await run_phone_tool(
+                        phone_session, name, args, phone_ctx
+                    )
 
                     try:
                         await connection.conversation.item.create(

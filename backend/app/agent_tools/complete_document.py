@@ -27,14 +27,14 @@ import logging
 from uuid import UUID
 
 from app.agent_tools import Tool, ToolContext, ToolResult, register
+from app.delivery import delivery_from_text
 from app.documents import (
     fetch_document,
-    fetch_phone_for_citizen,
     finalize_document,
     generate_ref_number,
     pdf_generated_payload,
-    send_delivery_sms,
     set_document_pdf_url,
+    text_reference_to_citizen,
 )
 from app.ledger import LedgerEventType, append_ledger
 from app.pdf import render_and_compile
@@ -112,6 +112,30 @@ async def execute(
                 ),
             }
         )
+
+    # The delivery must be the citizen's, not the model's. The check above
+    # only covers the turn that asks: each new chat turn forgets the widgets
+    # the browser hid (sessions.dismiss_open_widgets), the delivery choice
+    # included. So in a text turn, the citizen's own message has to name
+    # this delivery — "Salvare PDF" clicked or "salvează-l" typed — or
+    # nothing is delivered.
+    if ctx.user_message is not None:
+        named = delivery_from_text(ctx.user_message)
+        if named != delivery:
+            return ToolResult(
+                output={
+                    "refused": True,
+                    "reason": (
+                        f"Cetățeanul nu a ales livrarea {delivery!r} în mesajul lui "
+                        f"({'a ales ' + repr(named) if named else 'nu a numit nicio livrare'}). "
+                        f"Întreabă-l cu propose_widget(type='choice', "
+                        f"question='Cum vrei să primești cererea completată?', "
+                        f"options=['Salvare PDF', 'Confirmare pe SMS', 'Tipărire', "
+                        f"'Descarcă PDF']) și apelează complete_document doar după "
+                        f"ce răspunde."
+                    ),
+                }
+            )
 
     doc_id = session.active_document_id
     doc_uuid = UUID(doc_id)
@@ -209,21 +233,13 @@ async def execute(
         },
         document_id=doc_uuid,
     )
-    # SMS is best-effort: a Twilio blip MUST NOT cause the LLM to retry and
-    # double-finalize. Log + carry on; the doc is already finalized and the
-    # delivery frontend_event will still fire.
-    sms_sent = False
-    if delivery == "send":
-        try:
-            phone = await asyncio.to_thread(fetch_phone_for_citizen, citizen_uuid)
-            sms_sent = await asyncio.to_thread(send_delivery_sms, phone, ref_number)
-        except Exception:  # noqa: BLE001
-            log.exception(
-                "send_delivery_sms failed for doc=%s ref=%s — doc remains "
-                "finalized, will not retry",
-                doc_id,
-                ref_number,
-            )
+    # Best-effort and never raises (text_reference_to_citizen): the document
+    # is finalized either way, and the outcome is reported, not guessed.
+    sms_status = (
+        await asyncio.to_thread(text_reference_to_citizen, citizen_uuid, ref_number)
+        if delivery == "send"
+        else None
+    )
 
     return ToolResult(
         output={
@@ -234,9 +250,9 @@ async def execute(
             "delivery": delivery,
             "ref_number": finalized["ref_number"],
             "status": finalized["status"],
-            # Whether a text actually left (no Twilio, or MOCK_OTP: it did
-            # not), so neither the agent nor the done screen claims one did.
-            "sms_sent": sms_sent,
+            # For "send": "sent", "not_configured" or "failed", so neither the
+            # agent nor the done screen claims a text that did not leave.
+            "sms_status": sms_status,
         },
         transition_to=SessionState.DELIVERED,
         frontend_event={
@@ -245,7 +261,7 @@ async def execute(
             "pdf_url": pdf_url,
             "delivery": delivery,
             "ref_number": ref_number,
-            "sms_sent": sms_sent,
+            "sms_status": sms_status,
         },
     )
 

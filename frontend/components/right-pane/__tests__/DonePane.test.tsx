@@ -25,14 +25,14 @@ const FALSE_CLAIMS =
   /trimis[ăa]? la primări|ajuns la primări|inbox|pe email|trimis la imprimant|programare confirmat|programare pentru ridicare/i;
 
 afterEach(() => {
-  useSessionStore.setState({ document: null, smsSent: null });
+  useSessionStore.setState({ document: null, smsStatus: null });
 });
 
 describe("DonePane", () => {
   it.each(["save", "send", "print", "download"] as const)(
     "delivery=%s: states the reference and the next step, claims nothing false",
     (delivery) => {
-      useSessionStore.setState({ document: finalized(delivery), smsSent: false });
+      useSessionStore.setState({ document: finalized(delivery), smsStatus: "not_configured" });
       const { container } = render(<DonePane />);
       expect(container.textContent).not.toMatch(FALSE_CLAIMS);
       expect(screen.getByText("CV-1111-2222")).toBeInTheDocument();
@@ -45,19 +45,27 @@ describe("DonePane", () => {
   );
 
   it("says an SMS left only when the backend reported one", () => {
-    useSessionStore.setState({ document: finalized("send"), smsSent: true });
+    useSessionStore.setState({ document: finalized("send"), smsStatus: "sent" });
     const { unmount } = render(<DonePane />);
     expect(screen.getByText("Ți-am trimis referința pe SMS.")).toBeInTheDocument();
     unmount();
 
-    useSessionStore.setState({ document: finalized("send"), smsSent: false });
+    useSessionStore.setState({ document: finalized("send"), smsStatus: "not_configured" });
     render(<DonePane />);
     expect(screen.queryByText("Ți-am trimis referința pe SMS.")).toBeNull();
-    expect(screen.getByText(/nu a plecat niciun mesaj/)).toBeInTheDocument();
+    expect(screen.getByText(/nu e configurat pe acest server/)).toBeInTheDocument();
+  });
+
+  it("tells a rejected SMS apart from a server without SMS", () => {
+    useSessionStore.setState({ document: finalized("send"), smsStatus: "failed" });
+    render(<DonePane />);
+    expect(screen.getByText(/SMS-ul nu a putut fi trimis/)).toBeInTheDocument();
+    expect(screen.queryByText(/nu e configurat/)).toBeNull();
+    expect(screen.queryByText("Ți-am trimis referința pe SMS.")).toBeNull();
   });
 
   it("does not guess after a reload, when the SMS outcome is unknown", () => {
-    useSessionStore.setState({ document: finalized("send"), smsSent: null });
+    useSessionStore.setState({ document: finalized("send"), smsStatus: null });
     render(<DonePane />);
     expect(screen.queryByText("Ți-am trimis referința pe SMS.")).toBeNull();
     expect(screen.getByText("Ai cerut confirmarea pe SMS.")).toBeInTheDocument();

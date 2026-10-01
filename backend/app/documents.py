@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import json as _json
+import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -189,6 +190,14 @@ def finalize_document(
     return dict(row)
 
 
+log = logging.getLogger("documents")
+
+# What happened to the reference text for delivery "send": Twilio accepted it,
+# this server has no SMS (no Twilio, or MOCK_OTP in the demo stack), or Twilio
+# was asked and failed. The citizen is told which.
+SmsStatus = Literal["sent", "not_configured", "failed"]
+
+
 def send_delivery_sms(phone: str, ref_number: str) -> bool:
     """Text the citizen their reference. True only if Twilio accepted it.
 
@@ -208,6 +217,21 @@ def send_delivery_sms(phone: str, ref_number: str) -> bool:
     client = TwilioClient(settings.twilio_account_sid, settings.twilio_auth_token)
     client.messages.create(from_=settings.twilio_phone_number, to=phone, body=body)
     return True
+
+
+def text_reference_to_citizen(citizen_id: UUID, ref_number: str) -> SmsStatus:
+    """Text the reference to the citizen's phone; never raises.
+
+    Best-effort by design: the document is already finalized, and a Twilio
+    error must not make the agent retry and finalize twice.
+    """
+    try:
+        phone = fetch_phone_for_citizen(citizen_id)
+        sent = send_delivery_sms(phone, ref_number)
+    except Exception:
+        log.exception("delivery SMS failed ref=%s; the document stays finalized", ref_number)
+        return "failed"
+    return "sent" if sent else "not_configured"
 
 
 def fetch_phone_for_citizen(citizen_id: UUID) -> str:
