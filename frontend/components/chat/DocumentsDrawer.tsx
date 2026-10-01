@@ -452,13 +452,10 @@ function DocDetail({
             </div>
           </div>
           <div>
-            <div className="dm-label">Verificat</div>
-            <div className="dm-value">
-              <span className="check" aria-hidden="true">
-                ✓
-              </span>
-              ROeID
-            </div>
+            {/* The persona login stands in for ROeID; nothing verified an
+                identity, so the label says how the citizen signed in. */}
+            <div className="dm-label">Autentificare</div>
+            <div className="dm-value">ROeID (demo)</div>
           </div>
         </div>
 
@@ -532,7 +529,7 @@ function DocDetail({
 
 /** What the citizen can trust about this document's history: the browser's
  * own re-derivation of the chain first, the server's flag only as a fallback. */
-function LedgerStatus({
+export function LedgerStatus({
   check,
   serverVerified,
 }: {
@@ -548,7 +545,9 @@ function LedgerStatus({
         </div>
         {check.signatures.status === "valid" ? (
           <div title={check.signatures.keyIds.join(", ")}>
-            ✓ Fiecare pas e semnat digital de primărie (cheia{" "}
+            {/* The key is this eGata server's (LEDGER_SIGNING_KEY), not the
+                primărie's: no institution signs anything here. */}
+            ✓ Fiecare pas e semnat cu cheia serverului eGata (id{" "}
             <code>{check.signatures.keyIds.map((k) => k.slice(-8)).join(", ")}</code>).
           </div>
         ) : check.signatures.status === "partial" ? (

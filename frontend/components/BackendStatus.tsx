@@ -28,24 +28,37 @@ export async function probeBackend(
   }
 }
 
+/** Down only if a second probe, `retryDelayMs` after a failed first one,
+ * fails too: a backend that sleeps when idle or is mid-deploy can miss the
+ * first while it starts. */
+export async function backendIsDown(
+  base: string,
+  retryDelayMs = 3000,
+  probe: (base: string) => Promise<boolean> = probeBackend,
+): Promise<boolean> {
+  if (await probe(base)) return false;
+  await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+  return !(await probe(base));
+}
+
 /** Says so, once, when the backend this build points at cannot be reached.
  * Without it a visitor to a deployment whose API is gone only ever sees
  * "A apărut o eroare" on login. Skipped under MSW mocks, which have no
  * /health. */
-export function BackendStatus() {
+export function BackendStatus({ retryDelayMs = 3000 }: { retryDelayMs?: number }) {
   const [down, setDown] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_USE_MOCKS === "1") return;
     let alive = true;
-    void probeBackend(API_BASE_URL).then((ok) => {
-      if (alive) setDown(!ok);
+    void backendIsDown(API_BASE_URL, retryDelayMs).then((isDown) => {
+      if (alive) setDown(isDown);
     });
     return () => {
       alive = false;
     };
-  }, []);
+  }, [retryDelayMs]);
 
   if (!down || dismissed) return null;
   return (

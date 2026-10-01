@@ -231,7 +231,11 @@ async def step(
     turn_started = time.perf_counter()
 
     tool_calls_emitted: list[dict[str, Any]] = []
-    ctx = ToolContext(citizen_id=session.citizen_id, citizen_attributes=citizen_attrs)
+    ctx = ToolContext(
+        citizen_id=session.citizen_id,
+        citizen_attributes=citizen_attrs,
+        user_message=user_message,
+    )
 
     yield Event("session_snapshot", session.snapshot())
 

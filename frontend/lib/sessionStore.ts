@@ -12,6 +12,7 @@ import type {
   Procedure,
   ScenarioPlan,
   SessionSnapshot,
+  SmsStatus,
   VoiceStatus,
   WidgetSpec,
 } from "./types";
@@ -95,9 +96,9 @@ export interface SessionState {
   sending: boolean;
   scenarioPlan: ScenarioPlan | null;
   lookupMatches: LookupMatch[];
-  /** Whether the delivery SMS actually left, as the backend reported it on
+  /** What happened to the delivery SMS, as the backend reported it on
    * `document_delivered`. null = not known (e.g. the page was reloaded). */
-  smsSent: boolean | null;
+  smsStatus: SmsStatus | null;
 
   // The backend session — single source of truth for agent state.
   session: SessionSnapshot | null;
@@ -199,7 +200,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   sending: false,
   scenarioPlan: null,
   lookupMatches: [],
-  smsSent: null,
+  smsStatus: null,
   session: null,
 
   setSession(snapshot) {
@@ -319,7 +320,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         // The right pane derives "delivered" from session.state. We just
         // need to refresh the doc so ref_number / pdf_url land in the
         // document object for the DonePane to read.
-        set({ smsSent: event.sms_sent ?? null });
+        set({ smsStatus: event.sms_status ?? null });
         try {
           const fresh = await api.getDocument(event.document_id);
           set({ document: fresh });
@@ -388,7 +389,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       procedure,
       messages,
       drawerOpen: false,
-      smsSent: null,
+      smsStatus: null,
     });
     pushPath(`/r/${doc.id}`);
   },
@@ -435,7 +436,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       conversationId,
       messages,
       drawerOpen: false,
-      smsSent: null,
+      smsStatus: null,
     });
     pushPath(`/r/${docId}`);
   },
@@ -725,7 +726,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       profileMenuOpen: false,
       scenarioPlan: null,
       lookupMatches: [],
-      smsSent: null,
+      smsStatus: null,
       session: null,
     });
     pushPath("/");
