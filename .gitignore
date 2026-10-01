@@ -79,3 +79,6 @@ backend/uvicorn.log
 
 # Local runtime data: generated PDFs (citizen PII) and the ledger signing key.
 .data/
+
+# Playwright MCP page snapshots (tool residue)
+.playwright-mcp/
