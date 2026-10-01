@@ -85,6 +85,7 @@ from app.demo import router as demo_router
 from app.documents import router as documents_router
 from app.files import router as files_router
 from app.health import router as health_router
+from app.log_redaction import scrub_sentry_event
 from app.pdf import PdfRenderError, PdfRendererUnavailable
 from app.procedures import router as procedures_router
 from app.reminders import router as reminders_router
@@ -114,6 +115,8 @@ if _SENTRY_DSN:
             traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
             integrations=[FastApiIntegration()],
             send_default_pii=False,
+            before_send=scrub_sentry_event,
+            before_send_transaction=scrub_sentry_event,
         )
         log.info("Sentry initialized for backend")
     except ImportError:

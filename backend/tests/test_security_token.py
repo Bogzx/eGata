@@ -90,3 +90,30 @@ def test_alg_none_is_rejected() -> None:
     )
     with pytest.raises(HTTPException):
         decode_token(unsigned)
+
+
+def _signed(claims: dict[str, object]) -> str:
+    s = get_settings()
+    return jwt.encode(claims, s.jwt_signing_secret, algorithm=s.jwt_algorithm)
+
+
+@pytest.mark.parametrize("iss", ["egata-voice", "someone-else"])
+def test_token_from_another_issuer_is_rejected(iss: str) -> None:
+    """Same secret, other purpose: not a login."""
+    token = _signed({"sub": "11111111-1111-1111-1111-111111111111", "iss": iss,
+                     "exp": int(time.time()) + 60})
+    with pytest.raises(HTTPException) as exc:
+        decode_token(token)
+    assert exc.value.status_code == 401
+
+
+def test_token_without_issuer_is_rejected() -> None:
+    token = _signed({"sub": "11111111-1111-1111-1111-111111111111",
+                     "exp": int(time.time()) + 60})
+    with pytest.raises(HTTPException) as exc:
+        decode_token(token)
+    assert exc.value.status_code == 401
+
+
+def test_minted_tokens_still_pass() -> None:
+    assert decode_token(mint_access_token("11111111-1111-1111-1111-111111111111"))["iss"] == "egata"
