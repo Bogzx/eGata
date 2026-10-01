@@ -1,7 +1,7 @@
 name: CI
 
-# Ports autoresearch/verify.sh (pytest + vitest + tsc --noEmit) and
-# autoresearch/guard.sh (typecheck gate) into Actions, and adds a Postgres job
+# Ports docs/archive/autoresearch/verify.sh (pytest + vitest + tsc --noEmit) and
+# docs/archive/autoresearch/guard.sh (typecheck gate) into Actions, and adds a Postgres job
 # the local scripts could not run: migrations/009's hash-chain SQL is only
 # meaningfully tested against a real server.
 #

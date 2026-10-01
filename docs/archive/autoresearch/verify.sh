@@ -12,7 +12,7 @@
 # Build (next build) is reserved for the guard, not the metric.
 
 set +e
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../../.."  # repo root (moved to docs/archive/autoresearch)
 
 backend_fail=0
 backend_err=0
