@@ -90,7 +90,7 @@ def preview_pdf(
 ) -> Response:
     """Render the procedure's LaTeX template populated with the citizen's
     profile (and `default_from` chains) so the user can see exactly what
-    PDF would land in their inbox at the end of the conversation. Used by
+    PDF they would get at the end of the conversation. Used by
     the "Vezi documentul" preview popup in MatchesPane.
     """
     from app.citizens import fetch_citizen_by_id

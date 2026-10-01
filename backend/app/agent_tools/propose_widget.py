@@ -77,7 +77,7 @@ async def execute(
     # Review-confirmation gate: in REVIEWING, the LLM must propose a
     # confirm widget first ("verifică datele") and the user must answer Da
     # before any choice widget (i.e. the delivery picker) is allowed.
-    # Without this, the LLM tends to skip straight to "Cum vrei să trimitem?"
+    # Without this, the LLM tends to skip straight to the delivery picker
     # — we want the user to actually look at the auto-filled form first.
     if (
         type == "choice"
@@ -94,7 +94,7 @@ async def execute(
                     "confirmare. Apelează acum: propose_widget(type='confirm', "
                     "question='Verifică datele din dreapta. Sunt complete și corecte?'). "
                     "După ce cetățeanul răspunde Da, vei putea propune widget-ul "
-                    "de livrare ('Cum vrei să trimitem cererea?')."
+                    "de livrare ('Cum vrei să primești cererea completată?')."
                 ),
             }
         )

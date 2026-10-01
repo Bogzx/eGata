@@ -37,7 +37,7 @@ export function DocumentList({ documents, procedures }: Props) {
                   ) : null}
                 </div>
                 {d.status === "finalized" ? (
-                  <Badge variant="default">Trimisă</Badge>
+                  <Badge variant="default">Finalizată</Badge>
                 ) : (
                   <Badge variant="secondary">În lucru</Badge>
                 )}

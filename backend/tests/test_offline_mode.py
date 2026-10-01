@@ -117,7 +117,7 @@ def test_no_and_greeting() -> None:
 
 @pytest.mark.parametrize(
     ("text", "delivery"),
-    [("Salvare PDF", "save"), ("Trimitere la primărie", "send"), ("Tipărire", "print"),
+    [("Salvare PDF", "save"), ("Confirmare pe SMS", "send"), ("Tipărire", "print"),
      ("Descarcă PDF", "download"), ("trimite-mi pe sms", "send"), ("nu știu", None)],
 )
 def test_delivery_parsing(text: str, delivery: str | None) -> None:

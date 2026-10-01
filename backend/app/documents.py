@@ -189,19 +189,25 @@ def finalize_document(
     return dict(row)
 
 
-def send_delivery_sms(phone: str, ref_number: str) -> None:
+def send_delivery_sms(phone: str, ref_number: str) -> bool:
+    """Text the citizen their reference. True only if Twilio accepted it.
+
+    The text says what happened and nothing more: eGata fills and stores
+    the form, it does not file it with the primărie.
+    """
     settings = get_settings()
     if settings.mock_otp:
         # Reuse the mock-mode flag for SMS in dev to avoid Twilio costs.
-        return
+        return False
     if not settings.twilio_account_sid or not settings.twilio_phone_number:
-        return
+        return False
     body = (
-        f"eGata: cererea a fost trimisă la primărie. "
-        f"Număr de înregistrare: {ref_number}."
+        f"eGata: cererea ta e completată, referința {ref_number}. "
+        "PDF-ul e în Documentele mele; semnează-l și depune-l la ghișeul primăriei."
     )
     client = TwilioClient(settings.twilio_account_sid, settings.twilio_auth_token)
     client.messages.create(from_=settings.twilio_phone_number, to=phone, body=body)
+    return True
 
 
 def fetch_phone_for_citizen(citizen_id: UUID) -> str:
