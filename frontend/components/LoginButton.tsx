@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { personas } from "@/mocks/fixtures";
 import type { LoginChallenge } from "@/lib/types";
@@ -24,8 +24,10 @@ export function LoginButton({ onChallenge }: Props) {
     try {
       const r = await api.loginRoeid(demoMode ? { persona_id: persona } : {});
       onChallenge(r);
-    } catch {
-      setError(t("common.error"));
+    } catch (e) {
+      // fetch rejects (TypeError) when the server cannot be reached at all;
+      // an ApiError means it answered. Only the second is the user's to retry.
+      setError(t(e instanceof ApiError ? "common.error" : "common.server_unreachable"));
     } finally {
       setLoading(false);
     }

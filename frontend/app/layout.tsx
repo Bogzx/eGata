@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Onest, JetBrains_Mono } from "next/font/google";
 import { AccessGate } from "@/components/AccessGate";
+import { BackendStatus } from "@/components/BackendStatus";
 import { DemoResetButton } from "@/components/DemoResetButton";
 import { MockProvider } from "@/components/MockProvider";
 import { VoiceProvider } from "@/lib/voiceContext";
@@ -43,6 +44,7 @@ export default function RootLayout({
             <VoiceProvider>{children}</VoiceProvider>
           </AccessGate>
           <DemoResetButton />
+          <BackendStatus />
         </MockProvider>
       </body>
     </html>

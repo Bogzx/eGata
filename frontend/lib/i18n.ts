@@ -107,6 +107,9 @@ const strings = {
   "common.back": { standard: "Înapoi" },
   "common.loading": { standard: "Se încarcă..." },
   "common.error": { standard: "A apărut o eroare. Încearcă din nou." },
+  "common.server_unreachable": {
+    standard: "Serverul eGata nu răspunde. Încearcă mai târziu sau rulează aplicația local.",
+  },
   "common.save": { standard: "Salvează" },
   "common.next": { standard: "Următor" },
 } as const satisfies Record<string, Entry>;
