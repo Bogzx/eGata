@@ -9,6 +9,7 @@ import {
   Printer,
 } from "lucide-react";
 import { useSessionStore } from "@/lib/sessionStore";
+import type { SmsStatus } from "@/lib/types";
 // Note: "Conversație nouă" button lives in the topbar (TopBar.tsx) so it's
 // always reachable. Don't duplicate it here.
 
@@ -17,6 +18,13 @@ import { useSessionStore } from "@/lib/sessionStore";
 // not file the request with the primărie, e-mail it, print it or book an
 // appointment, so nothing here says it did: the citizen still signs the PDF
 // and takes it to the ghișeu below.
+
+// The backend's offline agent says the same (offline_agent._SMS_OUTCOME).
+const SMS_OUTCOME: Record<SmsStatus, string> = {
+  sent: "Ți-am trimis referința pe SMS.",
+  not_configured: "SMS-ul nu e configurat pe acest server, așa că nu a plecat niciun mesaj.",
+  failed: "SMS-ul nu a putut fi trimis. Referința e mai sus și în „Documentele mele”.",
+};
 
 type GhiseuInfo = {
   nume: string;
@@ -54,7 +62,7 @@ function ghiseuForProcedure(procedureId: string | undefined): GhiseuInfo {
 
 export function DonePane() {
   const document = useSessionStore((s) => s.document);
-  const smsSent = useSessionStore((s) => s.smsSent);
+  const smsStatus = useSessionStore((s) => s.smsStatus);
 
   const delivery = document?.delivery;
   const ghiseu = ghiseuForProcedure(document?.procedure_id);
@@ -77,11 +85,7 @@ export function DonePane() {
       ) : delivery === "send" ? (
         <p className="flex items-center gap-2 text-lg">
           <MessageSquare size={20} aria-hidden />
-          {smsSent === true
-            ? "Ți-am trimis referința pe SMS."
-            : smsSent === false
-              ? "SMS-ul nu e configurat pe acest server, așa că nu a plecat niciun mesaj."
-              : "Ai cerut confirmarea pe SMS."}
+          {smsStatus ? SMS_OUTCOME[smsStatus] : "Ai cerut confirmarea pe SMS."}
         </p>
       ) : (
         <p className="flex items-center gap-2 text-lg">

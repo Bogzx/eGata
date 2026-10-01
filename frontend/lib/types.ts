@@ -232,6 +232,10 @@ export type LookupMatch = {
 
 // ---- Chat-first redesign types ----
 
+/** Delivery "send": Twilio accepted the text, this server has no SMS, or
+ * Twilio was asked and failed (backend documents.text_reference_to_citizen). */
+export type SmsStatus = "sent" | "not_configured" | "failed";
+
 export type WidgetSpec =
   | {
       type: "choice";
@@ -321,8 +325,8 @@ export type FrontendEvent =
       pdf_url: string;
       delivery: "save" | "send" | "print" | "download";
       ref_number: string;
-      /** Only for delivery "send": whether the SMS actually left. */
-      sms_sent?: boolean;
+      /** Only for delivery "send": what happened to the reference text. */
+      sms_status?: SmsStatus | null;
     }
   | { type: "redirect"; target: string; name: string; url: string }
   | {

@@ -243,7 +243,7 @@ def test_sms_delivery_claims_only_what_happened(client: Any) -> None:
     ]
     delivered = [p for p in payloads if isinstance(p, dict) and p.get("type") == "document_delivered"]
     assert delivered and delivered[0]["delivery"] == "send"
-    assert delivered[0]["sms_sent"] is False
+    assert delivered[0]["sms_status"] == "not_configured"
     assert chat.session().state.value == "delivered"
 
     text = r.text.lower()

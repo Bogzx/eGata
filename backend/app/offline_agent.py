@@ -23,14 +23,14 @@ from __future__ import annotations
 
 import json
 import logging
-import re
-import unicodedata
 from collections.abc import AsyncIterator
 from typing import Any
 from uuid import UUID, uuid4
 
 from app.agent_tools import ToolContext, ToolResult, dispatch
 from app.agent_tools.lookup_procedure import MATCH_THRESHOLD
+from app.delivery import DELIVERY_OPTIONS, DELIVERY_QUESTION, delivery_from_text
+from app.delivery import fold as _fold
 from app.documents import fetch_document
 from app.procedure_state import evaluate_field_states, find_field
 from app.procedures import get_registry
@@ -54,18 +54,6 @@ OFFLINE_NOTICE = (
 # The exact prompts the LLM path uses (session_engine / propose_widget), so the
 # frontend treats both backends' widgets the same.
 REVIEW_QUESTION = "Verifică datele din dreapta. Sunt complete și corecte?"
-DELIVERY_QUESTION = "Cum vrei să primești cererea completată?"
-# "send" texts the citizen their reference (Twilio). Nothing here files the
-# form with the primărie, so no option may say it does.
-DELIVERY_OPTIONS = ["Salvare PDF", "Confirmare pe SMS", "Tipărire", "Descarcă PDF"]
-_DELIVERY_BY_KEYWORD = [
-    ("descarc", "download"),
-    ("salv", "save"),
-    ("trimit", "send"),
-    ("sms", "send"),
-    ("tipar", "print"),
-    ("print", "print"),
-]
 
 # Two lookup scores closer than this are offered as a choice instead of
 # guessing (e.g. "certificat de urbanism" matches both cerere- and prelungire-).
@@ -80,12 +68,6 @@ _GREETINGS = {"buna", "ziua", "salut", "salutare", "hello", "hi", "hey", "neata"
 _RESET = ("renunt", "anuleaza", "anulez", "de la capat", "alta cerere", "o alta cerere", "reset")
 _CATALOG = ("ce proceduri", "ce cereri", "ce poti face", "ce stii", "lista", "catalog",
             "ce servicii", "ajutor", "help")
-
-
-def _fold(text: str) -> str:
-    text = unicodedata.normalize("NFKD", (text or "").lower())
-    text = "".join(c for c in text if not unicodedata.combining(c))
-    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9: ]+", " ", text)).strip()
 
 
 def _words(text: str) -> set[str]:
@@ -107,12 +89,6 @@ def _is_greeting(text: str) -> bool:
     return not words or words <= _GREETINGS
 
 
-def _delivery_for(text: str) -> str | None:
-    folded = _fold(text)
-    for keyword, delivery in _DELIVERY_BY_KEYWORD:
-        if keyword in folded:
-            return delivery
-    return None
 
 
 class _Turn:
@@ -224,6 +200,15 @@ def _drop_pending(session: Session, *, field: str | None = None, question: str |
         for w in session.pending_widgets
         if not ((field and w.target_field == field) or (question and w.question == question))
     ]
+
+
+# What the citizen is told about the reference text, per sms_status. The
+# done screen (frontend DonePane) says the same.
+_SMS_OUTCOME = {
+    "sent": "Ți-am trimis referința pe SMS.",
+    "not_configured": "SMS-ul nu e configurat pe acest server, așa că nu a plecat niciun mesaj.",
+    "failed": "SMS-ul nu a putut fi trimis. Referința e mai sus și în „Documentele mele”.",
+}
 
 
 # ---- steps of the script ----
@@ -398,7 +383,7 @@ async def _propose_review(turn: _Turn) -> None:
 
 async def _review(turn: _Turn, message: str) -> None:
     session = turn.session
-    delivery = _delivery_for(message)
+    delivery = delivery_from_text(message)
 
     if not is_review_confirmed(session):
         if _is_yes(message):
@@ -439,11 +424,7 @@ async def _review(turn: _Turn, message: str) -> None:
         "dreapta și în „Documentele mele”; fiecare pas e înregistrat în jurnalul de audit."
     )
     if delivery == "send":
-        turn.say(
-            "Ți-am trimis referința pe SMS."
-            if result.output.get("sms_sent")
-            else "SMS-ul nu e configurat pe acest server, așa că nu a plecat niciun mesaj."
-        )
+        turn.say(_SMS_OUTCOME.get(result.output.get("sms_status") or "", _SMS_OUTCOME["failed"]))
     turn.say("eGata nu depune cererea pentru tine: semnează PDF-ul și depune-l la ghișeul primăriei.")
     turn.say("Te mai pot ajuta cu altceva?")
 
@@ -516,7 +497,11 @@ async def step(
     citizen_attrs: dict[str, Any] | None = None,
 ) -> AsyncIterator[Event]:
     """Offline counterpart of `session_engine.step` (same events, same history)."""
-    ctx = ToolContext(citizen_id=session.citizen_id, citizen_attributes=citizen_attrs or {})
+    ctx = ToolContext(
+        citizen_id=session.citizen_id,
+        citizen_attributes=citizen_attrs or {},
+        user_message=user_message,
+    )
     first_turn = not _has_spoken(session.history)
     turn = _Turn(session, ctx, user_message)
     session.history = list(turn.messages)
