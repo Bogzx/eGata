@@ -153,7 +153,7 @@ def _check_ledger_setup() -> None:
             log.warning(
                 "INSECURE CONFIG: the backend connects to Postgres as %s (%s). That role "
                 "can drop the ledger's append-only triggers. Connect as egata_app "
-                "(README: 'Upgrading an existing database').",
+                "(docs/REFERENCE.md: 'Upgrading an existing database').",
                 row["me"], "superuser" if row["su"] else "owner of ledger",
             )
     except Exception:
