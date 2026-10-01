@@ -2,7 +2,7 @@
 # Guard command: frontend build + backend collect must succeed.
 # Exits 0 on success, non-zero on failure.
 set -e
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../../.."  # repo root (moved to docs/archive/autoresearch)
 
 # Backend: tests must at least *collect* (no syntax/import errors).
 pushd backend > /dev/null
