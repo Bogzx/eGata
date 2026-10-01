@@ -31,12 +31,29 @@ def redact(text: str) -> str:
     return text
 
 
+# Keys whose string values are identifiers or version tags, never personal
+# data, and which the patterns above would corrupt: about 1% of 32-hex Sentry
+# event/trace/span ids contain 13 consecutive digits (read as a CNP), and a
+# release like "egata@1.4.2" reads as an e-mail. A spliced "[CNP]" breaks the
+# link between an event and its trace.
+_ID_KEYS = frozenset({"id", "sid", "release", "dist"})
+
+
+def _is_id_key(key: Any) -> bool:
+    return isinstance(key, str) and (key in _ID_KEYS or key.endswith("_id"))
+
+
 def redact_structure(value: Any) -> Any:
-    """`redact` applied to every string inside nested dicts, lists and tuples."""
+    """`redact` applied to every string inside nested dicts, lists and tuples,
+    except the string values of identifier keys (`*_id`, `id`, `sid`,
+    `release`, `dist`)."""
     if isinstance(value, str):
         return redact(value)
     if isinstance(value, dict):
-        return {k: redact_structure(v) for k, v in value.items()}
+        return {
+            k: v if _is_id_key(k) and isinstance(v, str) else redact_structure(v)
+            for k, v in value.items()
+        }
     if isinstance(value, list):
         return [redact_structure(v) for v in value]
     if isinstance(value, tuple):
